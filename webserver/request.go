@@ -16,6 +16,7 @@ type Request interface {
 
 type httpRequest struct {
 	*http.Request
+	usernameClaimField string
 }
 
 func (h httpRequest) getJwtClaims() jwt.MapClaims {
@@ -32,6 +33,11 @@ func (h httpRequest) getJwtClaims() jwt.MapClaims {
 
 func (h httpRequest) IsUserInGroup(groupName string) (bool, error) {
 	claims := h.getJwtClaims()
+	// ignoring Service Accounts
+	iss, ok := claims["iss"]
+	if iss == "kubernetes/serviceaccount" {
+		return false, nil
+	}
 	g, ok := claims["groups"]
 	if !ok {
 		return false, fmt.Errorf("missing groups claim in JWT")
@@ -45,13 +51,13 @@ func (h httpRequest) IsUserInGroup(groupName string) (bool, error) {
 
 func (h httpRequest) GetUserName() (string, error) {
 	claims := h.getJwtClaims()
-	username, ok := claims["preferred_username"]
+	username, ok := claims[h.usernameClaimField]
 	if !ok {
 		return "", fmt.Errorf("missing groups claim in JWT")
 	}
 	return username.(string), nil
 }
 
-func NewHttpRequest(request *http.Request) Request {
-	return &httpRequest{Request: request}
+func NewHttpRequest(request *http.Request, usernameClaimField string) Request {
+	return &httpRequest{Request: request, usernameClaimField: usernameClaimField}
 }

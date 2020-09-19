@@ -12,13 +12,8 @@ import (
 	"time"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
-	"github.com/gorilla/websocket"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/cert"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,7 +24,7 @@ var (
 	log = ctrl.Log.WithName("namespace_filter")
 )
 
-func NewKubeFilter(listeningPort uint, controlPlaneUrl, capsuleUserGroup string, config *rest.Config) (*kubeFilter, error) {
+func NewKubeFilter(listeningPort uint, controlPlaneUrl, capsuleUserGroup, usernameClaimField string, config *rest.Config) (*kubeFilter, error) {
 	u, err := url.Parse(controlPlaneUrl)
 	if err != nil {
 		log.Error(err, "cannot parse Kubernetes Control Plane URL")
@@ -62,16 +57,12 @@ func NewKubeFilter(listeningPort uint, controlPlaneUrl, capsuleUserGroup string,
 		}(),
 	}
 
-	cs, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
 	return &kubeFilter{
 		capsuleUserGroup:   capsuleUserGroup,
 		reverseProxy:       reverseProxy,
 		listeningPort:      listeningPort,
-		namespaceClientSet: cs.CoreV1().Namespaces(),
+		bearerToken:        config.BearerToken,
+		usernameClaimField: usernameClaimField,
 	}, nil
 }
 
@@ -80,7 +71,8 @@ type kubeFilter struct {
 	reverseProxy       *httputil.ReverseProxy
 	client             client.Client
 	listeningPort      uint
-	namespaceClientSet v1.NamespaceInterface
+	bearerToken        string
+	usernameClaimField string
 }
 
 func (n *kubeFilter) InjectClient(client client.Client) error {
@@ -98,19 +90,16 @@ func (n kubeFilter) isWatchEndpoint(request *http.Request) (ok bool) {
 
 func (n kubeFilter) Start(stop <-chan struct{}) error {
 	http.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
-		if n.isWatchEndpoint(request) {
-			log.Info("handling /api/v1/namespaces for WebSocket")
-			n.filterWsNamespace(writer, request)
-		}
-		if request.Method == "GET" {
-			log.Info("handling /api/v1/namespaces")
-			n.filterHttpNamespace(writer, request)
-			return
+		if request.Method == "GET" || n.isWatchEndpoint(request) {
+			log.Info("decorating /api/v1/namespaces request")
+			if err := n.decorateRequest(writer, request); err != nil {
+				n.handleError(err, writer)
+				return
+			}
 		}
 		n.reverseProxyFunc(writer, request)
 	})
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		log.Info("handling /")
 		n.reverseProxyFunc(writer, request)
 	})
 	http.HandleFunc("/_healthz", func(writer http.ResponseWriter, request *http.Request) {
@@ -130,6 +119,7 @@ func (n kubeFilter) Start(stop <-chan struct{}) error {
 }
 
 func (n kubeFilter) reverseProxyFunc(writer http.ResponseWriter, request *http.Request) {
+	log.Info("handling " + request.URL.String())
 	n.reverseProxy.ServeHTTP(writer, request)
 }
 
@@ -137,9 +127,10 @@ type errorJson struct {
 	Error string `json:"error"`
 }
 
-func (n kubeFilter) handleError(err error, msg string, writer http.ResponseWriter) {
-	log.Error(err, msg)
+func (n kubeFilter) handleError(err error, writer http.ResponseWriter) {
+	log.Error(err, "handling failed request")
 	writer.WriteHeader(500)
+	writer.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(errorJson{Error: err.Error()})
 	_, _ = writer.Write(b)
 }
@@ -149,7 +140,7 @@ func (n kubeFilter) getOwnedNamespacesForUser(username string) (res NamespaceLis
 	f := client.MatchingFields{
 		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", "User", username),
 	}
-	if err := n.client.List(context.TODO(), tl, f); err != nil {
+	if err := n.client.List(context.Background(), tl, f); err != nil {
 		return nil, fmt.Errorf("cannot retrieve Tenant list: %s", err.Error())
 	}
 
@@ -184,111 +175,44 @@ func (n kubeFilter) getLabelSelectorForUser(username string) (labels.Selector, e
 	return labels.NewSelector().Add(*req), nil
 }
 
-func (n kubeFilter) filterHttpNamespace(writer http.ResponseWriter, request *http.Request) {
-	r := NewHttpRequest(request)
+func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Request) error {
+	r := NewHttpRequest(request, n.usernameClaimField)
 
 	if ok, err := r.IsUserInGroup(n.capsuleUserGroup); err != nil {
-		n.handleError(err, "cannot determinate User group", writer)
-		return
+		return fmt.Errorf("cannot determinate User group: %s", err.Error())
 	} else if !ok {
-		n.reverseProxyFunc(writer, request)
-		return
+		// not a Capsule user, let's break
+		return nil
 	}
 
 	var username string
 	var err error
 	username, err = r.GetUserName()
 	if err != nil {
-		n.handleError(err, "cannot determinate username", writer)
-		return
+		return fmt.Errorf("cannot determinate username: %s", err.Error())
 	}
 
 	var s labels.Selector
 	s, err = n.getLabelSelectorForUser(username)
 	if err != nil {
-		n.handleError(err, "cannot create label selector", writer)
-		return
+		return fmt.Errorf("cannot create label selector: %s", err)
 	}
 
-	nl := &corev1.NamespaceList{}
-	err = n.client.List(context.TODO(), nl, &client.ListOptions{
-		LabelSelector: s,
-	})
-	if err != nil {
-		n.handleError(err, "cannot list Tenant resources", writer)
-		return
+	q := request.URL.Query()
+	if e := q.Get("labelSelector"); len(e) > 0 {
+		v := e + "," + s.String()
+		q.Add("labelSelector", v)
+		log.Info("labelSelector updated", "selector", v)
+	} else {
+		q.Add("labelSelector", s.String())
+		log.Info("labelSelector updated", "selector", s.String())
 	}
-	var b []byte
-	b, err = json.Marshal(nl)
-	if err != nil {
-		n.handleError(err, "cannot marshal Namespace List resource", writer)
-		return
-	}
-	_, _ = writer.Write(b)
-}
+	log.Info("updating RawQuery", "query", q.Encode())
+	request.URL.RawQuery = q.Encode()
 
-func (n kubeFilter) namespacesGet(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		if len(request.Header.Get("Upgrade")) > 0 {
-			n.filterWsNamespace(writer, request)
-			return
-		}
-		if request.Method == "GET" {
-			n.filterHttpNamespace(writer, request)
-			return
-		}
-		n.reverseProxyFunc(writer, request)
-	}
-}
+	log.Info("Updating the token", "token", n.bearerToken)
+	request.Header.Set("Authorization", "Bearer "+n.bearerToken)
 
-func (n *kubeFilter) filterWsNamespace(writer http.ResponseWriter, request *http.Request) {
-	r := NewHttpRequest(request)
-
-	if ok, err := r.IsUserInGroup(n.capsuleUserGroup); err != nil {
-		log.Error(err, "cannot determinate User group")
-		panic(err)
-	} else if !ok {
-		n.reverseProxyFunc(writer, request)
-		return
-	}
-
-	var username string
-	var err error
-	username, err = r.GetUserName()
-	if err != nil {
-		log.Error(err, "cannot determinate User username")
-		panic(err)
-	}
-
-	u := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
-	c, err := u.Upgrade(writer, request, nil)
-	if err != nil {
-		log.Error(err, "cannot upgrade connection")
-		panic(err)
-	}
-	defer func() {
-		_ = c.Close()
-	}()
-
-	s, _ := n.getLabelSelectorForUser(username)
-	watch, err := n.namespaceClientSet.Watch(context.Background(), metav1.ListOptions{
-		LabelSelector: s.String(),
-		Watch:         true,
-	})
-	if err != nil {
-		log.Error(err, "cannot start watch")
-		panic(err)
-	}
-
-	for event := range watch.ResultChan() {
-		err = c.WriteMessage(websocket.TextMessage, NewMessage(event).Serialize())
-		if err != nil {
-			log.Error(err, "cannot write websocket message")
-			watch.Stop()
-		}
-	}
+	log.Info("proxying to API Server", "url", request.URL.String())
+	return nil
 }
