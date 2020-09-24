@@ -63,6 +63,7 @@ func (n kubeFilter) checkJwt(fn func(writer http.ResponseWriter, request *http.R
 		var err error
 
 		token := strings.Replace(request.Header.Get("Authorization"), "Bearer ", "", -1)
+		log.V(4).Info("Checking JWT token", "value", token)
 
 		tr := &v1.TokenReview{
 			Spec: v1.TokenReviewSpec{
@@ -74,6 +75,9 @@ func (n kubeFilter) checkJwt(fn func(writer http.ResponseWriter, request *http.R
 			n.handleError(err, writer)
 			return
 		}
+
+		log.V(5).Info("TokenReview", "value", tr.String())
+
 		if statusErr := tr.Status.Error; len(statusErr) > 0 {
 			err = fmt.Errorf("cannot verify the token due to error")
 			log.Error(err, statusErr)
@@ -123,7 +127,7 @@ func (n kubeFilter) Start(stop <-chan struct{}) error {
 }
 
 func (n kubeFilter) reverseProxyFunc(writer http.ResponseWriter, request *http.Request) {
-	log.V(2).Info("handling " + request.URL.String())
+	log.V(5).Info("debugging request", "uri", request.RequestURI, "method", request.Method)
 	n.reverseProxy.ServeHTTP(writer, request)
 }
 
@@ -222,6 +226,7 @@ func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Re
 	if ok, err := r.IsUserInGroup(n.capsuleUserGroup); err != nil {
 		return fmt.Errorf("cannot determinate User group: %s", err.Error())
 	} else if !ok {
+		log.V(5).Info("current user is not a Capsule one", "Authorization Header", request.Header.Get("Authorization"))
 		// not a Capsule user, let's break
 		return nil
 	}
@@ -232,6 +237,8 @@ func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Re
 	if err != nil {
 		return fmt.Errorf("cannot determinate username: %s", err.Error())
 	}
+
+	log.V(4).Info("Getting user from request", "user", username)
 
 	var s labels.Selector
 	s, err = n.getLabelSelectorForUser(username)
@@ -258,6 +265,5 @@ func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Re
 	log.V(4).Info("Updating the token", "token", n.bearerToken)
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
 
-	log.Info("proxying to API Server", "url", request.URL.String())
 	return nil
 }
