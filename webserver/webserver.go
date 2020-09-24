@@ -2,13 +2,10 @@ package webserver
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"strings"
 	"time"
 
@@ -16,8 +13,6 @@ import (
 	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/cert"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -26,45 +21,18 @@ var (
 	log = ctrl.Log.WithName("namespace_filter")
 )
 
-func NewKubeFilter(listeningPort uint, controlPlaneUrl, capsuleUserGroup, usernameClaimField string, config *rest.Config) (*kubeFilter, error) {
-	u, err := url.Parse(controlPlaneUrl)
-	if err != nil {
-		log.Error(err, "cannot parse Kubernetes Control Plane URL")
-		return nil, err
-	}
+func NewKubeFilter(opts ListenerOptions, srv ServerOptions) (*kubeFilter, error) {
 
-	reverseProxy := httputil.NewSingleHostReverseProxy(u)
+	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneUrl())
 	reverseProxy.FlushInterval = time.Millisecond * 100
-	reverseProxy.Transport = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
-			return (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).DialContext(ctx, network, addr)
-		},
-		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig: func() *tls.Config {
-			cp, _ := cert.NewPoolFromBytes(config.CAData)
-			return &tls.Config{
-				InsecureSkipVerify: true,
-				Certificates: append([]tls.Certificate{}, tls.Certificate{
-					Certificate: append([][]byte{}, config.CertData),
-					PrivateKey:  append([][]byte{}, config.KeyData),
-				}),
-				RootCAs:    cp,
-				NextProtos: config.NextProtos,
-				ServerName: config.ServerName,
-			}
-		}(),
-	}
+	reverseProxy.Transport = opts.ReverseProxyTransport()
 
 	return &kubeFilter{
-		capsuleUserGroup:   capsuleUserGroup,
+		capsuleUserGroup:   opts.UserGroupName(),
 		reverseProxy:       reverseProxy,
-		listeningPort:      listeningPort,
-		config:             config,
-		usernameClaimField: usernameClaimField,
+		bearerToken:        opts.BearerToken(),
+		usernameClaimField: opts.PreferredUsernameClaim(),
+		serverOptions:      srv,
 	}, nil
 }
 
@@ -72,9 +40,9 @@ type kubeFilter struct {
 	capsuleUserGroup   string
 	reverseProxy       *httputil.ReverseProxy
 	client             client.Client
-	listeningPort      uint
+	bearerToken        string
 	usernameClaimField string
-	config             *rest.Config
+	serverOptions      ServerOptions
 }
 
 func (n *kubeFilter) InjectClient(client client.Client) error {
@@ -136,7 +104,15 @@ func (n kubeFilter) Start(stop <-chan struct{}) error {
 	})
 
 	go func() {
-		if err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", n.listeningPort), nil); err != nil {
+		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
+
+		var err error
+		if n.serverOptions.IsListeningTls() {
+			err = http.ListenAndServeTLS(addr, n.serverOptions.TlsCertificatePath(), n.serverOptions.TlsCertificateKeyPath(), nil)
+		} else {
+			err = http.ListenAndServe(addr, nil)
+		}
+		if err != nil {
 			panic(err)
 		}
 	}()
@@ -279,8 +255,8 @@ func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Re
 	log.V(4).Info("updating RawQuery", "query", q.Encode())
 	request.URL.RawQuery = q.Encode()
 
-	log.V(4).Info("Updating the token", "token", n.config.BearerToken)
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.config.BearerToken))
+	log.V(4).Info("Updating the token", "token", n.bearerToken)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
 
 	log.Info("proxying to API Server", "url", request.URL.String())
 	return nil
