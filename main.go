@@ -36,6 +36,9 @@ func main() {
 	k8sControlPlaneUrl := flag.String("k8s-control-plane-url", "https://kubernetes.default.svc", "Kubernetes control plane URL (default: https://kubernetes.default.svc)")
 	capsuleUserGroup := flag.String("capsule-user-group", "clastix.capsule.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: clastix.capsule.io)")
 	usernameClaimField := flag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
+	bindSsl := flag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
+	certPath := flag.String("ssl-cert-path", "/opt/capsule-ns-filter/tls.crt", "Path to the TLS certificate (default: /opt/capsule-ns-filter/tls.crt)")
+	keyPath := flag.String("ssl-key-path", "/opt/capsule-ns-filter/tls.key", "Path to the TLS certificate key (default: /opt/capsule-ns-filter/tls.key)")
 
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
@@ -46,9 +49,10 @@ func main() {
 
 	log.Info("---")
 	log.Info(fmt.Sprintf("Manager listening on port %d", *listeningPort))
+	log.Info(fmt.Sprintf("Listening on HTTPS: %t", *bindSsl))
 	log.Info(fmt.Sprintf("Connecting to the Kubernete API Server listening on %s", *k8sControlPlaneUrl))
 	log.Info(fmt.Sprintf("The selected Capsule User Group is %s", *capsuleUserGroup))
-	log.Info(fmt.Sprintf("The OIDC username filed  %s", *usernameClaimField))
+	log.Info(fmt.Sprintf("The OIDC username selected is %s", *usernameClaimField))
 	log.Info("---")
 
 	log.Info("Creating the manager")
@@ -71,7 +75,22 @@ func main() {
 
 	var r manager.Runnable
 	log.Info("Creating the NamespaceFilter runner")
-	r, err = webserver.NewKubeFilter(*listeningPort, *k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
+
+	var listenerOpts webserver.ListenerOptions
+	listenerOpts, err = webserver.NewKubeOptions(*k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
+	if err != nil {
+		log.Error(err, "cannot create Kubernetes options")
+		os.Exit(1)
+	}
+
+	var serverOpts webserver.ServerOptions
+	serverOpts, err = webserver.NewServerOptions(*bindSsl, *listeningPort, *certPath, *keyPath)
+	if err != nil {
+		log.Error(err, "cannot create Kubernetes options")
+		os.Exit(1)
+	}
+
+	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts)
 	if err != nil {
 		log.Error(err, "cannot create NamespaceFilter runner")
 		os.Exit(1)
