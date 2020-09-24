@@ -32,21 +32,17 @@ func main() {
 	var err error
 	var mgr ctrl.Manager
 
-	fs := flag.NewFlagSet("filter", flag.ExitOnError)
-	listeningPort := fs.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
-	k8sControlPlaneUrl := fs.String("k8s-control-plane-url", "https://kubernetes.default.svc", "Kubernetes control plane URL (default: https://kubernetes.default.svc)")
-	capsuleUserGroup := fs.String("capsule-user-group", "clastix.capsule.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: clastix.capsule.io)")
-	usernameClaimField := fs.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
-	err = fs.Parse(os.Args[1:])
+	listeningPort := flag.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
+	k8sControlPlaneUrl := flag.String("k8s-control-plane-url", "https://kubernetes.default.svc", "Kubernetes control plane URL (default: https://kubernetes.default.svc)")
+	capsuleUserGroup := flag.String("capsule-user-group", "clastix.capsule.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: clastix.capsule.io)")
+	usernameClaimField := flag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	if err != nil {
-		log.Error(err, "cannot parse flags")
-		os.Exit(1)
-	}
+	flag.Parse()
+
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	log.Info("---")
 	log.Info(fmt.Sprintf("Manager listening on port %d", *listeningPort))
