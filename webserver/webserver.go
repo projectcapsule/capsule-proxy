@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
@@ -91,7 +92,7 @@ func (n kubeFilter) isWatchEndpoint(request *http.Request) (ok bool) {
 func (n kubeFilter) Start(stop <-chan struct{}) error {
 	http.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method == "GET" || n.isWatchEndpoint(request) {
-			log.Info("decorating /api/v1/namespaces request")
+			log.V(2).Info("decorating /api/v1/namespaces request")
 			if err := n.decorateRequest(writer, request); err != nil {
 				n.handleError(err, writer)
 				return
@@ -119,7 +120,7 @@ func (n kubeFilter) Start(stop <-chan struct{}) error {
 }
 
 func (n kubeFilter) reverseProxyFunc(writer http.ResponseWriter, request *http.Request) {
-	log.Info("handling " + request.URL.String())
+	log.V(2).Info("handling " + request.URL.String())
 	n.reverseProxy.ServeHTTP(writer, request)
 }
 
@@ -175,6 +176,43 @@ func (n kubeFilter) getLabelSelectorForUser(username string) (labels.Selector, e
 	return labels.NewSelector().Add(*req), nil
 }
 
+// We have to validate User requesting labels since we're changing the Authorization Bearer since the Tenant Owner
+// does not have permission to list Namespaces: in case of filtering by non-owned namespaces, we have to return an
+// error, otherwise everything is good.
+func (n kubeFilter) validateCapsuleLabel(value, username string) error {
+	p, err := labels.Parse(value)
+	if err != nil {
+		// we're ignoring this, API Server will deal with this
+		return nil
+	}
+
+	capsuleLabel, err := capsulev1alpha1.GetTypeLabel(&capsulev1alpha1.Tenant{})
+	if err != nil {
+		return fmt.Errorf("cannot get Capsule Tenant label: %s", err.Error())
+	}
+
+	r, selectable := p.Requirements()
+	if !selectable {
+		return nil
+	}
+	for _, i := range r {
+		if i.Key() == capsuleLabel {
+			ns, _ := n.getOwnedNamespacesForUser(username)
+			switch i.Operator() {
+			case selection.Exists:
+				return fmt.Errorf("cannot return list of all Tenant namespaces")
+			case selection.In:
+				if ss := i.Values().Delete(ns...); ss.Len() > 0 {
+					return fmt.Errorf("cannot list Namespaces for the following Tenant(s): %s", strings.Join(ss.List(), ", "))
+				}
+			default:
+				break
+			}
+		}
+	}
+	return nil
+}
+
 func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Request) error {
 	r := NewHttpRequest(request, n.usernameClaimField)
 
@@ -200,18 +238,22 @@ func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Re
 
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
-		v := e + "," + s.String()
-		q.Add("labelSelector", v)
-		log.Info("labelSelector updated", "selector", v)
+		log.V(4).Info("handling current labelSelector", "selector", e)
+		if err := n.validateCapsuleLabel(e, username); err != nil {
+			return err
+		}
+		v := strings.Join([]string{e, s.String()}, ",")
+		q.Set("labelSelector", v)
+		log.V(4).Info("labelSelector updated", "selector", v)
 	} else {
 		q.Add("labelSelector", s.String())
-		log.Info("labelSelector updated", "selector", s.String())
+		log.V(4).Info("labelSelector added", "selector", s.String())
 	}
-	log.Info("updating RawQuery", "query", q.Encode())
+	log.V(4).Info("updating RawQuery", "query", q.Encode())
 	request.URL.RawQuery = q.Encode()
 
-	log.Info("Updating the token", "token", n.bearerToken)
-	request.Header.Set("Authorization", "Bearer "+n.bearerToken)
+	log.V(4).Info("Updating the token", "token", n.bearerToken)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
 
 	log.Info("proxying to API Server", "url", request.URL.String())
 	return nil
