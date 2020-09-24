@@ -13,6 +13,7 @@ import (
 	"time"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/rest"
@@ -62,7 +63,7 @@ func NewKubeFilter(listeningPort uint, controlPlaneUrl, capsuleUserGroup, userna
 		capsuleUserGroup:   capsuleUserGroup,
 		reverseProxy:       reverseProxy,
 		listeningPort:      listeningPort,
-		bearerToken:        config.BearerToken,
+		config:             config,
 		usernameClaimField: usernameClaimField,
 	}, nil
 }
@@ -72,8 +73,8 @@ type kubeFilter struct {
 	reverseProxy       *httputil.ReverseProxy
 	client             client.Client
 	listeningPort      uint
-	bearerToken        string
 	usernameClaimField string
+	config             *rest.Config
 }
 
 func (n *kubeFilter) InjectClient(client client.Client) error {
@@ -89,8 +90,34 @@ func (n kubeFilter) isWatchEndpoint(request *http.Request) (ok bool) {
 	return
 }
 
+func (n kubeFilter) checkJwt(fn func(writer http.ResponseWriter, request *http.Request)) func(writer http.ResponseWriter, request *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		var err error
+
+		token := strings.Replace(request.Header.Get("Authorization"), "Bearer ", "", -1)
+
+		tr := &v1.TokenReview{
+			Spec: v1.TokenReviewSpec{
+				Token: token,
+			},
+		}
+		if err := n.client.Create(context.Background(), tr); err != nil {
+			log.Error(err, "cannot create TokenReview")
+			n.handleError(err, writer)
+			return
+		}
+		if statusErr := tr.Status.Error; len(statusErr) > 0 {
+			err = fmt.Errorf("cannot verify the token due to error")
+			log.Error(err, statusErr)
+			n.handleError(err, writer)
+			return
+		}
+		fn(writer, request)
+	}
+}
+
 func (n kubeFilter) Start(stop <-chan struct{}) error {
-	http.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("/api/v1/namespaces", n.checkJwt(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method == "GET" || n.isWatchEndpoint(request) {
 			log.V(2).Info("decorating /api/v1/namespaces request")
 			if err := n.decorateRequest(writer, request); err != nil {
@@ -99,7 +126,7 @@ func (n kubeFilter) Start(stop <-chan struct{}) error {
 			}
 		}
 		n.reverseProxyFunc(writer, request)
-	})
+	}))
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		n.reverseProxyFunc(writer, request)
 	})
@@ -252,8 +279,8 @@ func (n kubeFilter) decorateRequest(writer http.ResponseWriter, request *http.Re
 	log.V(4).Info("updating RawQuery", "query", q.Encode())
 	request.URL.RawQuery = q.Encode()
 
-	log.V(4).Info("Updating the token", "token", n.bearerToken)
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+	log.V(4).Info("Updating the token", "token", n.config.BearerToken)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.config.BearerToken))
 
 	log.Info("proxying to API Server", "url", request.URL.String())
 	return nil
