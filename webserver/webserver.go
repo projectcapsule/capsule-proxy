@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,14 +16,14 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 var (
 	log = ctrl.Log.WithName("namespace_filter")
 )
 
-func NewKubeFilter(opts ListenerOptions, srv ServerOptions) (*kubeFilter, error) {
-
+func NewKubeFilter(opts ListenerOptions, srv ServerOptions) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneUrl())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 	reverseProxy.Transport = opts.ReverseProxyTransport()
@@ -43,6 +44,42 @@ type kubeFilter struct {
 	bearerToken        string
 	usernameClaimField string
 	serverOptions      ServerOptions
+}
+
+type Filter interface {
+	manager.Runnable
+	ReadinessProbe(req *http.Request) error
+	LivenessProbe(req *http.Request) error
+}
+
+func (n *kubeFilter) LivenessProbe(req *http.Request) error {
+	return nil
+}
+
+func (n *kubeFilter) ReadinessProbe(req *http.Request) error {
+	scheme := "http"
+	clt := &http.Client{}
+
+	if n.serverOptions.IsListeningTls() {
+		scheme = "https"
+		clt = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		}
+	}
+
+	resp, err := clt.Get(fmt.Sprintf("%s://localhost:%d/_healthz", scheme, n.serverOptions.ListeningPort()))
+	if err != nil {
+		return fmt.Errorf("cannot make local _healthz request: %s", err.Error())
+	}
+	if sc := resp.StatusCode; sc != 200 {
+		return fmt.Errorf("returned status code from _healthz is %d, expected 200", sc)
+	}
+
+	return nil
 }
 
 func (n *kubeFilter) InjectClient(client client.Client) error {
