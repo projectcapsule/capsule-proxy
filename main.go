@@ -14,7 +14,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/clastix/capsule-ns-filter/webserver"
+	"github.com/clastix/capsule-ns-filter/internal/options"
+	"github.com/clastix/capsule-ns-filter/internal/webserver"
 )
 
 var (
@@ -75,15 +76,15 @@ func main() {
 	var r webserver.Filter
 	log.Info("Creating the NamespaceFilter runner")
 
-	var listenerOpts webserver.ListenerOptions
-	listenerOpts, err = webserver.NewKubeOptions(*k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
+	var listenerOpts options.ListenerOpts
+	listenerOpts, err = options.NewKube(*k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
 	if err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
 
-	var serverOpts webserver.ServerOptions
-	serverOpts, err = webserver.NewServerOptions(*bindSsl, *listeningPort, *certPath, *keyPath)
+	var serverOpts options.ServerOptions
+	serverOpts, err = options.NewServer(*bindSsl, *listeningPort, *certPath, *keyPath, ctrl.GetConfigOrDie())
 	if err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
