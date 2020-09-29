@@ -33,7 +33,7 @@ func main() {
 
 	listeningPort := flag.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	k8sControlPlaneUrl := flag.String("k8s-control-plane-url", "https://kubernetes.default.svc", "Kubernetes control plane URL (default: https://kubernetes.default.svc)")
-	capsuleUserGroup := flag.String("capsule-user-group", "clastix.capsule.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: clastix.capsule.io)")
+	capsuleUserGroup := flag.String("capsule-user-group", "capsule.clastix.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: capsule.clastix.io)")
 	usernameClaimField := flag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 	bindSsl := flag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
 	certPath := flag.String("ssl-cert-path", "/opt/capsule-ns-filter/tls.crt", "Path to the TLS certificate (default: /opt/capsule-ns-filter/tls.crt)")
