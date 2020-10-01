@@ -27,35 +27,13 @@ Arguments to be passed to the `capsule-ns-filter` proxy:
 --ssl-key-path           Path to the TLS certificate key, default: /opt/capsule-ns-filter/tls.key
 ```
 
-## RBAC
-The `capsule-ns-filter` service account doesn't need to have `cluster-admin` permission although all read verbs `GET`, `LIST`, `WATCH` against the following resources are mandatory:
-
-- `tenants.capsule.clastix.io`
-- `namespaces`
-
-Also it needs to have the ability to `POST` a JSON-serialized `authentication.k8s.io/v1beta1` TokenReview object containing the token. A minimum set of permissions for the `capsule-ns-filter` service account will be like this:
-
-```yaml
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: ns-filter
-rules:
-  - apiGroups: ["authentication.k8s.io"]
-    resources: ["tokenreviews"]
-    verbs: ["create"]
-  - apiGroups: ["capsule.clastix.io"]
-    resources: ["tenants"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["namespaces"]
-    verbs: ["get", "list", "watch"]
-``` 
+## TLS Client Authentication
+Users using a TLS client based authentication with certificate and key are able to talks with `capsule-ns-filter` since the current implementation of the reverse proxy is able to forward client certificates to the Kubernetes APIs server.
 
 ## OIDC Authentication
-Currently `capsule-ns-filter` works with `kubectl` users using a token-based authentication, e.g. OIDC or Bearer Token. Users using a TLS client based authentication with cert and key are not able to talks with `capsule-ns-filter` since the current implementation of the reverse proxy is not able to forward client certificates to the Kubernetes APIs server. That's a feature we're working on.
+The `capsule-ns-filter` works with `kubectl` users with a token-based authentication, e.g. OIDC or Bearer Token.
 
-In the current example, we need for an OIDC server (e.g. [Keycloak](https://www.keycloak.org/)) capable to provides JWT tokens.
+In the following example, we'll use an OIDC server (e.g. [Keycloak](https://www.keycloak.org/)) capable to provides JWT tokens.
 
 ### Configuring Keycloak
 Configure Keycloak as OIDC server:
@@ -228,14 +206,12 @@ oil-production      Active   2m
 
 _Nota Bene_: once your `ID_TOKEN` expires, the `kubectl` OIDC Authenticator will attempt to refresh automatically your `ID_TOKEN` using the `REFRESH_TOKEN`, the `OIDC_CLIENT_ID` and the `OIDC_CLIENT_SECRET` storing the new values for the `REFRESH_TOKEN` and `ID_TOKEN` in your `kubeconfig` file.
 
-Make sure to use a CA certificate for the Keycloak Identity Provider in your `kubeconfig` file, otherwise you'll not able to refresh the tokens.
+In case the OIDC uses a self signed CA certificate, make sure to specify it with the `idp-certificate-authority` option in your `kubeconfig` file, otherwise you'll not able to refresh the tokens. Once the `REFRESH_TOKEN` is expired, you will need to refresh tokens manually.
 
-Once the `REFRESH_TOKEN` is expired, you will get an error, and you will need to refresh tokens manually.
+## RBAC
+The service account used for `capsule-ns-filter` needs to have `cluster-admin` permissions.
 
-### Configuring client-only dashboards
+## Configuring client-only dashboards
 If you're using a client-only dashboard, for example [Lens](https://k8slens.dev/), the `capsule-ns-filter` can be used as in the previous `kubectl` example since Lens just needs for a `kubeconfig` file. Assuming to use a `kubeconfig` file containing a valid OIDC token released for the `alice` user, you can access the cluster with Lens dashboard and see only namespaces belonging to the Alice's tenants.
 
 For web based dashboards, like the [Kubernetes Dashboard](https://github.com/kubernetes/dashboard), the `capsule-ns-filter` can be deployed as [sidecar](sidecar.md) container in the backend side of the dashboard.
-
-
-

@@ -23,22 +23,19 @@ The ability to list only the owned namespaces has been long discussed in the com
 
 As reported in the issues above, there are no ACL-filtered APIs in core Kubernetes. To overcome this problem, many kubernetes distributions introduced mirrored custom resources of namespaces, called "Projects", "Workspaces", "Spaces", or similar, supported by a custom set of ACL-filtered APIs. However, this leads to radically change the user's experience of Kubernetes by introducing hard customizations that make painfull to move from one distribution to another. 
 
-Capsule takes a different approach. As one of the key requirements, we want to keep the same user's experience on all the distributions of Kubernetes. With Capsule, users do not need to deal with custom resources to deploy their applications. They can use the basic tools they use and love and it just works.
+Capsule takes a different approach. As one of the key requirements, we want to keep the same user's experience on all the distributions of Kubernetes. With Capsule, users do not need to deal with custom resources to deploy their applications. They can use the basic tools they already learned and love and it just works.
 
 ## How it does work
 
 This project is an add-on of the main [Capsule](https://github.com/clastix/capsule) operator, so make sure you have a working instance of Caspule before to attempt to use it. Use `capsule-ns-filter` if you want to list your namespaces throught the `kubectl` command line or throught a dashboard.
 
 This project implements a simple reverse proxy intercepting the Kubernetes
-`api/v1/namespaces` endpoint in order to filter only the namespaces assigned to the user. And Capsule does all the magic behind the scene. All other endpoints are proxied transparently against the Kubernetes APIs server using the same request, so no side-effects are expected. 
+`api/v1/namespaces` endpoint in order to filter only the namespaces assigned to the user. And Capsule does all the magic behind the scenes. All other endpoints are proxied transparently against the Kubernetes APIs server using the same request, so no side-effects are expected. 
 
 The `capsule-ns-filter` can be deployed in standalone mode, e.g. running as a pod bridging any Kubernetes client to the `kube-apiserver`. Also, it can be deployed as sidecar container in a dashboard backend. 
 
 ### Does it work with kubectl?
-Yes, it works by intercepting all the requests from the `kubectl` client directed to the APIs server. Currently `capsule-ns-filter` works with users that use a token-based authentication, e.g. OIDC or Bearer Token. The users using a TLS client based authentication with cert and key are not able to talks with `capsule-ns-filter` since the current implementation of the reverse proxy is not able to forward client certificates to the Kubernetes APIs server. That's a feature we're working on.
-
-_Nota bene:_ the above is a current limitation of the `capsule-ns-filter` add-on only. The Capsule controller supports any type of user's authentication.
-
+Yes, it works by intercepting all the requests from the `kubectl` client directed to the APIs server. It works with both users who use the TLS certificate authentication and those who use OIDC. 
 
 ### Does it work with my preferred Kubernetes dashboard?
 If you're using a client-only dashboard, for example [Lens](https://k8slens.dev/), the `capsule-ns-filter` can be used as in the previous case since these dashboards usually talk to the APIs server using just a `kubeconfig` file.
