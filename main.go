@@ -14,7 +14,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/clastix/capsule-ns-filter/webserver"
+	"github.com/clastix/capsule-ns-filter/internal/options"
+	"github.com/clastix/capsule-ns-filter/internal/webserver"
 )
 
 var (
@@ -33,7 +34,7 @@ func main() {
 
 	listeningPort := flag.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	k8sControlPlaneUrl := flag.String("k8s-control-plane-url", "https://kubernetes.default.svc", "Kubernetes control plane URL (default: https://kubernetes.default.svc)")
-	capsuleUserGroup := flag.String("capsule-user-group", "clastix.capsule.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: clastix.capsule.io)")
+	capsuleUserGroup := flag.String("capsule-user-group", "capsule.clastix.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: capsule.clastix.io)")
 	usernameClaimField := flag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 	bindSsl := flag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
 	certPath := flag.String("ssl-cert-path", "/opt/capsule-ns-filter/tls.crt", "Path to the TLS certificate (default: /opt/capsule-ns-filter/tls.crt)")
@@ -75,15 +76,15 @@ func main() {
 	var r webserver.Filter
 	log.Info("Creating the NamespaceFilter runner")
 
-	var listenerOpts webserver.ListenerOptions
-	listenerOpts, err = webserver.NewKubeOptions(*k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
+	var listenerOpts options.ListenerOpts
+	listenerOpts, err = options.NewKube(*k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
 	if err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
 
-	var serverOpts webserver.ServerOptions
-	serverOpts, err = webserver.NewServerOptions(*bindSsl, *listeningPort, *certPath, *keyPath)
+	var serverOpts options.ServerOptions
+	serverOpts, err = options.NewServer(*bindSsl, *listeningPort, *certPath, *keyPath, ctrl.GetConfigOrDie())
 	if err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
