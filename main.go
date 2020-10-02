@@ -13,7 +13,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/clastix/capsule-ns-filter/webserver"
 )
@@ -73,7 +72,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var r manager.Runnable
+	var r webserver.Filter
 	log.Info("Creating the NamespaceFilter runner")
 
 	var listenerOpts webserver.ListenerOptions
@@ -100,6 +99,15 @@ func main() {
 	err = mgr.Add(r)
 	if err != nil {
 		log.Error(err, "cannot add NameSpaceFilter as Runnable")
+		os.Exit(1)
+	}
+
+	if err = mgr.AddHealthzCheck("healthz", r.LivenessProbe); err != nil {
+		log.Error(err, "cannot create healthcheck probe")
+		os.Exit(1)
+	}
+	if err = mgr.AddReadyzCheck("ready", r.ReadinessProbe); err != nil {
+		log.Error(err, "cannot create readiness probe")
 		os.Exit(1)
 	}
 
