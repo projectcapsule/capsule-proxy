@@ -26,7 +26,7 @@ func NewHttp(request *h.Request, usernameClaimField string) Request {
 }
 
 func (h http) IsNamespaceListing() (ok bool) {
-	ok = h.RequestURI == "/api/v1/namespaces"
+	ok = h.URL.Path == "/api/v1/namespaces"
 	ok = (h.Method == "GET" || h.isWatchEndpoint()) && ok
 	return
 }
