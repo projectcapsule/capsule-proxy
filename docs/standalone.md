@@ -1,7 +1,7 @@
 # Running capsule-ns-filter for kubectl
 The `capsule-ns-filter` can be deployed in standalone mode, e.g. running as a pod bridging any Kubernetes client to the `kube-apiserver`. Use this way to provide access to client-side command line tools like `kubectl` or even client-side dashboards.
 
-As first option, use an Ingress Controller to expose the `capsule-ns-filter` endpoint or, depending on your environment, expose it with either a `NodePort`, or a `LoadBalancer` service. As alternatives, use `HostPort` or `HostNetwork` mode.
+You can use an Ingress Controller to expose the `capsule-ns-filter` endpoint or, depending on your environment, you can expose it with either a `NodePort`, or a `LoadBalancer` service. As alternatives, use `HostPort` or `HostNetwork` mode.
 
 ```
                 +-----------+          +-----------+         +-----------+
@@ -212,6 +212,8 @@ In case the OIDC uses a self signed CA certificate, make sure to specify it with
 The service account used for `capsule-ns-filter` needs to have `cluster-admin` permissions.
 
 ## Configuring client-only dashboards
-If you're using a client-only dashboard, for example [Lens](https://k8slens.dev/), the `capsule-ns-filter` can be used as in the previous `kubectl` example since Lens just needs for a `kubeconfig` file. Assuming to use a `kubeconfig` file containing a valid OIDC token released for the `alice` user, you can access the cluster with Lens dashboard and see only namespaces belonging to the Alice's tenants.
+If you're using a client-only dashboard, for example [Lens](https://k8slens.dev/), the `capsule-ns-filter` can be used as in the previous `kubectl` example since Lens just needs for a `kubeconfig` file. Assuming to use a `kubeconfig` file containing a valid OIDC token released for the `alice` user, you can access the cluster with Lens dashboard and see only namespaces belonging to the Alice's tenants:
+
+![Lens dashboard](images/lens.png)
 
 For web based dashboards, like the [Kubernetes Dashboard](https://github.com/kubernetes/dashboard), the `capsule-ns-filter` can be deployed as [sidecar](sidecar.md) container in the backend side of the dashboard.
