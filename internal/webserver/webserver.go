@@ -72,10 +72,12 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("cannot make local _healthz request: %s", err.Error())
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	if sc := resp.StatusCode; sc != 200 {
 		return fmt.Errorf("returned status code from _healthz is %d, expected 200", sc)
 	}
-
 	return nil
 }
 
