@@ -275,7 +275,6 @@ func (n kubeFilter) getTenantsForOwner(ownerKind string, ownerName string) (tena
 }
 
 func (n kubeFilter) getLabelSelectorForOwner(username string, groups []string) (labels.Selector, error) {
-	var r *labels.Requirement
 	capsuleLabel, err := capsulev1alpha1.GetTypeLabel(&capsulev1alpha1.Tenant{})
 	if err != nil {
 		return nil, fmt.Errorf("cannot get Capsule Tenant label: %s", err.Error())
@@ -285,32 +284,26 @@ func (n kubeFilter) getLabelSelectorForOwner(username string, groups []string) (
 	if err != nil {
 		return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %s", err.Error())
 	}
-	if len(ownedTenants) > 0 {
-		r, err = labels.NewRequirement(capsuleLabel, selection.In, ownedTenants)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse Tenant selector: %s", err.Error())
-		}
-		return labels.NewSelector().Add(*r), nil
-	}
 	// Find tenants belonging to a group
 	for _, group := range groups {
-		ownedTenants, err = n.getTenantsForOwner("Group", group)
+		t, err := n.getTenantsForOwner("Group", group)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %s", err.Error())
 		}
-		if len(ownedTenants) > 0 {
-			r, err = labels.NewRequirement(capsuleLabel, selection.In, ownedTenants)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse Tenant selector: %s", err.Error())
-			}
-			return labels.NewSelector().Add(*r), nil
-		}
+		ownedTenants = append(ownedTenants, t...)
 	}
-	r, err = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
+
+	var r *labels.Requirement
+	if len(ownedTenants) > 0 {
+		r, err = labels.NewRequirement(capsuleLabel, selection.In, ownedTenants)
+	} else {
+		r, err = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse Tenant selector: %s", err.Error())
 	}
 	return labels.NewSelector().Add(*r), nil
+
 }
 
 // We have to validate User requesting labels since we're changing the Authorization Bearer since the Tenant Owner
