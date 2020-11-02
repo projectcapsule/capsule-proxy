@@ -133,7 +133,7 @@ func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.
 	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
 
 	var s labels.Selector
-	s, err = n.getLabelSelectorForUser(username)
+	s, err = n.getLabelSelectorForOwner(username, groups)
 	if err != nil {
 		log.Error(err, "cannot create label selector")
 		panic(err)
@@ -232,7 +232,7 @@ func (n kubeFilter) reverseProxyFunc(writer http.ResponseWriter, request *http.R
 	n.reverseProxy.ServeHTTP(writer, request)
 }
 
-type errorJson struct {
+type errorJSON struct {
 	Error string `json:"error"`
 }
 
@@ -240,7 +240,7 @@ func (n kubeFilter) handleError(err error, writer http.ResponseWriter) {
 	log.Error(err, "handling failed request")
 	writer.WriteHeader(500)
 	writer.Header().Set("Content-Type", "application/json")
-	b, _ := json.Marshal(errorJson{Error: err.Error()})
+	b, _ := json.Marshal(errorJSON{Error: err.Error()})
 	_, _ = writer.Write(b)
 }
 
@@ -252,36 +252,58 @@ func (n kubeFilter) getOwnedNamespacesForUser(username string) (res []string, er
 	if err := n.client.List(context.Background(), tl, f); err != nil {
 		return nil, fmt.Errorf("cannot retrieve Tenant list: %s", err.Error())
 	}
-
 	for _, t := range tl.Items {
 		res = append(res, t.GetName())
 	}
+	log.V(4).Info("Tenant list", "res", res)
 	return
 }
 
-func (n kubeFilter) getLabelSelectorForUser(username string) (labels.Selector, error) {
+func (n kubeFilter) getTenantsForOwner(ownerKind string, ownerName string) (tenants []string, err error) {
+	tl := &capsulev1alpha1.TenantList{}
+	f := client.MatchingFields{
+		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind, ownerName),
+	}
+	if err := n.client.List(context.Background(), tl, f); err != nil {
+		return nil, fmt.Errorf("cannot retrieve Tenants list: %s", err.Error())
+	}
+	for _, t := range tl.Items {
+		tenants = append(tenants, t.GetName())
+	}
+	log.V(4).Info("Tenants list", "tenants", tenants)
+	return
+}
+
+func (n kubeFilter) getLabelSelectorForOwner(username string, groups []string) (labels.Selector, error) {
 	capsuleLabel, err := capsulev1alpha1.GetTypeLabel(&capsulev1alpha1.Tenant{})
 	if err != nil {
 		return nil, fmt.Errorf("cannot get Capsule Tenant label: %s", err.Error())
 	}
-
-	ownedNamespaces, err := n.getOwnedNamespacesForUser(username)
+	// Find tenants belonging to a user
+	ownedTenants, err := n.getTenantsForOwner("User", username)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get Namespaces slice owned by Tenant Owner: %s", err.Error())
+		return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %s", err.Error())
+	}
+	// Find tenants belonging to a group
+	for _, group := range groups {
+		t, err := n.getTenantsForOwner("Group", group)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %s", err.Error())
+		}
+		ownedTenants = append(ownedTenants, t...)
 	}
 
 	var r *labels.Requirement
-
-	if len(ownedNamespaces) > 0 {
-		r, err = labels.NewRequirement(capsuleLabel, selection.In, ownedNamespaces)
+	if len(ownedTenants) > 0 {
+		r, err = labels.NewRequirement(capsuleLabel, selection.In, ownedTenants)
 	} else {
 		r, err = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse Tenant selector: %s", err.Error())
 	}
-
 	return labels.NewSelector().Add(*r), nil
+
 }
 
 // We have to validate User requesting labels since we're changing the Authorization Bearer since the Tenant Owner
