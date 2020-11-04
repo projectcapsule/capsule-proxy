@@ -150,7 +150,7 @@ func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.
 		q.Set("labelSelector", v)
 		log.V(4).Info("labelSelector updated", "selector", v)
 	} else {
-		q.Add("labelSelector", s.String())
+		q.Set("labelSelector", s.String())
 		log.V(4).Info("labelSelector added", "selector", s.String())
 	}
 	log.V(4).Info("updating RawQuery", "query", q.Encode())
@@ -244,21 +244,6 @@ func (n kubeFilter) handleError(err error, writer http.ResponseWriter) {
 	_, _ = writer.Write(b)
 }
 
-func (n kubeFilter) getOwnedNamespacesForUser(username string) (res []string, err error) {
-	tl := &capsulev1alpha1.TenantList{}
-	f := client.MatchingFields{
-		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", "User", username),
-	}
-	if err := n.client.List(context.Background(), tl, f); err != nil {
-		return nil, fmt.Errorf("cannot retrieve Tenant list: %s", err.Error())
-	}
-	for _, t := range tl.Items {
-		res = append(res, t.GetName())
-	}
-	log.V(4).Info("Tenant list", "res", res)
-	return
-}
-
 func (n kubeFilter) getTenantsForOwner(ownerKind string, ownerName string) (tenants []string, err error) {
 	tl := &capsulev1alpha1.TenantList{}
 	f := client.MatchingFields{
@@ -270,7 +255,7 @@ func (n kubeFilter) getTenantsForOwner(ownerKind string, ownerName string) (tena
 	for _, t := range tl.Items {
 		tenants = append(tenants, t.GetName())
 	}
-	log.V(4).Info("Tenants list", "tenants", tenants)
+	log.V(4).Info("Tenants list", "owner", ownerKind, "name", ownerName, "tenants", tenants)
 	return
 }
 
@@ -327,12 +312,12 @@ func (n kubeFilter) validateCapsuleLabel(value, username string) error {
 	}
 	for _, i := range r {
 		if i.Key() == capsuleLabel {
-			ns, _ := n.getOwnedNamespacesForUser(username)
+			tenants, _ := n.getTenantsForOwner("User", username)
 			switch i.Operator() {
 			case selection.Exists:
 				return fmt.Errorf("cannot return list of all Tenant namespaces")
 			case selection.In:
-				if ss := i.Values().Delete(ns...); ss.Len() > 0 {
+				if ss := i.Values().Delete(tenants...); ss.Len() > 0 {
 					return fmt.Errorf("cannot list Namespaces for the following Tenant(s): %s", strings.Join(ss.List(), ", "))
 				}
 			default:
