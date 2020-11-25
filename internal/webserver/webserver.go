@@ -169,7 +169,7 @@ func (n kubeFilter) isNamespaceListing(fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (n kubeFilter) Start(stop <-chan struct{}) error {
+func (n kubeFilter) Start(ctx context.Context) error {
 	http.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
 		n.isNamespaceListing(n.checkJwt(n.namespacesHandler))(writer, request)
 		n.reverseProxyFunc(writer, request)
@@ -208,9 +208,9 @@ func (n kubeFilter) Start(stop <-chan struct{}) error {
 		}
 	}()
 
-	<-stop
+	<-ctx.Done()
 
-	return srv.Shutdown(context.Background())
+	return srv.Shutdown(ctx)
 }
 
 func (n kubeFilter) reverseProxyFunc(writer http.ResponseWriter, request *http.Request) {
