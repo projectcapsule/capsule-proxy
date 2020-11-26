@@ -8,6 +8,7 @@ import (
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"github.com/clastix/capsule/pkg/indexer/tenant"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -40,7 +41,11 @@ func main() {
 	certPath := flag.String("ssl-cert-path", "/opt/capsule-ns-filter/tls.crt", "Path to the TLS certificate (default: /opt/capsule-ns-filter/tls.crt)")
 	keyPath := flag.String("ssl-key-path", "/opt/capsule-ns-filter/tls.key", "Path to the TLS certificate key (default: /opt/capsule-ns-filter/tls.key)")
 
-	opts := zap.Options{}
+	opts := zap.Options{
+		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
+			config.EncodeTime = zapcore.ISO8601TimeEncoder
+		}),
+	}
 	opts.BindFlags(flag.CommandLine)
 
 	flag.Parse()
