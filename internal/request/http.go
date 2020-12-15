@@ -25,6 +25,12 @@ func NewHttp(request *h.Request, usernameClaimField string) Request {
 	return &http{Request: request, usernameClaimField: usernameClaimField}
 }
 
+func (h http) IsNodeListing() (ok bool) {
+	ok = h.URL.Path == "/api/v1/nodes"
+	ok = (h.Method == "GET" || h.isWatchEndpoint()) && ok
+	return
+}
+
 func (h http) IsNamespaceListing() (ok bool) {
 	ok = h.URL.Path == "/api/v1/namespaces"
 	ok = (h.Method == "GET" || h.isWatchEndpoint()) && ok
