@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +21,10 @@ import (
 
 	"github.com/clastix/capsule-ns-filter/internal/options"
 	req "github.com/clastix/capsule-ns-filter/internal/request"
+)
+
+const (
+	nodeListingAnnotation = "capsule.clastix.io/enable-node-listing"
 )
 
 var (
@@ -116,12 +121,33 @@ func (n kubeFilter) checkJwt(fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.Request) {
-	log.V(2).Info("Decorating request for Namespace filtering")
+func (n kubeFilter) handleRequest(request *http.Request, username string, selector labels.Selector) {
+	q := request.URL.Query()
+	if e := q.Get("labelSelector"); len(e) > 0 {
+		log.V(4).Info("handling current labelSelector", "selector", e)
+		if err := n.validateCapsuleLabel(e, username); err != nil {
+			log.Error(err, "cannot validate Capsule label selector, ignoring it")
+			panic(err)
+		}
+		v := strings.Join([]string{e, selector.String()}, ",")
+		q.Set("labelSelector", v)
+		log.V(4).Info("labelSelector updated", "selector", v)
+	} else {
+		q.Set("labelSelector", selector.String())
+		log.V(4).Info("labelSelector added", "selector", selector.String())
+	}
+	log.V(4).Info("updating RawQuery", "query", q.Encode())
+	request.URL.RawQuery = q.Encode()
+
+	log.V(4).Info("Updating the token", "token", n.bearerToken)
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+}
+
+func (n kubeFilter) nodesHandler(writer http.ResponseWriter, request *http.Request) {
+	log.V(2).Info("Decorating request for Node filtering")
 
 	r := req.NewHttp(request, n.usernameClaimField)
 
-	var err error
 	username, groups, err := r.GetUserAndGroups()
 
 	// breaking for non-Capsule user
@@ -132,32 +158,57 @@ func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.
 
 	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
 
-	var s labels.Selector
-	s, err = n.getLabelSelectorForOwner(username, groups)
+	filter := func(tenantList *capsulev1alpha1.TenantList) *capsulev1alpha1.TenantList {
+		filtered := &capsulev1alpha1.TenantList{}
+
+		for _, tenant := range tenantList.Items {
+			if value, ok := tenant.Annotations[nodeListingAnnotation]; ok {
+				nodeListingSupported, err := strconv.ParseBool(value)
+				if err != nil {
+					log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", nodeListingAnnotation, "value", value)
+					continue
+				}
+
+				if nodeListingSupported {
+					filtered.Items = append(filtered.Items, tenant)
+				}
+			}
+		}
+
+		return filtered
+	}
+
+	selector, err := n.getLabelSelectorForOwner(username, groups, filter)
 	if err != nil {
 		log.Error(err, "cannot create label selector")
 		panic(err)
 	}
 
-	q := request.URL.Query()
-	if e := q.Get("labelSelector"); len(e) > 0 {
-		log.V(4).Info("handling current labelSelector", "selector", e)
-		if err := n.validateCapsuleLabel(e, username); err != nil {
-			log.Error(err, "cannot validate Capsule label selector, ignoring it")
-			panic(err)
-		}
-		v := strings.Join([]string{e, s.String()}, ",")
-		q.Set("labelSelector", v)
-		log.V(4).Info("labelSelector updated", "selector", v)
-	} else {
-		q.Set("labelSelector", s.String())
-		log.V(4).Info("labelSelector added", "selector", s.String())
-	}
-	log.V(4).Info("updating RawQuery", "query", q.Encode())
-	request.URL.RawQuery = q.Encode()
+	n.handleRequest(request, username, selector)
+}
 
-	log.V(4).Info("Updating the token", "token", n.bearerToken)
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.Request) {
+	log.V(2).Info("Decorating request for Namespace filtering")
+
+	r := req.NewHttp(request, n.usernameClaimField)
+
+	username, groups, err := r.GetUserAndGroups()
+
+	// breaking for non-Capsule user
+	if !utils.UserGroupList(groups).IsInCapsuleGroup(n.capsuleUserGroup) {
+		log.V(5).Info("current user is not a Capsule one")
+		return
+	}
+
+	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
+
+	selector, err := n.getLabelSelectorForOwner(username, groups, nil)
+	if err != nil {
+		log.Error(err, "cannot create label selector")
+		panic(err)
+	}
+
+	n.handleRequest(request, username, selector)
 }
 
 func (n kubeFilter) isNamespaceListing(fn http.HandlerFunc) http.HandlerFunc {
@@ -169,9 +220,22 @@ func (n kubeFilter) isNamespaceListing(fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func (n kubeFilter) isNodeListing(fn http.HandlerFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if req.NewHttp(request, n.usernameClaimField).IsNodeListing() {
+			log.V(3).Info("Handling /api/v1/nodes")
+			fn(writer, request)
+		}
+	}
+}
+
 func (n kubeFilter) Start(ctx context.Context) error {
 	http.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
 		n.isNamespaceListing(n.checkJwt(n.namespacesHandler))(writer, request)
+		n.reverseProxyFunc(writer, request)
+	})
+	http.HandleFunc("/api/v1/nodes", func(writer http.ResponseWriter, request *http.Request) {
+		n.isNodeListing(n.checkJwt(n.nodesHandler))(writer, request)
 		n.reverseProxyFunc(writer, request)
 	})
 	http.HandleFunc("/_healthz", func(writer http.ResponseWriter, request *http.Request) {
@@ -244,38 +308,59 @@ func (n kubeFilter) handleError(err error, writer http.ResponseWriter) {
 	_, _ = writer.Write(b)
 }
 
-func (n kubeFilter) getTenantsForOwner(ownerKind string, ownerName string) (tenants []string, err error) {
-	tl := &capsulev1alpha1.TenantList{}
-	f := client.MatchingFields{
-		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind, ownerName),
-	}
-	if err := n.client.List(context.Background(), tl, f); err != nil {
-		return nil, fmt.Errorf("cannot retrieve Tenants list: %s", err.Error())
-	}
-	for _, t := range tl.Items {
-		tenants = append(tenants, t.GetName())
-	}
-	log.V(4).Info("Tenants list", "owner", ownerKind, "name", ownerName, "tenants", tenants)
-	return
-}
-
-func (n kubeFilter) getLabelSelectorForOwner(username string, groups []string) (labels.Selector, error) {
-	capsuleLabel, err := capsulev1alpha1.GetTypeLabel(&capsulev1alpha1.Tenant{})
-	if err != nil {
-		return nil, fmt.Errorf("cannot get Capsule Tenant label: %s", err.Error())
-	}
-	// Find tenants belonging to a user
-	ownedTenants, err := n.getTenantsForOwner("User", username)
+func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (tenants *capsulev1alpha1.TenantList, err error) {
+	ownedTenants, _, err := n.getTenantsForOwnerKind("User", username)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %s", err.Error())
 	}
 	// Find tenants belonging to a group
 	for _, group := range groups {
-		t, err := n.getTenantsForOwner("Group", group)
+		t, _, err := n.getTenantsForOwnerKind("Group", group)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %s", err.Error())
 		}
-		ownedTenants = append(ownedTenants, t...)
+		ownedTenants.Items = append(ownedTenants.Items, t.Items...)
+	}
+	return ownedTenants, nil
+}
+
+func (n kubeFilter) getTenantsForOwnerKind(ownerKind string, ownerName string) (tl *capsulev1alpha1.TenantList, tenants []string, err error) {
+	tl = &capsulev1alpha1.TenantList{}
+
+	f := client.MatchingFields{
+		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind, ownerName),
+	}
+	if err := n.client.List(context.Background(), tl, f); err != nil {
+		return nil, nil, fmt.Errorf("cannot retrieve Tenants list: %s", err.Error())
+	}
+
+	for _, t := range tl.Items {
+		tenants = append(tenants, t.GetName())
+	}
+
+	log.V(4).Info("Tenants list", "owner", ownerKind, "name", ownerName, "tenants", tenants)
+	return
+}
+
+func (n kubeFilter) getLabelSelectorForOwner(username string, groups []string, filter func(*capsulev1alpha1.TenantList) *capsulev1alpha1.TenantList) (labels.Selector, error) {
+	var ownedTenants []string
+
+	capsuleLabel, err := capsulev1alpha1.GetTypeLabel(&capsulev1alpha1.Tenant{})
+	if err != nil {
+		return nil, fmt.Errorf("cannot get Capsule Tenant label: %s", err.Error())
+	}
+
+	tenantList, err := n.getTenantsForOwner(username, groups)
+	if err != nil {
+		return nil, err
+	}
+
+	if filter != nil {
+		tenantList = filter(tenantList)
+	}
+
+	for _, t := range tenantList.Items {
+		ownedTenants = append(ownedTenants, t.GetName())
 	}
 
 	var r *labels.Requirement
@@ -312,7 +397,7 @@ func (n kubeFilter) validateCapsuleLabel(value, username string) error {
 	}
 	for _, i := range r {
 		if i.Key() == capsuleLabel {
-			tenants, _ := n.getTenantsForOwner("User", username)
+			_, tenants, _ := n.getTenantsForOwnerKind("User", username)
 			switch i.Operator() {
 			case selection.Exists:
 				return fmt.Errorf("cannot return list of all Tenant namespaces")
