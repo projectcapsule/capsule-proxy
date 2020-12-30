@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}
+  labels:
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "capsule-proxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "capsule-proxy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.options.enableSSL }}
+      volumes:
+      - name: certs
+        secret:
+          secretName: {{ include "capsule-proxy.fullname" . }}
+          defaultMode: 420
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /capsule-proxy
+            - --k8s-control-plane-url={{ .Values.options.k8sControlPlaneUrl }}
+            - --capsule-user-group={{ .Values.options.capsuleUserGroup }}
+            - --zap-log-level={{ .Values.options.logLevel }}
+            - --enable-ssl={{ .Values.options.enableSSL }}
+            - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
+            {{- if .Values.options.enableSSL }}
+            - --ssl-cert-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLCertFileName }}
+            - --ssl-key-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLKeyFileName }}
+            {{- end }}
+          ports:
+          - containerPort: 9001
+            name: proxy
+            protocol: TCP
+          - containerPort: 8080
+            name: metrics
+            protocol: TCP
+          - containerPort: 8081
+            name: probe
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz/
+              port: probe
+              scheme: HTTP
+          livenessProbe:
+            httpGet:
+              path: /healthz/
+              port: probe
+              scheme: HTTP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.options.enableSSL }}
+          volumeMounts:
+          - mountPath: {{ .Values.options.SSLDirectory }}
+            name: certs
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

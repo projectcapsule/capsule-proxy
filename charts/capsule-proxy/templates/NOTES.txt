@@ -1,0 +1,15 @@
+- Capsule-proxy Helm Chart deployed:
+
+   # Check the capsule-proxy logs
+   $ kubectl logs -f deployment/{{ template "capsule-proxy.fullname" . }} -n{{ .Release.Namespace }}
+
+- Manage this chart:
+
+   # Upgrade capsule-proxy
+   $ helm upgrade {{ .Release.Name }} -f <values.yaml> capsule-proxy -n {{ .Release.Namespace }}
+
+   # Show this status again
+   $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+   # Uninstall capsule-proxy
+   $ helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
