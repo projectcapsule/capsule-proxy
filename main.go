@@ -15,8 +15,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/clastix/capsule-ns-filter/internal/options"
-	"github.com/clastix/capsule-ns-filter/internal/webserver"
+	"github.com/clastix/capsule-proxy/internal/options"
+	"github.com/clastix/capsule-proxy/internal/webserver"
 )
 
 var (
@@ -38,8 +38,8 @@ func main() {
 	capsuleUserGroup := flag.String("capsule-user-group", "capsule.clastix.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: capsule.clastix.io)")
 	usernameClaimField := flag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 	bindSsl := flag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
-	certPath := flag.String("ssl-cert-path", "/opt/capsule-ns-filter/tls.crt", "Path to the TLS certificate (default: /opt/capsule-ns-filter/tls.crt)")
-	keyPath := flag.String("ssl-key-path", "/opt/capsule-ns-filter/tls.key", "Path to the TLS certificate key (default: /opt/capsule-ns-filter/tls.key)")
+	certPath := flag.String("ssl-cert-path", "/opt/capsule-proxy/tls.crt", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
+	keyPath := flag.String("ssl-key-path", "/opt/capsule-proxy/tls.key", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {

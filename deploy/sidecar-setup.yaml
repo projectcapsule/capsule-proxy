@@ -72,11 +72,11 @@ spec:
         k8s-app: kubernetes-dashboard
     spec:
       containers:
-        - name: ns-filter
-          image: quay.io/clastix/capsule-ns-filter
+        - name: proxy
+          image: quay.io/clastix/capsule-proxy
           imagePullPolicy: Always 
           command:
-          - /capsule-ns-filter
+          - /capsule-proxy
           - --k8s-control-plane-url=https://kubernetes.default.svc
           - --capsule-user-group=capsule.clastix.io
           - --zap-devel
@@ -85,7 +85,7 @@ spec:
           - --ssl-cert-path=/opt/certs/tls.crt
           - --ssl-key-path=/opt/certs/tls.key
           volumeMounts:
-            - name: ns-filter-certs
+            - name: proxy-certs
               mountPath: /opt/certs
           ports:
           - containerPort: 9001
@@ -128,9 +128,9 @@ spec:
         - name: kubernetes-dashboard-certs
           secret:
             secretName: kubernetes-dashboard-certs
-        - name: ns-filter-certs
+        - name: proxy-certs
           secret:
-            secretName: ns-filter-certs
+            secretName: proxy-certs
         - name: tmp-volume
           emptyDir: {}
         - name: kubeconfig
@@ -235,6 +235,6 @@ data:
   tls.key: REDACTED
 kind: Secret
 metadata:
-  name: ns-filter-certs
+  name: proxy-certs
   namespace: kubernetes-dashboard
 type: Opaque
