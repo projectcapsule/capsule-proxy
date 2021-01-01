@@ -19,8 +19,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-ns-filter/internal/options"
-	req "github.com/clastix/capsule-ns-filter/internal/request"
+	"github.com/clastix/capsule-proxy/internal/options"
+	req "github.com/clastix/capsule-proxy/internal/request"
 )
 
 const (

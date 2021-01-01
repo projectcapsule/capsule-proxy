@@ -1,4 +1,4 @@
-module github.com/clastix/capsule-ns-filter
+module github.com/clastix/capsule-proxy
 
 go 1.13
 
