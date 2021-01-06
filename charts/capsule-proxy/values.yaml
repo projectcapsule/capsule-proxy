@@ -1,0 +1,49 @@
+# Default values for capsule-proxy.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: quay.io/clastix/capsule-proxy
+  pullPolicy: IfNotPresent
+  tag: ""
+options:
+  logLevel: '5'
+  k8sControlPlaneUrl: https://kubernetes.default.svc
+  capsuleUserGroup: capsule.clastix.io
+  oidcUsernameClaim: preferred_username
+  enableSSL: false
+  SSLDirectory: /opt/capsule-proxy
+  SSLCertFileName: tls.crt
+  SSLKeyFileName: tls.key
+  generateCertificates: false
+imagePullSecrets: []
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "capsule-proxy"
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+ingress:
+  enabled: false
+  annotations: {}
+  hosts:
+    - host: kube.clastix.io
+      paths: [ "/" ]
+  tls: []
+resources: 
+  limits:
+    cpu: 200m
+    memory: 128Mi
+  requests:
+    cpu: 200m
+    memory: 128Mi
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+nodeSelector: {}
+tolerations: []
+affinity: {}
+replicaCount: 1
