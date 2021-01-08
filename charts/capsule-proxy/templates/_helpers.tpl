@@ -60,3 +60,10 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create the fully-qualified Docker image to use
+*/}}
+{{- define "capsule-proxy.fullyQualifiedDockerImage" -}}
+{{- printf "%s:%s" .Values.image.repository ( .Values.image.tag | default (printf "v%s" .Chart.AppVersion) ) -}}
+{{- end }}
