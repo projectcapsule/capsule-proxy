@@ -16,11 +16,11 @@ options:
   k8sControlPlaneUrl: https://kubernetes.default.svc 
   capsuleUserGroup: capsule.clastix.io
   oidcUsernameClaim: preferred_username
-  enableSSL: true
+  enableSSL: false
   SSLDirectory: /opt/capsule-proxy
   SSLCertFileName: tls.crt
   SSLKeyFileName: tls.key
-  generateCertificates: true
+  generateCertificates: false
 serviceAccount:
   create: true
   annotations: {}
