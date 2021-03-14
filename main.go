@@ -40,6 +40,7 @@ func main() {
 	bindSsl := flag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
 	certPath := flag.String("ssl-cert-path", "/opt/capsule-proxy/tls.crt", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
 	keyPath := flag.String("ssl-key-path", "/opt/capsule-proxy/tls.key", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
+	k8sApiToken := flag.String("k8s-api-token", "", "Overwrite default kubernetes api token, needed for debug when running locally")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
@@ -58,6 +59,9 @@ func main() {
 	log.Info(fmt.Sprintf("Connecting to the Kubernete API Server listening on %s", *k8sControlPlaneUrl))
 	log.Info(fmt.Sprintf("The selected Capsule User Group is %s", *capsuleUserGroup))
 	log.Info(fmt.Sprintf("The OIDC username selected is %s", *usernameClaimField))
+	if *k8sApiToken != "" {
+		log.Info(fmt.Sprintf("Running with default Kubernetes token %s", *k8sApiToken))
+	}
 	log.Info("---")
 
 	log.Info("Creating the manager")
@@ -82,7 +86,7 @@ func main() {
 	log.Info("Creating the NamespaceFilter runner")
 
 	var listenerOpts options.ListenerOpts
-	listenerOpts, err = options.NewKube(*k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
+	listenerOpts, err = options.NewKube(*k8sControlPlaneUrl, *capsuleUserGroup, *usernameClaimField, *k8sApiToken, ctrl.GetConfigOrDie())
 	if err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
