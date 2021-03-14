@@ -98,21 +98,13 @@ localhost-key.pem localhost.pem
 3. Find the secret name `capsule-token-<xxx>` in the namespace `capsule-system` and extract the `token` using
 
 ```
-kubectl -n capsule-system get secret capsule-token-4lfql -o jsonpath='{.data.token}' | base64 -d
-```
-
-Replace the output in the function `BearerToken()` file [`internal/options/kube.go`](./internal/options/kube.go)
-
-```go
-func (k kubeOpts) BearerToken() string {
-	return "<YOUR TOKEN>"
-}
+kubectl -n capsule-system get secret <YOUR API TOKEN SECRET> -o jsonpath='{.data.token}' | base64 -d
 ```
 
 4. Run the proxy with the following options
 
 ```bash
-go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --k8s-control-plane-url=https://localhost:<KIND PORT> --enable-ssl=true
+go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --k8s-control-plane-url=https://localhost:<KIND PORT> --enable-ssl=true --k8s-api-token=$(kubectl -n capsule-system get secret <YOUR API TOKEN SECRET> -o jsonpath='{.data.token}' | base64 -d)
 ```
 
 5. Edit the KUBECONFIG file (you should make a copy and work on it) as following:
