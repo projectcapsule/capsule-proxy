@@ -26,7 +26,7 @@ With **Capsule**, we taken a different approach. As one of the key goals, we wan
 ## How it works
 This project is an add-on of the main [Capsule](https://github.com/clastix/capsule) operator, so make sure you have a working instance of Caspule before to attempt to install it. Use the `capsule-proxy` only if you want Tenant Owners to list their own Cluster-Scope resources.
 
-The `capsule-proxy`  implements a simple reverse proxy that intercepts only specific requests to the APIs server and Capsule does all the magic behind the scenes. 
+The `capsule-proxy`  implements a simple reverse proxy that intercepts only specific requests to the APIs server and Capsule does all the magic behind the scenes.
 
 Current implementation only filter two type of requests:
 
@@ -73,3 +73,51 @@ You can find more detailed documentation [here](https://github.com/clastix/capsu
 
 ## Contributions
 This is an open source software relased with Apache2 [license](./LICENSE). Feel free to open issues and pull requests. You're welcome!
+
+## How to: run locally for test and debug
+
+Running this project locally for test and debug is quite hard. This guide aims at helping new developers on the project.
+
+1. You need to run a kind cluster and find the endpoint port of `kind-control-plane` using `docker ps`:
+
+```bash
+❯ docker ps
+CONTAINER ID   IMAGE                  COMMAND                  CREATED          STATUS          PORTS                       NAMES
+88432e392adb   kindest/node:v1.20.2   "/usr/local/bin/entr…"   32 seconds ago   Up 28 seconds   127.0.0.1:64582->6443/tcp   kind-control-plane
+```
+
+2. You need to generate tsl cert keys for localhost, you can use [mkcert](https://github.com/FiloSottile/mkcert):
+
+```bash
+> cd /tmp
+> mkcert localhost
+> ls
+localhost-key.pem localhost.pem
+```
+
+3. Find the secret name `capsule-token-<xxx>` in the namespace `capsule-system` and extract the `token` using
+
+```
+kubectl -n capsule-system get secret capsule-token-4lfql -o jsonpath='{.data.token}' | base64 -d
+```
+
+Replace the output in the function `BearerToken()` file [`internal/options/kube.go`](./internal/options/kube.go)
+
+```go
+func (k kubeOpts) BearerToken() string {
+	return "<YOUR TOKEN>"
+}
+```
+
+4. Run the proxy with the following options
+
+```bash
+go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --k8s-control-plane-url=https://localhost:<KIND PORT> --enable-ssl=true
+```
+
+5. Edit the KUBECONFIG file (you should make a copy and work on it) as following:
+  - Find the section of your cluster
+  - replace the server path with `https://127.0.0.1:9001`
+  - replace the certificate-authority-data path with the content of your rootCA.pem file. (if you use mkcert, you'll find with `cat "$(mkcert -CAROOT)/rootCA.pem"|base64|tr -d '\n'`)
+
+6. Now you should be able to run kubectl using the proxy!
