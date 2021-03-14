@@ -13,6 +13,7 @@ import (
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"github.com/clastix/capsule/pkg/utils"
+	"github.com/gorilla/mux"
 	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -230,19 +231,20 @@ func (n kubeFilter) isNodeListing(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 func (n kubeFilter) Start(ctx context.Context) error {
-	http.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
+	r := mux.NewRouter()
+	r.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
 		n.isNamespaceListing(n.checkJwt(n.namespacesHandler))(writer, request)
 		n.reverseProxyFunc(writer, request)
 	})
-	http.HandleFunc("/api/v1/nodes", func(writer http.ResponseWriter, request *http.Request) {
+	r.HandleFunc("/api/v1/nodes", func(writer http.ResponseWriter, request *http.Request) {
 		n.isNodeListing(n.checkJwt(n.nodesHandler))(writer, request)
 		n.reverseProxyFunc(writer, request)
 	})
-	http.HandleFunc("/_healthz", func(writer http.ResponseWriter, request *http.Request) {
+	r.HandleFunc("/_healthz", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte("ok"))
 	})
-	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+	r.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.reverseProxyFunc(writer, request)
 	})
 
@@ -259,12 +261,16 @@ func (n kubeFilter) Start(ctx context.Context) error {
 				ClientAuth: tls.VerifyClientCertIfGiven,
 			}
 			srv = &http.Server{
+				Handler: r,
 				Addr:      addr,
 				TLSConfig: tlsConfig,
 			}
 			err = srv.ListenAndServeTLS(n.serverOptions.TlsCertificatePath(), n.serverOptions.TlsCertificateKeyPath())
 		} else {
-			srv = &http.Server{Addr: addr}
+			srv = &http.Server{
+				Handler: r,
+				Addr: addr,
+			}
 			err = srv.ListenAndServe()
 		}
 		if err != nil {
