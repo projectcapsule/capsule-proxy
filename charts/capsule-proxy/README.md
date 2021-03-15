@@ -63,6 +63,7 @@ Parameter | Description | Default
 `image.repository` | Set the image repository of the capsule-proxy. | `quay.io/clastix/capsule-proxy`
 `image.pullPolicy` | Set the image pull policy. | `IfNotPresent`
 `image.tag` | Overrides the image tag whose default is the chart. `appVersion` | `null`
+`options.listeningPort` | Set the listening port of the capsule-proxy.| `9001`
 `options.logLevel` | Set the log verbosity of the capsule-proxy with a value from 1 to 10.| `5`
 `options.k8sControlPlaneUrl` | Set the URL of kubernetes control plane. | `https://kubernetes.default.svc`
 `options.capsuleUserGroup` | Override the Capsule user group | `capsule.clastix.io`
@@ -79,6 +80,12 @@ Parameter | Description | Default
 `podAnnotations` | Annotations to add to the capsule-proxy pod. | `{}`
 `podSecurityContext` | Security context for the capsule-proxy pod. | `{}`
 `securityContext` | Security context for the capsule-proxy deployment. | `{}`
+`service.type` | Specifies the service type should be created. | `ClusterIP`
+`service.port` | Specifies the service port number. | `9001`
+`service.portName` | Specifies the service port name. | `proxy`
+`service.nodePort` | Specifies the node port number (only for `NodePort` service type). | ``
+`service.annotations` | Annotations to add to the service. | `{}`
+`service.labels` | Labels to add to the service. | `{}`
 `ingress.enabled` | Specifies whether an ingress should be created. | `false`
 `ingress.annotations` | Annotations to add to the capsule-proxy ingress. | `true`
 `ingress.hosts.host` | Set the host configuration for the capsule-proxy ingress. | `kube.clastix.io`
@@ -96,6 +103,8 @@ Parameter | Description | Default
 `tolerations` | Set list of tolerations for the capsule-proxy pod. | `[]`
 `affinity` | Set affinity rules for the capsule-proxy pod. | `{}`
 `replicaCount` | Set the replica count for capsule-proxy pod. | `1`
+`hostNetwork` | Use the host network namespace for capsule-proxy pod. | `false`
+`hostPort` | Binding the capsule-proxy listening port to the host port. | `false`
 
 ## Created resources
 
@@ -129,4 +138,4 @@ metadata:
   namespace: capsule-system
 type: Opaque
 ```
-Otherwise, you can set `options.generateCertificates` to `true` and self-signed certificates will be generated during deployment process
+Otherwise, you can set `options.generateCertificates` to `true` and self-signed certificates will be generated during deployment process by a post-install job.

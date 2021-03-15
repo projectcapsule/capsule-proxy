@@ -5,6 +5,8 @@ metadata:
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
+  strategy:
+    type: Recreate
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -20,6 +22,10 @@ spec:
       labels:
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
     spec:
+      {{- if .Values.hostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -42,6 +48,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - /capsule-proxy
+            - --listening-port={{ .Values.options.listeningPort }}
             - --k8s-control-plane-url={{ .Values.options.k8sControlPlaneUrl }}
             - --capsule-user-group={{ .Values.options.capsuleUserGroup }}
             - --zap-log-level={{ .Values.options.logLevel }}
@@ -52,9 +59,12 @@ spec:
             - --ssl-key-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLKeyFileName }}
             {{- end }}
           ports:
-          - containerPort: 9001
-            name: proxy
+          - name: proxy
             protocol: TCP
+            containerPort: {{ .Values.options.listeningPort }}
+            {{- if .Values.hostPort }}
+            hostPort: {{ .Values.options.listeningPort }}
+            {{- end }}
           - containerPort: 8080
             name: metrics
             protocol: TCP

@@ -2,11 +2,16 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+replicaCount: 1
+hostNetwork: false
+hostPort: false
+imagePullSecrets: []
 image:
   repository: quay.io/clastix/capsule-proxy
   pullPolicy: IfNotPresent
   tag: ""
 options:
+  listeningPort: 9001
   logLevel: '5'
   k8sControlPlaneUrl: https://kubernetes.default.svc
   capsuleUserGroup: capsule.clastix.io
@@ -16,7 +21,6 @@ options:
   SSLCertFileName: tls.crt
   SSLKeyFileName: tls.key
   generateCertificates: false
-imagePullSecrets: []
 serviceAccount:
   create: true
   annotations: {}
@@ -24,12 +28,19 @@ serviceAccount:
 podAnnotations: {}
 podSecurityContext: {}
 securityContext: {}
+service:
+  type: ClusterIP # ClusterIP | NodePort | LoadBalancer
+  port: 9001
+  portName: proxy
+  nodePort:
+  annotations: {}
+  labels: {}
 ingress:
   enabled: false
   annotations: {}
   hosts:
-    - host: kube.clastix.io
-      paths: [ "/" ]
+  - host: kube.clastix.io
+    paths: [ "/" ]
   tls: []
 resources: 
   limits:
@@ -46,4 +57,3 @@ autoscaling:
 nodeSelector: {}
 tolerations: []
 affinity: {}
-replicaCount: 1
