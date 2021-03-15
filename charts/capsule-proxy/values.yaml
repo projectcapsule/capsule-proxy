@@ -13,7 +13,7 @@ image:
 options:
   listeningPort: 9001
   logLevel: '5'
-  k8sControlPlaneUrl: https://kubernetes.default.svc 
+  k8sControlPlaneUrl: https://kubernetes.default.svc
   capsuleUserGroup: capsule.clastix.io
   oidcUsernameClaim: preferred_username
   enableSSL: false

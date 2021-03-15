@@ -31,7 +31,7 @@ spec:
 {{- end }}
   ports:
   - name: {{ .Values.service.portName }}
-    port: {{ .Values.service.port | default 9001 }}
+    port: {{ .Values.service.port }}
     protocol: TCP
     targetPort: {{ .Values.options.listeningPort }}
     {{ if (and (eq .Values.service.type "NodePort") (not (empty .Values.service.nodePort))) }}

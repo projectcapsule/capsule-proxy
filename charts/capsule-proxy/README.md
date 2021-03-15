@@ -82,7 +82,8 @@ Parameter | Description | Default
 `securityContext` | Security context for the capsule-proxy deployment. | `{}`
 `service.type` | Specifies the service type should be created. | `ClusterIP`
 `service.port` | Specifies the service port number. | `9001`
-`service.port` | Specifies the service port name. | `proxy`
+`service.portName` | Specifies the service port name. | `proxy`
+`service.nodePort` | Specifies the node port number (only for `NodePort` service type). | ``
 `service.annotations` | Annotations to add to the service. | `{}`
 `service.labels` | Labels to add to the service. | `{}`
 `ingress.enabled` | Specifies whether an ingress should be created. | `false`
