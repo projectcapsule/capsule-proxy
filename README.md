@@ -104,7 +104,7 @@ kubectl -n capsule-system get secret <YOUR API TOKEN SECRET> -o jsonpath='{.data
 4. Run the proxy with the following options
 
 ```bash
-go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --k8s-control-plane-url=https://localhost:<KIND PORT> --enable-ssl=true --k8s-api-token=$(kubectl -n capsule-system get secret <YOUR API TOKEN SECRET> -o jsonpath='{.data.token}' | base64 -d)
+go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --k8s-control-plane-url=https://localhost:<KIND PORT> --enable-ssl=true --bearer-token=$(kubectl -n capsule-system get secret <YOUR API TOKEN SECRET> -o jsonpath='{.data.token}' | base64 -d)
 ```
 
 5. Edit the KUBECONFIG file (you should make a copy and work on it) as following:

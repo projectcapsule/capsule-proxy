@@ -15,33 +15,37 @@ import (
 )
 
 type kubeOpts struct {
-	url             url.URL
-	groupName       string
-	claimName       string
-	config          *rest.Config
-	defaultK8sToken string
+	url         url.URL
+	groupName   string
+	claimName   string
+	bearerToken string
+	config      *rest.Config
 }
 
-func NewKube(controlPlaneUrl string, groupName string, claimName string, defaultK8sToken string, config *rest.Config) (ListenerOpts, error) {
+func NewKube(controlPlaneUrl string, groupName string, claimName string, config *rest.Config, bearerToken string) (ListenerOpts, error) {
 	u, err := url.Parse(controlPlaneUrl)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %s", err.Error())
 	}
 
-	return &kubeOpts{
-		url:             *u,
-		groupName:       groupName,
-		claimName:       claimName,
-		config:          config,
-		defaultK8sToken: defaultK8sToken,
-	}, nil
+	kubeOpts := &kubeOpts{
+		url:         *u,
+		groupName:   groupName,
+		claimName:   claimName,
+		bearerToken: config.BearerToken,
+		config:      config,
+	}
+
+	if _, err := rest.InClusterConfig(); err != nil {
+		kubeOpts.bearerToken = bearerToken
+	}
+
+	return kubeOpts, nil
 }
 
 func (k kubeOpts) BearerToken() string {
-	if k.defaultK8sToken != "" {
-		return k.defaultK8sToken
-	}
-	return k.config.BearerToken
+	fmt.Printf("token %v\n", k.bearerToken)
+	return k.bearerToken
 }
 
 func (k kubeOpts) KubernetesControlPlaneUrl() *url.URL {
