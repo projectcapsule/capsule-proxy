@@ -2,8 +2,6 @@ package options
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,7 +9,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/cert"
+	"k8s.io/client-go/transport"
 )
 
 type kubeOpts struct {
@@ -22,7 +20,11 @@ type kubeOpts struct {
 }
 
 func NewKube(controlPlaneUrl string, groupName string, claimName string, config *rest.Config) (ListenerOpts, error) {
-	u, err := url.Parse(controlPlaneUrl)
+	host := config.Host
+	if controlPlaneUrl != "" {
+		host = controlPlaneUrl
+	}
+	u, err := url.Parse(host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %s", err.Error())
 	}
@@ -51,7 +53,15 @@ func (k kubeOpts) PreferredUsernameClaim() string {
 	return k.claimName
 }
 
-func (k kubeOpts) ReverseProxyTransport() *http.Transport {
+func (k kubeOpts) ReverseProxyTransport() (*http.Transport, error) {
+	transportConfig, err := k.config.TransportConfig()
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig, err := transport.TLSConfigFor(transportConfig)
+	if err != nil {
+		return nil, err
+	}
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
@@ -61,17 +71,6 @@ func (k kubeOpts) ReverseProxyTransport() *http.Transport {
 			}).DialContext(ctx, network, addr)
 		},
 		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig: &tls.Config{
-			RootCAs: func() (cp *x509.CertPool) {
-				var err error
-				cp, err = cert.NewPool(k.config.CAFile)
-				if err != nil {
-					cp, _ = cert.NewPoolFromBytes(k.config.CAData)
-				}
-				return
-			}(),
-			NextProtos: k.config.NextProtos,
-			ServerName: k.config.ServerName,
-		},
-	}
+		TLSClientConfig:     tlsConfig,
+	}, nil
 }

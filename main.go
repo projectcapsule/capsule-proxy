@@ -34,7 +34,7 @@ func main() {
 	var mgr ctrl.Manager
 
 	listeningPort := flag.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
-	k8sControlPlaneUrl := flag.String("k8s-control-plane-url", "https://kubernetes.default.svc", "Kubernetes control plane URL (default: https://kubernetes.default.svc)")
+	k8sControlPlaneUrl := flag.String("k8s-control-plane-url", "", "Kubernetes control plane URL (DEPRECATED)")
 	capsuleUserGroup := flag.String("capsule-user-group", "capsule.clastix.io", "The Capsule User Group eligible to create Namespace for Tenant resources (default: capsule.clastix.io)")
 	usernameClaimField := flag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 	bindSsl := flag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
@@ -55,9 +55,13 @@ func main() {
 	log.Info("---")
 	log.Info(fmt.Sprintf("Manager listening on port %d", *listeningPort))
 	log.Info(fmt.Sprintf("Listening on HTTPS: %t", *bindSsl))
-	log.Info(fmt.Sprintf("Connecting to the Kubernete API Server listening on %s", *k8sControlPlaneUrl))
+	if *k8sControlPlaneUrl != "" {
+		log.Info(fmt.Sprintf("Connecting to the Kubernete API Server listening on %s", *k8sControlPlaneUrl))
+		log.Info(fmt.Sprintf("k8s-control-plane-url is DEPRECATED and won't be used in future release"))
+	}
 	log.Info(fmt.Sprintf("The selected Capsule User Group is %s", *capsuleUserGroup))
 	log.Info(fmt.Sprintf("The OIDC username selected is %s", *usernameClaimField))
+
 	log.Info("---")
 
 	log.Info("Creating the manager")

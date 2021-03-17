@@ -9,6 +9,6 @@ type ListenerOpts interface {
 	KubernetesControlPlaneUrl() *url.URL
 	UserGroupName() string
 	PreferredUsernameClaim() string
-	ReverseProxyTransport() *http.Transport
+	ReverseProxyTransport() (*http.Transport, error)
 	BearerToken() string
 }
