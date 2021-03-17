@@ -35,7 +35,12 @@ var (
 func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneUrl())
 	reverseProxy.FlushInterval = time.Millisecond * 100
-	reverseProxy.Transport = opts.ReverseProxyTransport()
+
+	reverseProxyTransport, err := opts.ReverseProxyTransport()
+	if err != nil {
+		return nil, err
+	}
+	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
 		capsuleUserGroup:   opts.UserGroupName(),
