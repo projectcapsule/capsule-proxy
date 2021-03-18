@@ -19,7 +19,12 @@ teardown() {
   delete_tenant gas
 }
 
-@test "Checking namespaces count" {
-  poll_until_equals "Namespaces count belonging to gas" "1" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/bob-gas.crt --key ./hack/bob-gas.key 'https://127.0.0.1:9001/api/v1/namespaces' | jq .items | jq length" 3 5
-  poll_until_equals "Namespaces count belonging to oil" "3" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/alice-oil.crt --key ./hack/alice-oil.key 'https://127.0.0.1:9001/api/v1/namespaces' | jq .items | jq length" 3 5
+@test "Checking namespaces count via kubectl" {
+  local gas="namespace/gas-qa"
+  poll_until_equals "Checking kubectl output for gas" "$gas" "KUBECONFIG=${HACK_DIR}/bob.kubeconfig kubectl get namespaces --output=name" 3 5
+
+  local oil="namespace/oil-dev
+namespace/oil-production
+namespace/oil-staging"
+  poll_until_equals "Checking kubectl output for oil" "$oil" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get namespaces --output=name" 3 5
 }

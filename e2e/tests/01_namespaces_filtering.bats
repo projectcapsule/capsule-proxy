@@ -19,12 +19,14 @@ teardown() {
   delete_tenant bizz
 }
 
-@test "Listing with labelSelector" {
-  poll_until_equals "non-filtered Namespaces count matching" "2" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/alice-oil.crt --key ./hack/alice-oil.key 'https://127.0.0.1:9001/api/v1/namespaces' | jq .items | jq length" 3 5
+@test "Listing with labelSelector via kubectl" {
+  local list="namespace/bizz-filter
+namespace/foo-filter"
+  poll_until_equals "list of all Namespaces of different tenants" "$list" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get namespaces --output=name" 3 5
 
-  poll_until_equals "filtered Namespace count matching the foo=bar filter" "1" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/alice-oil.crt --key ./hack/alice-oil.key 'https://127.0.0.1:9001/api/v1/namespaces?labelSelector=foo=bar' | jq .items | jq length" 3 5
-  poll_until_equals "filtered Namespace name matching foo-filter" "foo-filter" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/alice-oil.crt --key ./hack/alice-oil.key 'https://127.0.0.1:9001/api/v1/namespaces?labelSelector=foo=bar' | jq -r '.items[0].metadata.name'" 3 5
+  local list="namespace/foo-filter"
+  poll_until_equals "selecting foo-filter Namespace" "$list" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get namespaces --output=name --selector foo=bar" 3 5
 
-  poll_until_equals "filtered Namespace count matching the bizz=buzz filter" "1" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/alice-oil.crt --key ./hack/alice-oil.key 'https://127.0.0.1:9001/api/v1/namespaces?labelSelector=bizz=buzz' | jq .items | jq length" 3 5
-  poll_until_equals "filtered Namespace name matching bizz-filter" "bizz-filter" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/alice-oil.crt --key ./hack/alice-oil.key 'https://127.0.0.1:9001/api/v1/namespaces?labelSelector=bizz=buzz' | jq -r '.items[0].metadata.name'" 3 5
+  local list="namespace/bizz-filter"
+  poll_until_equals "selecting bizz-filter Namespace" "$list" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get namespaces --output=name --selector bizz=buzz" 3 5
 }

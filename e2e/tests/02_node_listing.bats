@@ -22,7 +22,9 @@ teardown() {
   kubectl label node capsule-control-plane capsule.clastix.io/tenant-
 }
 
-@test "Nodes listing allowed" {
-  poll_until_equals "filtered Node count matching on BYOD scenario" "1" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/alice-oil.crt --key ./hack/alice-oil.key 'https://127.0.0.1:9001/api/v1/nodes' | jq .items | jq length" 3 5
-  poll_until_equals "filtered Node count matching on shared scenario" "0" "curl -s --cacert ~/.local/share/mkcert/rootCA.pem --cert ./hack/bob-gas.crt --key ./hack/bob-gas.key 'https://127.0.0.1:9001/api/v1/nodes' | jq .items | jq length" 3 5
+@test "Nodes listing allowed via kubectl" {
+  poll_until_equals "filtered Node on shared scenario" "" "KUBECONFIG=${HACK_DIR}/bob.kubeconfig kubectl get node --output=name" 3 5
+
+  local list="node/capsule-control-plane"
+  poll_until_equals "filtered Node on BYOD scenario" "$list" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get node --output=name" 3 5
 }
