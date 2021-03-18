@@ -18,7 +18,13 @@ e2e/%: docker-build
 	# fake kubeconfig
 	cd hack \
 		&& curl -s https://raw.githubusercontent.com/clastix/capsule/master/hack/create-user.sh | bash -s -- alice oil \
-		&& curl -s https://raw.githubusercontent.com/clastix/capsule/master/hack/create-user.sh | bash -s -- bob gas
+		&& mv alice-oil.kubeconfig alice.kubeconfig \
+		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat ~/.local/share/mkcert/rootCA.pem | base64 |tr -d '\n') \
+		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
+		&& curl -s https://raw.githubusercontent.com/clastix/capsule/master/hack/create-user.sh | bash -s -- bob gas \
+		&& mv bob-gas.kubeconfig bob.kubeconfig \
+		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat ~/.local/share/mkcert/rootCA.pem | base64 |tr -d '\n') \
+		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001
 	# capsule-proxy installation
 	kind load docker-image --name capsule --nodes capsule-control-plane quay.io/clastix/capsule-proxy:latest
 	helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
