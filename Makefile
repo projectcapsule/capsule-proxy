@@ -34,4 +34,9 @@ e2e/%: docker-build
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "hostNetwork=true"
+	# kubectl RBAC fix
+	kubectl create clusterrole capsule-selfsubjectaccessreviews --verb=create --resource=selfsubjectaccessreviews.authorization.k8s.io
+	kubectl create clusterrole capsule-apis --verb="get" --non-resource-url="/api/*" --non-resource-url="/api" --non-resource-url="/apis/*" --non-resource-url="/apis" --non-resource-url="/version"
+	kubectl create clusterrolebinding capsule:selfsubjectaccessreviews --clusterrole=capsule-selfsubjectaccessreviews --group=capsule.clastix.io
+	kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io
 	./e2e/run.bash
