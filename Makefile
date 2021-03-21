@@ -1,3 +1,6 @@
+dlv-build:
+	docker build . --build-arg "GCFLAGS=all=-N -l" --tag quay.io/clastix/capsule-proxy:dlv --target dlv
+
 docker-build:
 	docker build . -t quay.io/clastix/capsule-proxy:latest
 
