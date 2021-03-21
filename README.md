@@ -75,7 +75,9 @@ You can find more detailed documentation [here](https://github.com/clastix/capsu
 This is an open source software relased with Apache2 [license](./LICENSE). Feel free to open issues and pull requests. You're welcome!
 
 
-## How to: run locally for test and debug
+## How to
+
+### Run locally for test and debug
 
 This guide helps new contributors to locally debug in _out or cluster_ mode the project.
 
@@ -108,3 +110,17 @@ go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-
 - replace the certificate-authority-data path with the content of your rootCA.pem file. (if you use mkcert, you'll find with `cat "$(mkcert -CAROOT)/rootCA.pem"|base64|tr -d '\n'`)
 
 6. Now you should be able to run kubectl using the proxy!
+
+### Debug in a remote Kubernetes cluster
+
+In some cases, you would need to debug the in-cluster mode and [`delve`](https://github.com/go-delve/delve) plays a big role here.
+
+1. build the Docker image with `delve` issuing `make dlv-build`
+2. with the `quay.io/clastix/capsule-proxy:dlv` produced Docker image, publish it or load it to your [KinD](https://github.com/kubernetes-sigs/kind) instance (`kind load docker-image --name capsule --nodes capsule-control-plane quay.io/clastix/capsule-proxy:dlv`)
+3. change the Deployment image using `kubectl edit` or `kubectl set image deployment/capsule-proxy capsule-proxy=quay.io/clastix/capsule-proxy:dlv` 
+4. wait for the image rollout (`kubectl -n capsule-system rollout status deployment/capsule-proxy`)
+5. perform the port-forwarding with `kubectl -n capsule-system port-forward $(kubectl -n capsule-system get pods -l app.kubernetes.io/name=capsule-proxy --output name) 2345:2345`
+6. connect using your `delve` options
+
+> _Nota Bene_: the application could be killed by the Liveness Probe since delve will wait for the debugger connection before starting it.
+> Feel free to edit the remove the probes to avoid this kind of issues.
