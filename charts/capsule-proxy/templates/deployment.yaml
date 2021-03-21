@@ -46,8 +46,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: {{ include "capsule-proxy.fullyQualifiedDockerImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - /capsule-proxy
+          args:
             - --listening-port={{ .Values.options.listeningPort }}
             - --k8s-control-plane-url={{ .Values.options.k8sControlPlaneUrl }}
             - --capsule-user-group={{ .Values.options.capsuleUserGroup }}
