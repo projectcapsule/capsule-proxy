@@ -97,8 +97,8 @@ func (n *kubeFilter) InjectClient(client client.Client) error {
 	return nil
 }
 
-func (n kubeFilter) checkJwt(fn http.HandlerFunc) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
+func (n kubeFilter) checkJWTMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var err error
 
 		token := strings.Replace(request.Header.Get("Authorization"), "Bearer ", "", -1)
@@ -123,8 +123,17 @@ func (n kubeFilter) checkJwt(fn http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
-		fn(writer, request)
-	}
+		next.ServeHTTP(writer, request)
+	})
+}
+
+func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		next.ServeHTTP(writer, request)
+
+		log.V(5).Info("debugging request", "uri", request.RequestURI, "method", request.Method)
+		n.reverseProxy.ServeHTTP(writer, request)
+	})
 }
 
 func (n kubeFilter) handleRequest(request *http.Request, username string, selector labels.Selector) {
@@ -145,8 +154,10 @@ func (n kubeFilter) handleRequest(request *http.Request, username string, select
 	log.V(4).Info("updating RawQuery", "query", q.Encode())
 	request.URL.RawQuery = q.Encode()
 
-	log.V(4).Info("Updating the token", "token", n.bearerToken)
-	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+	if len(n.bearerToken) > 0 {
+		log.V(4).Info("Updating the token", "token", n.bearerToken)
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+	}
 }
 
 func (n kubeFilter) nodesHandler(writer http.ResponseWriter, request *http.Request) {
@@ -217,40 +228,48 @@ func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.
 	n.handleRequest(request, username, selector)
 }
 
-func (n kubeFilter) isNamespaceListing(fn http.HandlerFunc) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		if req.NewHttp(request, n.usernameClaimField).IsNamespaceListing() {
-			log.V(3).Info("Handling /api/v1/namespaces")
-			fn(writer, request)
-		}
-	}
-}
-
-func (n kubeFilter) isNodeListing(fn http.HandlerFunc) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		if req.NewHttp(request, n.usernameClaimField).IsNodeListing() {
-			log.V(3).Info("Handling /api/v1/nodes")
-			fn(writer, request)
-		}
-	}
-}
-
 func (n kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
-	r.HandleFunc("/api/v1/namespaces", func(writer http.ResponseWriter, request *http.Request) {
-		n.isNamespaceListing(n.checkJwt(n.namespacesHandler))(writer, request)
-		n.reverseProxyFunc(writer, request)
-	})
-	r.HandleFunc("/api/v1/nodes", func(writer http.ResponseWriter, request *http.Request) {
-		n.isNodeListing(n.checkJwt(n.nodesHandler))(writer, request)
-		n.reverseProxyFunc(writer, request)
-	})
-	r.HandleFunc("/_healthz", func(writer http.ResponseWriter, request *http.Request) {
+	r.StrictSlash(true)
+
+	h := r.Path("/_healthz").Subrouter()
+	h.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte("ok"))
 	})
-	r.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		n.reverseProxyFunc(writer, request)
+
+	root := r.PathPrefix("").Subrouter()
+	root.Use(n.reverseProxyMiddleware)
+
+	ns := root.Path("/api/v1/namespaces").Subrouter()
+	ns.Use(n.checkJWTMiddleware)
+	ns.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
+		n.namespacesHandler(writer, request)
+	})
+
+	node := root.Path("/api/v1/nodes").Subrouter()
+	node.Use(n.checkJWTMiddleware)
+	node.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
+		n.nodesHandler(writer, request)
+	})
+
+	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if n.serverOptions.IsListeningTls() {
+			log.V(3).Info("running on TLS, need to check the certificate")
+
+			if pc := request.TLS.PeerCertificates; len(pc) == 1 {
+				r := req.NewHttp(request, n.usernameClaimField)
+				username, groups, err := r.GetUserAndGroups()
+				if err == nil {
+					log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
+					if len(n.bearerToken) > 0 {
+						request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+					}
+					request.Header.Add("Impersonate-User", username)
+					request.Header.Add("Impersonate-Group", strings.Join(groups, ","))
+				}
+			}
+		}
 	})
 
 	var srv *http.Server
@@ -286,25 +305,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	<-ctx.Done()
 
 	return srv.Shutdown(ctx)
-}
-
-func (n kubeFilter) reverseProxyFunc(writer http.ResponseWriter, request *http.Request) {
-	if n.serverOptions.IsListeningTls() {
-		log.V(3).Info("running on TLS, need to check the certificate")
-
-		if pc := request.TLS.PeerCertificates; len(pc) == 1 {
-			r := req.NewHttp(request, n.usernameClaimField)
-			username, groups, err := r.GetUserAndGroups()
-			if err == nil {
-				log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
-				request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
-				request.Header.Add("Impersonate-User", username)
-				request.Header.Add("Impersonate-Group", strings.Join(groups, ","))
-			}
-		}
-	}
-	log.V(5).Info("debugging request", "uri", request.RequestURI, "method", request.Method)
-	n.reverseProxy.ServeHTTP(writer, request)
 }
 
 type errorJSON struct {
