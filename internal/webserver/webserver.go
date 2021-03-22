@@ -258,16 +258,18 @@ func (n kubeFilter) Start(ctx context.Context) error {
 			log.V(3).Info("running on TLS, need to check the certificate")
 
 			if pc := request.TLS.PeerCertificates; len(pc) == 1 {
-				r := req.NewHttp(request, n.usernameClaimField)
-				username, groups, err := r.GetUserAndGroups()
-				if err == nil {
-					log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
-					if len(n.bearerToken) > 0 {
-						request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
-					}
-					request.Header.Add("Impersonate-User", username)
-					request.Header.Add("Impersonate-Group", strings.Join(groups, ","))
+				hr := req.NewHttp(request, n.usernameClaimField)
+				username, groups, err := hr.GetUserAndGroups()
+				if err != nil {
+					log.Error(err, "Cannot retrieve user and group from Request certificate")
+					return
 				}
+				log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
+				if len(n.bearerToken) > 0 {
+					request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+				}
+				request.Header.Add("Impersonate-User", username)
+				request.Header.Add("Impersonate-Group", strings.Join(groups, ","))
 			}
 		}
 	})
