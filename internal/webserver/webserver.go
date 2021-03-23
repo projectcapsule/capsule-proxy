@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,10 +21,6 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/options"
 	req "github.com/clastix/capsule-proxy/internal/request"
-)
-
-const (
-	nodeListingAnnotation = "capsule.clastix.io/enable-node-listing"
 )
 
 var (
@@ -175,50 +170,6 @@ func (n kubeFilter) handleRequest(request *http.Request, username string, select
 	}
 }
 
-func (n kubeFilter) nodesHandler(writer http.ResponseWriter, request *http.Request) {
-	log.V(2).Info("Decorating request for Node filtering")
-
-	r := req.NewHttp(request, n.usernameClaimField)
-
-	username, groups, err := r.GetUserAndGroups()
-
-	// breaking for non-Capsule user
-	if !utils.UserGroupList(groups).IsInCapsuleGroup(n.capsuleUserGroup) {
-		log.V(5).Info("current user is not a Capsule one")
-		return
-	}
-
-	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
-
-	filter := func(tenantList *capsulev1alpha1.TenantList) *capsulev1alpha1.TenantList {
-		filtered := &capsulev1alpha1.TenantList{}
-
-		for _, tenant := range tenantList.Items {
-			if value, ok := tenant.Annotations[nodeListingAnnotation]; ok {
-				nodeListingSupported, err := strconv.ParseBool(value)
-				if err != nil {
-					log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", nodeListingAnnotation, "value", value)
-					continue
-				}
-
-				if nodeListingSupported {
-					filtered.Items = append(filtered.Items, tenant)
-				}
-			}
-		}
-
-		return filtered
-	}
-
-	selector, err := n.getLabelSelectorForOwner(username, groups, filter)
-	if err != nil {
-		log.Error(err, "cannot create label selector")
-		panic(err)
-	}
-
-	n.handleRequest(request, username, selector)
-}
-
 func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.Request) {
 	log.V(2).Info("Decorating request for Namespace filtering")
 
@@ -283,10 +234,13 @@ func (n kubeFilter) Start(ctx context.Context) error {
 		n.namespacesHandler(writer, request)
 	})
 
-	node := root.Path("/api/v1/nodes").Subrouter()
-	node.Use(n.checkJWTMiddleware)
+	node := root.PathPrefix("/api/v1/nodes").Subrouter()
+	node.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
 	node.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-		n.nodesHandler(writer, request)
+		n.nodeListHandler(writer, request)
+	})
+	node.HandleFunc("/{name}", func(writer http.ResponseWriter, request *http.Request) {
+		n.nodeGetHandler(writer, request)
 	})
 
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
