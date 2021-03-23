@@ -97,6 +97,21 @@ func (n *kubeFilter) InjectClient(client client.Client) error {
 	return nil
 }
 
+func (n kubeFilter) checkUserInCapsuleGroupMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		_, groups, err := req.NewHttp(request, n.usernameClaimField).GetUserAndGroups()
+		if err != nil {
+			log.Error(err, "Cannot retrieve username and group from request")
+		}
+		if utils.UserGroupList(groups).IsInCapsuleGroup(n.capsuleUserGroup) {
+			next.ServeHTTP(writer, request)
+			return
+		}
+		log.V(5).Info("current user is not a Capsule one")
+		n.impersonateHandler(writer, request)
+	})
+}
+
 func (n kubeFilter) checkJWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var err error
@@ -228,6 +243,27 @@ func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.
 	n.handleRequest(request, username, selector)
 }
 
+func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
+	if n.serverOptions.IsListeningTls() {
+		log.V(3).Info("running on TLS, need to check the certificate")
+
+		if pc := request.TLS.PeerCertificates; len(pc) == 1 {
+			hr := req.NewHttp(request, n.usernameClaimField)
+			username, groups, err := hr.GetUserAndGroups()
+			if err != nil {
+				log.Error(err, "Cannot retrieve user and group from Request certificate")
+				return
+			}
+			log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
+			if len(n.bearerToken) > 0 {
+				request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+			}
+			request.Header.Add("Impersonate-User", username)
+			request.Header.Add("Impersonate-Group", strings.Join(groups, ","))
+		}
+	}
+}
+
 func (n kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.StrictSlash(true)
@@ -242,7 +278,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	root.Use(n.reverseProxyMiddleware)
 
 	ns := root.Path("/api/v1/namespaces").Subrouter()
-	ns.Use(n.checkJWTMiddleware)
+	ns.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
 	ns.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 		n.namespacesHandler(writer, request)
 	})
@@ -254,24 +290,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	})
 
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if n.serverOptions.IsListeningTls() {
-			log.V(3).Info("running on TLS, need to check the certificate")
-
-			if pc := request.TLS.PeerCertificates; len(pc) == 1 {
-				hr := req.NewHttp(request, n.usernameClaimField)
-				username, groups, err := hr.GetUserAndGroups()
-				if err != nil {
-					log.Error(err, "Cannot retrieve user and group from Request certificate")
-					return
-				}
-				log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
-				if len(n.bearerToken) > 0 {
-					request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
-				}
-				request.Header.Add("Impersonate-User", username)
-				request.Header.Add("Impersonate-Group", strings.Join(groups, ","))
-			}
-		}
+		n.impersonateHandler(writer, request)
 	})
 
 	var srv *http.Server
