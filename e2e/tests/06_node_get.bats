@@ -33,6 +33,24 @@ teardown() {
   poll_until_equals "node labeling" "node/capsule-control-plane labeled" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl label node capsule-control-plane capsule.clastix.io/test=labeling" 3 5
 }
 
+@test "Node tainting via kubectl" {
+  run sh -c "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl taint nodes capsule-control-plane key1=value1:NoSchedule"
+  [ $status -eq 1 ]
+
+  kubectl patch tenants.capsule.clastix.io node --type=json -p '[{"op": "add", "path": "/metadata/annotations", "value": {"capsule.clastix.io/enable-node-listing": "true", "capsule.clastix.io/enable-node-update": "true"}}]'
+  poll_until_equals "node tainting" "node/capsule-control-plane tainted" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig
+  kubectl taint nodes capsule-control-plane key1=value1:NoSchedule" 3 5
+}
+
+@test "Node cordoning via kubectl" {
+  run sh -c "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl cordon capsule-control-plane"
+  [ $status -eq 1 ]
+
+  kubectl patch tenants.capsule.clastix.io node --type=json -p '[{"op": "add", "path": "/metadata/annotations", "value": {"capsule.clastix.io/enable-node-listing": "true", "capsule.clastix.io/enable-node-update": "true"}}]'
+  poll_until_equals "node cordoning" "node/capsule-control-plane cordoned" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig
+  kubectl cordon capsule-control-plane" 3 5
+}
+
 @test "Node deletion via kubectl" {
   if [[ $(kubectl version -o json | jq -r .serverVersion.minor) -lt 19 ]]; then
     kubectl version
