@@ -175,16 +175,7 @@ func (n kubeFilter) handleRequest(request *http.Request, username string, select
 func (n kubeFilter) namespacesHandler(_ http.ResponseWriter, request *http.Request) {
 	log.V(2).Info("Decorating request for Namespace filtering")
 
-	r := req.NewHTTP(request, n.usernameClaimField)
-
-	username, groups, err := r.GetUserAndGroups()
-
-	// breaking for non-Capsule user
-	if !utils.UserGroupList(groups).IsInCapsuleGroup(n.capsuleUserGroup) {
-		log.V(5).Info("current user is not a Capsule one")
-		return
-	}
-
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
 	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
 
 	selector, err := n.getLabelSelectorForOwner(username, groups, nil)
