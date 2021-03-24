@@ -234,14 +234,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 		n.namespacesHandler(writer, request)
 	})
 
-	node := root.PathPrefix("/api/v1/nodes").Subrouter()
-	node.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
-	node.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-		n.nodeListHandler(writer, request)
-	})
-	node.HandleFunc("/{name}", func(writer http.ResponseWriter, request *http.Request) {
-		n.nodeGetHandler(writer, request)
-	})
+	n.registerNode(root)
 
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
