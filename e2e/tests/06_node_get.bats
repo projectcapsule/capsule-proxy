@@ -13,8 +13,10 @@ setup() {
 teardown() {
   delete_tenant node
 
-  kubectl label node capsule-control-plane capsule.clastix.io/tenant-
-  kubectl label node capsule-control-plane capsule.clastix.io/test-
+  kubectl label node capsule-control-plane capsule.clastix.io/tenant- || true
+  kubectl label node capsule-control-plane capsule.clastix.io/test- || true
+  kubectl uncordon capsule-control-plane || true
+  kubectl taint nodes capsule-control-plane key1=value1:NoSchedule- || true
 }
 
 @test "Nodes retrieval via kubectl" {
