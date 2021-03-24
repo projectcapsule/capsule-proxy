@@ -16,8 +16,21 @@ import (
 )
 
 const (
-	nodeListingAnnotation = "capsule.clastix.io/enable-node-listing"
+	nodeListingAnnotation  = "capsule.clastix.io/enable-node-listing"
+	nodeUpdateAnnotation   = "capsule.clastix.io/enable-node-update"
+	nodeDeletionAnnotation = "capsule.clastix.io/enable-node-deletion"
 )
+
+func (n kubeFilter) registerNode(router *mux.Router) {
+	node := router.PathPrefix("/api/v1/nodes").Subrouter()
+	node.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
+	node.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
+		n.nodeListHandler(writer, request)
+	})
+	node.HandleFunc("/{name}", func(writer http.ResponseWriter, request *http.Request) {
+		n.nodeGetHandler(writer, request)
+	})
+}
 
 func (n kubeFilter) nodeListHandler(writer http.ResponseWriter, request *http.Request) {
 	username, _, _ := req.NewHttp(request, n.usernameClaimField).GetUserAndGroups()
@@ -56,16 +69,34 @@ func (n kubeFilter) nodeSelector(request *http.Request) (selector labels.Selecto
 		filtered := &capsulev1alpha1.TenantList{}
 
 		for _, tenant := range tenantList.Items {
-			if value, ok := tenant.Annotations[nodeListingAnnotation]; ok {
-				nodeListingSupported, err := strconv.ParseBool(value)
-				if err != nil {
-					log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", nodeListingAnnotation, "value", value)
-					continue
-				}
+			var annotation string
+			switch request.Method {
+			case "GET":
+				annotation = nodeListingAnnotation
+			case "PUT", "PATCH":
+				annotation = nodeUpdateAnnotation
+			case "DELETE":
+				annotation = nodeDeletionAnnotation
+			default:
+				break
+			}
 
-				if nodeListingSupported {
-					filtered.Items = append(filtered.Items, tenant)
-				}
+			var ok bool
+			var strVal string
+			strVal, ok = tenant.Annotations[annotation]
+			if !ok {
+				continue
+			}
+
+			var err error
+			ok, err = strconv.ParseBool(strVal)
+			if err != nil {
+				log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", annotation, "value", strVal)
+				continue
+			}
+
+			if ok {
+				filtered.Items = append(filtered.Items, tenant)
 			}
 		}
 
@@ -81,4 +112,3 @@ func (n kubeFilter) nodeSelector(request *http.Request) (selector labels.Selecto
 
 	return selector
 }
-
