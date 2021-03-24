@@ -8,8 +8,7 @@ e2e/clean:
 	kind delete cluster --name capsule
 
 e2e/%: docker-build
-	kind create cluster --name capsule --image kindest/node:$* --config ./e2e/kind.yaml
-	kubectl wait --for=condition=ready --timeout=320s node capsule-control-plane
+	kind create cluster --name capsule --image kindest/node:$* --config ./e2e/kind.yaml --wait=120s
 	helm repo add clastix https://clastix.github.io/charts
 	helm upgrade --install --create-namespace --namespace capsule-system capsule clastix/capsule \
 		--set "manager.resources=null" \
