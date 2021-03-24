@@ -15,6 +15,8 @@ teardown() {
 
   kubectl label node capsule-control-plane capsule.clastix.io/tenant-
   kubectl label node capsule-control-plane capsule.clastix.io/test-
+  kubectl uncordon capsule-control-plane
+  kubectl taint nodes capsule-control-plane key1=value1:NoSchedule-
 }
 
 @test "Nodes retrieval via kubectl" {
