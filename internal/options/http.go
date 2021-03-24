@@ -10,17 +10,17 @@ import (
 )
 
 type httpOptions struct {
-	isTls   bool
+	isTLS   bool
 	port    uint
 	crtPath string
 	keyPath string
 	caPool  *x509.CertPool
 }
 
-func NewServer(isTls bool, listeningPort uint, certificatePath string, keyPath string, config *rest.Config) (ServerOptions, error) {
+func NewServer(isTLS bool, listeningPort uint, certificatePath string, keyPath string, config *rest.Config) (ServerOptions, error) {
 	var err error
 
-	if isTls {
+	if isTLS {
 		_, err = os.Stat(certificatePath)
 		if err != nil {
 			return nil, fmt.Errorf("cannot lookup TLS certificate file: %s", err.Error())
@@ -39,25 +39,25 @@ func NewServer(isTls bool, listeningPort uint, certificatePath string, keyPath s
 	if err != nil {
 		return nil, fmt.Errorf("cannot find any CA data, nor from file nor from kubeconfig: %s", err.Error())
 	}
-	return &httpOptions{isTls: isTls, port: listeningPort, crtPath: certificatePath, keyPath: keyPath, caPool: caPool}, nil
+	return &httpOptions{isTLS: isTLS, port: listeningPort, crtPath: certificatePath, keyPath: keyPath, caPool: caPool}, nil
 }
 
 func (h httpOptions) GetCertificateAuthorityPool() *x509.CertPool {
 	return h.caPool
 }
 
-func (h httpOptions) IsListeningTls() bool {
-	return h.isTls
+func (h httpOptions) IsListeningTLS() bool {
+	return h.isTLS
 }
 
 func (h httpOptions) ListeningPort() uint {
 	return h.port
 }
 
-func (h httpOptions) TlsCertificatePath() string {
+func (h httpOptions) TLSCertificatePath() string {
 	return h.crtPath
 }
 
-func (h httpOptions) TlsCertificateKeyPath() string {
+func (h httpOptions) TLSCertificateKeyPath() string {
 	return h.keyPath
 }

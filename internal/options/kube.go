@@ -19,10 +19,10 @@ type kubeOpts struct {
 	config    *rest.Config
 }
 
-func NewKube(controlPlaneUrl string, groupName string, claimName string, config *rest.Config) (ListenerOpts, error) {
+func NewKube(controlPlaneURL string, groupName string, claimName string, config *rest.Config) (ListenerOpts, error) {
 	host := config.Host
-	if controlPlaneUrl != "" {
-		host = controlPlaneUrl
+	if controlPlaneURL != "" {
+		host = controlPlaneURL
 	}
 	u, err := url.Parse(host)
 	if err != nil {
@@ -41,7 +41,7 @@ func (k kubeOpts) BearerToken() string {
 	return k.config.BearerToken
 }
 
-func (k kubeOpts) KubernetesControlPlaneUrl() *url.URL {
+func (k kubeOpts) KubernetesControlPlaneURL() *url.URL {
 	return &k.url
 }
 

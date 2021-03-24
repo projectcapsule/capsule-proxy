@@ -21,7 +21,7 @@ type http struct {
 	usernameClaimField string
 }
 
-func NewHttp(request *h.Request, usernameClaimField string) Request {
+func NewHTTP(request *h.Request, usernameClaimField string) Request {
 	return &http{Request: request, usernameClaimField: usernameClaimField}
 }
 
@@ -54,16 +54,8 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	return
 }
 
-func (h http) isWatchEndpoint() (ok bool) {
-	w, ok := h.URL.Query()["watch"]
-	if ok && len(w) == 1 && w[0] == "true" {
-		ok = true
-	}
-	return
-}
-
 func (h http) bearerToken() string {
-	return strings.Replace(h.Header.Get("Authorization"), "Bearer ", "", -1)
+	return strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
 }
 
 func (h http) getAuthType() authType {
