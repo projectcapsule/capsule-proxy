@@ -5,9 +5,9 @@ import (
 )
 
 type ServerOptions interface {
-	IsListeningTls() bool
+	IsListeningTLS() bool
 	ListeningPort() uint
-	TlsCertificatePath() string
-	TlsCertificateKeyPath() string
+	TLSCertificatePath() string
+	TLSCertificateKeyPath() string
 	GetCertificateAuthorityPool() *x509.CertPool
 }

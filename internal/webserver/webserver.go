@@ -28,7 +28,7 @@ var (
 )
 
 func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter, error) {
-	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneUrl())
+	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
 	reverseProxyTransport, err := opts.ReverseProxyTransport()
@@ -63,11 +63,12 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) error {
 	scheme := "http"
 	clt := &http.Client{}
 
-	if n.serverOptions.IsListeningTls() {
+	if n.serverOptions.IsListeningTLS() {
 		scheme = "https"
 		clt = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
+					//nolint:gosec
 					InsecureSkipVerify: true,
 				},
 			},
@@ -94,7 +95,7 @@ func (n *kubeFilter) InjectClient(client client.Client) error {
 
 func (n kubeFilter) checkUserInCapsuleGroupMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		_, groups, err := req.NewHttp(request, n.usernameClaimField).GetUserAndGroups()
+		_, groups, err := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
 		if err != nil {
 			log.Error(err, "Cannot retrieve username and group from request")
 		}
@@ -111,7 +112,7 @@ func (n kubeFilter) checkJWTMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var err error
 
-		token := strings.Replace(request.Header.Get("Authorization"), "Bearer ", "", -1)
+		token := strings.ReplaceAll(request.Header.Get("Authorization"), "Bearer ", "")
 
 		if len(token) > 0 {
 			log.V(4).Info("Checking JWT token", "value", token)
@@ -120,7 +121,7 @@ func (n kubeFilter) checkJWTMiddleware(next http.Handler) http.Handler {
 					Token: token,
 				},
 			}
-			if err := n.client.Create(context.Background(), tr); err != nil {
+			if err = n.client.Create(context.Background(), tr); err != nil {
 				log.Error(err, "cannot create TokenReview")
 				n.handleError(err, writer)
 				return
@@ -146,6 +147,7 @@ func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// nolint:interfacer
 func (n kubeFilter) handleRequest(request *http.Request, username string, selector labels.Selector) {
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
@@ -170,10 +172,10 @@ func (n kubeFilter) handleRequest(request *http.Request, username string, select
 	}
 }
 
-func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.Request) {
+func (n kubeFilter) namespacesHandler(_ http.ResponseWriter, request *http.Request) {
 	log.V(2).Info("Decorating request for Namespace filtering")
 
-	r := req.NewHttp(request, n.usernameClaimField)
+	r := req.NewHTTP(request, n.usernameClaimField)
 
 	username, groups, err := r.GetUserAndGroups()
 
@@ -194,12 +196,12 @@ func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.
 	n.handleRequest(request, username, selector)
 }
 
-func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	if n.serverOptions.IsListeningTls() {
+func (n kubeFilter) impersonateHandler(_ http.ResponseWriter, request *http.Request) {
+	if n.serverOptions.IsListeningTLS() {
 		log.V(3).Info("running on TLS, need to check the certificate")
 
 		if pc := request.TLS.PeerCertificates; len(pc) == 1 {
-			hr := req.NewHttp(request, n.usernameClaimField)
+			hr := req.NewHTTP(request, n.usernameClaimField)
 			username, groups, err := hr.GetUserAndGroups()
 			if err != nil {
 				log.Error(err, "Cannot retrieve user and group from Request certificate")
@@ -247,21 +249,22 @@ func (n kubeFilter) Start(ctx context.Context) error {
 
 		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
 
-		if n.serverOptions.IsListeningTls() {
+		if n.serverOptions.IsListeningTLS() {
 			tlsConfig := &tls.Config{
+				MinVersion: tls.VersionTLS12,
 				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
 				ClientAuth: tls.VerifyClientCertIfGiven,
 			}
 			srv = &http.Server{
-				Handler: r,
+				Handler:   r,
 				Addr:      addr,
 				TLSConfig: tlsConfig,
 			}
-			err = srv.ListenAndServeTLS(n.serverOptions.TlsCertificatePath(), n.serverOptions.TlsCertificateKeyPath())
+			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
 		} else {
 			srv = &http.Server{
 				Handler: r,
-				Addr: addr,
+				Addr:    addr,
 			}
 			err = srv.ListenAndServe()
 		}
@@ -352,7 +355,6 @@ func (n kubeFilter) getLabelSelectorForOwner(username string, groups []string, f
 		return nil, fmt.Errorf("cannot parse Tenant selector: %s", err.Error())
 	}
 	return labels.NewSelector().Add(*r), nil
-
 }
 
 // We have to validate User requesting labels since we're changing the Authorization Bearer since the Tenant Owner

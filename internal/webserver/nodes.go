@@ -32,8 +32,8 @@ func (n kubeFilter) registerNode(router *mux.Router) {
 	})
 }
 
-func (n kubeFilter) nodeListHandler(writer http.ResponseWriter, request *http.Request) {
-	username, _, _ := req.NewHttp(request, n.usernameClaimField).GetUserAndGroups()
+func (n kubeFilter) nodeListHandler(_ http.ResponseWriter, request *http.Request) {
+	username, _, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
 	selector := n.nodeSelector(request)
 	n.handleRequest(request, username, selector)
 }
@@ -61,7 +61,7 @@ func (n kubeFilter) nodeGetHandler(writer http.ResponseWriter, request *http.Req
 func (n kubeFilter) nodeSelector(request *http.Request) (selector labels.Selector) {
 	log.V(2).Info("Decorating request for Node filtering")
 
-	username, groups, _ := req.NewHttp(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
 
 	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
 
