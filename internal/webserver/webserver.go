@@ -3,7 +3,6 @@ package webserver
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -12,6 +11,7 @@ import (
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"github.com/clastix/capsule/pkg/utils"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	v1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -122,16 +122,11 @@ func (n kubeFilter) checkJWTMiddleware(next http.Handler) http.Handler {
 				},
 			}
 			if err = n.client.Create(context.Background(), tr); err != nil {
-				log.Error(err, "cannot create TokenReview")
-				n.handleError(err, writer)
-				return
+				handleError(writer, err, "cannot create TokenReview")
 			}
 			log.V(5).Info("TokenReview", "value", tr.String())
 			if statusErr := tr.Status.Error; len(statusErr) > 0 {
-				err = fmt.Errorf("cannot verify the token due to error")
-				log.Error(err, statusErr)
-				n.handleError(err, writer)
-				return
+				handleError(writer, err, "cannot verify the token due to error")
 			}
 		}
 		next.ServeHTTP(writer, request)
@@ -172,7 +167,7 @@ func (n kubeFilter) handleRequest(request *http.Request, username string, select
 	}
 }
 
-func (n kubeFilter) namespacesHandler(_ http.ResponseWriter, request *http.Request) {
+func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.Request) {
 	log.V(2).Info("Decorating request for Namespace filtering")
 
 	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
@@ -180,14 +175,13 @@ func (n kubeFilter) namespacesHandler(_ http.ResponseWriter, request *http.Reque
 
 	selector, err := n.getLabelSelectorForOwner(username, groups, nil)
 	if err != nil {
-		log.Error(err, "cannot create label selector")
-		panic(err)
+		handleError(writer, err, "cannot create label selector")
 	}
 
 	n.handleRequest(request, username, selector)
 }
 
-func (n kubeFilter) impersonateHandler(_ http.ResponseWriter, request *http.Request) {
+func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
 	if n.serverOptions.IsListeningTLS() {
 		log.V(3).Info("running on TLS, need to check the certificate")
 
@@ -195,8 +189,7 @@ func (n kubeFilter) impersonateHandler(_ http.ResponseWriter, request *http.Requ
 			hr := req.NewHTTP(request, n.usernameClaimField)
 			username, groups, err := hr.GetUserAndGroups()
 			if err != nil {
-				log.Error(err, "Cannot retrieve user and group from Request certificate")
-				return
+				handleError(writer, err, "Cannot retrieve user and group from Request certificate")
 			}
 			log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
 			if len(n.bearerToken) > 0 {
@@ -211,6 +204,7 @@ func (n kubeFilter) impersonateHandler(_ http.ResponseWriter, request *http.Requ
 func (n kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.StrictSlash(true)
+	r.Use(handlers.RecoveryHandler())
 
 	h := r.Path("/_healthz").Subrouter()
 	h.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
@@ -267,18 +261,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	<-ctx.Done()
 
 	return srv.Shutdown(ctx)
-}
-
-type errorJSON struct {
-	Error string `json:"error"`
-}
-
-func (n kubeFilter) handleError(err error, writer http.ResponseWriter) {
-	log.Error(err, "handling failed request")
-	writer.WriteHeader(500)
-	writer.Header().Set("Content-Type", "application/json")
-	b, _ := json.Marshal(errorJSON{Error: err.Error()})
-	_, _ = writer.Write(b)
 }
 
 func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (tenants *capsulev1alpha1.TenantList, err error) {
