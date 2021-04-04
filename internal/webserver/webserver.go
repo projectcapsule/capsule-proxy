@@ -222,6 +222,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	})
 
 	n.registerNode(root)
+	n.registerStorageClass(root)
 
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
