@@ -43,8 +43,7 @@ func (n kubeFilter) nodeGetHandler(writer http.ResponseWriter, request *http.Req
 
 	nl := &corev1.NodeList{}
 	if err := n.client.List(context.Background(), nl, &client.ListOptions{LabelSelector: selector}); err != nil {
-		n.handleError(err, writer)
-		return
+		handleError(writer, err, "cannot list NodeList")
 	}
 
 	if len(nl.Items) > 0 && nl.Items[0].Name == mux.Vars(request)["name"] {
