@@ -32,6 +32,7 @@ Current implementation only filter two type of requests:
 
 * `api/v1/namespaces`
 * `api/v1/nodes`
+* `apis/storage.k8s.io/v1/storageclasses`
 
 All other requestes are proxied transparently to the APIs server, so no side-effects are expected. We're planning to add new APIs in the future, so PRs are welcome!
 
