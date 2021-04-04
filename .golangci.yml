@@ -19,7 +19,8 @@ linters:
     - deadcode
     - depguard
     - dogsled
-    - dupl
+    # Planned with https://github.com/clastix/capsule-proxy/issues/81
+    # - dupl
     - errcheck
     - goconst
     - gocritic
