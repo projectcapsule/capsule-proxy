@@ -60,6 +60,7 @@ Here the values you can override:
 
 Parameter | Description | Default
 --- | --- | ---
+`kind` | Set the deployment mode of the capsule-proxy as Deployment or DaemonSet. | `Deployment`
 `image.repository` | Set the image repository of the capsule-proxy. | `quay.io/clastix/capsule-proxy`
 `image.pullPolicy` | Set the image pull policy. | `IfNotPresent`
 `image.tag` | Overrides the image tag whose default is the chart. `appVersion` | `null`
@@ -78,6 +79,7 @@ Parameter | Description | Default
 `serviceAccount.annotations` | Annotations to add to the service account. | `{}`
 `serviceAccount.name` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template | `capsule-proxy`
 `podAnnotations` | Annotations to add to the capsule-proxy pod. | `{}`
+`priorityClassName` | Specifies PriorityClass of the capsule-proxy pod. | ``
 `podSecurityContext` | Security context for the capsule-proxy pod. | `{}`
 `securityContext` | Security context for the capsule-proxy deployment. | `{}`
 `service.type` | Specifies the service type should be created. | `ClusterIP`
@@ -103,8 +105,8 @@ Parameter | Description | Default
 `tolerations` | Set list of tolerations for the capsule-proxy pod. | `[]`
 `affinity` | Set affinity rules for the capsule-proxy pod. | `{}`
 `replicaCount` | Set the replica count for capsule-proxy pod. | `1`
-`hostNetwork` | Use the host network namespace for capsule-proxy pod. | `false`
-`hostPort` | Binding the capsule-proxy listening port to the host port. | `false`
+`daemonset.hostNetwork` | Use the host network namespace for capsule-proxy pod. | `false`
+`daemonset.hostPort` | Binding the capsule-proxy listening port to the host port. | `false`
 
 ## Created resources
 
