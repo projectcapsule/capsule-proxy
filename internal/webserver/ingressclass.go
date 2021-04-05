@@ -22,10 +22,10 @@ func (n kubeFilter) registerIngressClass(router *mux.Router) {
 	ic := router.PathPrefix("/apis/networking.k8s.io/{version}/ingressclasses").Subrouter()
 	ic.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
 	ic.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-		n.ingressClassListHandler(writer, request)
+		n.ingressClassHandler(writer, request)
 	})
 	ic.HandleFunc("/{name}", func(writer http.ResponseWriter, request *http.Request) {
-		n.ingressClassGetHandler(writer, request)
+		n.ingressClassHandler(writer, request)
 	})
 }
 
@@ -91,35 +91,16 @@ func (n kubeFilter) getIngressClassSelector(sc client.ObjectList, exact []string
 	return labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 }
 
-func (n kubeFilter) ingressClassGetHandler(w http.ResponseWriter, request *http.Request) {
+func (n kubeFilter) ingressClassHandler(w http.ResponseWriter, request *http.Request) {
 	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")
 	}
 
-	exactMatch, regexMatch := n.getIngressClasses(tenantList)
-
-	l := &networkingv1.IngressClassList{}
-	if err = n.client.List(context.Background(), l, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
-		handleError(w, err, "cannot list IngressClass resources")
-		return
-	}
-
-	var r *labels.Requirement
-	r, err = n.getIngressClassSelector(l, exactMatch, regexMatch)
+	path, err := mux.CurrentRoute(request).GetPathTemplate()
 	if err != nil {
-		handleError(w, err, "cannot create LabelSelector for the requested IngressClass requirement")
-	}
-
-	n.handleRequest(request, username, labels.NewSelector().Add(*r))
-}
-
-func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
-	tenantList, err := n.getTenantsForOwner(username, groups)
-	if err != nil {
-		handleError(w, err, "cannot list Tenant resources")
+		handleError(w, err, "unable to get request path template")
 	}
 
 	exactMatch, regexMatch := n.getIngressClasses(tenantList)
@@ -135,8 +116,17 @@ func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http
 		handleError(w, fmt.Errorf("ingressClass %s is not supported", v), "cannot list IngressClass")
 	}
 
-	if err = n.client.List(context.Background(), ic); err != nil {
-		handleError(w, err, "cannot list IngressClass resources")
+	switch path {
+	case "/apis/networking.k8s.io/{version}/ingressclasses":
+		if err = n.client.List(context.Background(), ic); err != nil {
+			handleError(w, err, "cannot list IngressClass resources")
+		}
+	case "/apis/networking.k8s.io/{version}/ingressclasses/{name}":
+		if err = n.client.List(context.Background(), ic, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
+			handleError(w, err, "cannot list IngressClass resource")
+		}
+	default:
+		handleError(w, fmt.Errorf("%s path not found", path), "cannot list IngressClass resource")
 	}
 
 	var r *labels.Requirement

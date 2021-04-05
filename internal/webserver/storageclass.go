@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"regexp"
 	"sort"
@@ -20,10 +21,10 @@ func (n kubeFilter) registerStorageClass(router *mux.Router) {
 	sc := router.PathPrefix("/apis/storage.k8s.io/v1/storageclasses").Subrouter()
 	sc.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
 	sc.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-		n.storageClassListHandler(writer, request)
+		n.storageClassHandler(writer, request)
 	})
 	sc.HandleFunc("/{name}", func(writer http.ResponseWriter, request *http.Request) {
-		n.storageClassGetHandler(writer, request)
+		n.storageClassHandler(writer, request)
 	})
 }
 
@@ -74,42 +75,33 @@ func (n kubeFilter) getStorageClassSelector(sc *v1.StorageClassList, exact []str
 	return labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 }
 
-func (n kubeFilter) storageClassGetHandler(w http.ResponseWriter, request *http.Request) {
+func (n kubeFilter) storageClassHandler(w http.ResponseWriter, request *http.Request) {
 	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")
 	}
 
-	exactMatch, regexMatch := n.getStorageClasses(tenantList)
-
-	sc := &v1.StorageClassList{}
-	if err = n.client.List(context.Background(), sc, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
-		handleError(w, err, "cannot list StorageClass resources")
-		return
-	}
-
-	var r *labels.Requirement
-	r, err = n.getStorageClassSelector(sc, exactMatch, regexMatch)
+	path, err := mux.CurrentRoute(request).GetPathTemplate()
 	if err != nil {
-		handleError(w, err, "cannot create LabelSelector for the requested StorageClass requirement")
-	}
-
-	n.handleRequest(request, username, labels.NewSelector().Add(*r))
-}
-
-func (n kubeFilter) storageClassListHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
-	tenantList, err := n.getTenantsForOwner(username, groups)
-	if err != nil {
-		handleError(w, err, "cannot list Tenant resources")
+		handleError(w, err, "unable to get request path template")
 	}
 
 	exactMatch, regexMatch := n.getStorageClasses(tenantList)
 
 	sc := &v1.StorageClassList{}
-	if err = n.client.List(context.Background(), sc); err != nil {
-		handleError(w, err, "cannot list StorageClass resources")
+
+	switch path {
+	case "/apis/storage.k8s.io/v1/storageclasses":
+		if err = n.client.List(context.Background(), sc); err != nil {
+			handleError(w, err, "cannot list StorageClass resources")
+		}
+	case "/apis/storage.k8s.io/v1/storageclasses/{name}":
+		if err = n.client.List(context.Background(), sc, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
+			handleError(w, err, "cannot list StorageClass resources")
+		}
+	default:
+		handleError(w, fmt.Errorf("%s path not found", path), "cannot list StorageClass resources")
 	}
 
 	var r *labels.Requirement
