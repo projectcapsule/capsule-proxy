@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"regexp"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"github.com/gorilla/mux"
 	v1 "k8s.io/api/storage/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,7 +73,7 @@ func (n kubeFilter) getStorageClassSelector(sc *v1.StorageClassList, exact []str
 	if len(names) > 0 {
 		return labels.NewRequirement("name", selection.In, names)
 	}
-	return labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
+	return nil, fmt.Errorf("cannot create LabelSelector for the requested StorageClass requirement")
 }
 
 func (n kubeFilter) storageClassGetHandler(w http.ResponseWriter, request *http.Request) {
@@ -86,16 +88,24 @@ func (n kubeFilter) storageClassGetHandler(w http.ResponseWriter, request *http.
 	sc := &v1.StorageClassList{}
 	if err = n.client.List(context.Background(), sc, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
 		handleError(w, err, "cannot list StorageClass resources")
-		return
 	}
 
 	var r *labels.Requirement
 	r, err = n.getStorageClassSelector(sc, exactMatch, regexMatch)
-	if err != nil {
-		handleError(w, err, "cannot create LabelSelector for the requested StorageClass requirement")
+	if err == nil {
+		n.handleRequest(request, username, labels.NewSelector().Add(*r))
+		return
 	}
 
-	n.handleRequest(request, username, labels.NewSelector().Add(*r))
+	handleNotFound(
+		w,
+		fmt.Sprintf("storageclasses.storage.k8s.io \"%s\" not found", mux.Vars(request)["name"]),
+		&metav1.StatusDetails{
+			Name:  mux.Vars(request)["name"],
+			Group: "storage.k8s.io",
+			Kind:  "storageclasses",
+		},
+	)
 }
 
 func (n kubeFilter) storageClassListHandler(w http.ResponseWriter, request *http.Request) {
@@ -115,7 +125,7 @@ func (n kubeFilter) storageClassListHandler(w http.ResponseWriter, request *http
 	var r *labels.Requirement
 	r, err = n.getStorageClassSelector(sc, exactMatch, regexMatch)
 	if err != nil {
-		handleError(w, err, "cannot create LabelSelector for the requested StorageClass requirement")
+		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 	}
 
 	n.handleRequest(request, username, labels.NewSelector().Add(*r))

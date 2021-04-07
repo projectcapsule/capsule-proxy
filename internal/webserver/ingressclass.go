@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -88,7 +89,20 @@ func (n kubeFilter) getIngressClassSelector(sc client.ObjectList, exact []string
 	if len(names) > 0 {
 		return labels.NewRequirement("name", selection.In, names)
 	}
-	return labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
+	return nil, fmt.Errorf("cannot create LabelSelector for the requested IngressClass requirement")
+}
+
+func (n kubeFilter) getIngressClassFromRequest(w http.ResponseWriter, request *http.Request) (ic client.ObjectList) {
+	v := mux.Vars(request)["version"]
+	switch v {
+	case "v1":
+		ic = &networkingv1.IngressClassList{}
+	case "v1beta1":
+		ic = &networkingv1beta1.IngressClassList{}
+	default:
+		handleError(w, fmt.Errorf("ingressClass %s is not supported", v), "cannot list IngressClass")
+	}
+	return
 }
 
 func (n kubeFilter) ingressClassGetHandler(w http.ResponseWriter, request *http.Request) {
@@ -100,19 +114,28 @@ func (n kubeFilter) ingressClassGetHandler(w http.ResponseWriter, request *http.
 
 	exactMatch, regexMatch := n.getIngressClasses(tenantList)
 
-	l := &networkingv1.IngressClassList{}
-	if err = n.client.List(context.Background(), l, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
+	ic := n.getIngressClassFromRequest(w, request)
+
+	if err = n.client.List(context.Background(), ic, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
 		handleError(w, err, "cannot list IngressClass resources")
-		return
 	}
 
 	var r *labels.Requirement
-	r, err = n.getIngressClassSelector(l, exactMatch, regexMatch)
-	if err != nil {
-		handleError(w, err, "cannot create LabelSelector for the requested IngressClass requirement")
+	r, err = n.getIngressClassSelector(ic, exactMatch, regexMatch)
+	if err == nil {
+		n.handleRequest(request, username, labels.NewSelector().Add(*r))
+		return
 	}
 
-	n.handleRequest(request, username, labels.NewSelector().Add(*r))
+	handleNotFound(
+		w,
+		fmt.Sprintf("ingressclasses.networking.k8s.io \"%s\" not found", mux.Vars(request)["name"]),
+		&metav1.StatusDetails{
+			Name:  mux.Vars(request)["name"],
+			Group: "networking.k8s.io",
+			Kind:  "ingressclasses",
+		},
+	)
 }
 
 func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http.Request) {
@@ -124,16 +147,7 @@ func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http
 
 	exactMatch, regexMatch := n.getIngressClasses(tenantList)
 
-	var ic client.ObjectList
-	v := mux.Vars(request)["version"]
-	switch v {
-	case "v1":
-		ic = &networkingv1.IngressClassList{}
-	case "v1beta1":
-		ic = &networkingv1beta1.IngressClassList{}
-	default:
-		handleError(w, fmt.Errorf("ingressClass %s is not supported", v), "cannot list IngressClass")
-	}
+	ic := n.getIngressClassFromRequest(w, request)
 
 	if err = n.client.List(context.Background(), ic); err != nil {
 		handleError(w, err, "cannot list IngressClass resources")
@@ -142,7 +156,7 @@ func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http
 	var r *labels.Requirement
 	r, err = n.getIngressClassSelector(ic, exactMatch, regexMatch)
 	if err != nil {
-		handleError(w, err, "cannot create LabelSelector for the requested IngressClass requirement")
+		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 	}
 
 	n.handleRequest(request, username, labels.NewSelector().Add(*r))
