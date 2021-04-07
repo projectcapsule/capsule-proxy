@@ -35,7 +35,7 @@ e2e/%: docker-build
 		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
 		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001
 	# capsule-proxy installation
-	kind load docker-image --name capsule --nodes capsule-control-plane quay.io/clastix/capsule-proxy:latest
+	kind load docker-image --name capsule --nodes capsule-worker quay.io/clastix/capsule-proxy:latest
 	helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=latest" \

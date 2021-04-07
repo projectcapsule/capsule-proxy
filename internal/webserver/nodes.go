@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/selection"
+
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
@@ -32,82 +35,112 @@ func (n kubeFilter) registerNode(router *mux.Router) {
 	})
 }
 
-func (n kubeFilter) nodeListHandler(_ http.ResponseWriter, request *http.Request) {
-	username, _, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
-	selector := n.nodeSelector(request)
-	n.handleRequest(request, username, selector)
+func (n kubeFilter) getNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*labels.Requirement, error) {
+	var names []string
+	for _, node := range nl.Items {
+		for _, selector := range selectors {
+			matches := 0
+			for k := range selector {
+				if selector[k] == node.GetLabels()[k] {
+					matches++
+				}
+			}
+			if matches == len(selector) {
+				names = append(names, node.GetName())
+			}
+		}
+	}
+	if len(names) > 0 {
+		return labels.NewRequirement("kubernetes.io/hostname", selection.In, names)
+	}
+	return nil, fmt.Errorf("cannot create LabelSelector for the requested Node requirement")
 }
 
-func (n kubeFilter) nodeGetHandler(writer http.ResponseWriter, request *http.Request) {
-	selector := n.nodeSelector(request)
+func (n kubeFilter) getNodeSelectors(request *http.Request, tenantList *capsulev1alpha1.TenantList) (selectors []map[string]string) {
+	for _, tenant := range tenantList.Items {
+		var annotation string
+		switch request.Method {
+		case http.MethodGet:
+			annotation = nodeListingAnnotation
+		case http.MethodPut, http.MethodPatch:
+			annotation = nodeUpdateAnnotation
+		case http.MethodDelete:
+			annotation = nodeDeletionAnnotation
+		default:
+			break
+		}
+
+		var ok bool
+		var strVal string
+		strVal, ok = tenant.Annotations[annotation]
+		if !ok {
+			continue
+		}
+
+		var err error
+		ok, err = strconv.ParseBool(strVal)
+		if err != nil {
+			log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", annotation, "value", strVal)
+			continue
+		}
+
+		if ok {
+			selectors = append(selectors, tenant.Spec.NodeSelector)
+		}
+	}
+	return
+}
+
+func (n kubeFilter) nodeGetHandler(w http.ResponseWriter, request *http.Request) {
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	tenantList, err := n.getTenantsForOwner(username, groups)
+	if err != nil {
+		handleError(w, err, "cannot list Tenant resources")
+	}
+
+	selectors := n.getNodeSelectors(request, tenantList)
 
 	nl := &corev1.NodeList{}
-	if err := n.client.List(context.Background(), nl, &client.ListOptions{LabelSelector: selector}); err != nil {
-		handleError(writer, err, "cannot list NodeList")
+	if err = n.client.List(context.Background(), nl, client.MatchingLabels{"kubernetes.io/hostname": mux.Vars(request)["name"]}); err != nil {
+		handleError(w, err, "cannot list Node resources")
 	}
 
-	if len(nl.Items) > 0 && nl.Items[0].Name == mux.Vars(request)["name"] {
-		if len(n.bearerToken) > 0 {
-			log.V(4).Info("Updating the token", "token", n.bearerToken)
-			request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
-		}
+	var r *labels.Requirement
+	r, err = n.getNodeSelector(nl, selectors)
+	if err == nil {
+		n.handleRequest(request, username, labels.NewSelector().Add(*r))
 		return
 	}
-	// The current user is trying to get a Node cannot access
-	n.impersonateHandler(writer, request)
+
+	handleNotFound(
+		w,
+		fmt.Sprintf("nodes \"%s\" not found", mux.Vars(request)["name"]),
+		&metav1.StatusDetails{
+			Name: mux.Vars(request)["name"],
+			Kind: "nodes",
+		},
+	)
 }
 
-func (n kubeFilter) nodeSelector(request *http.Request) (selector labels.Selector) {
-	log.V(2).Info("Decorating request for Node filtering")
-
+func (n kubeFilter) nodeListHandler(w http.ResponseWriter, request *http.Request) {
 	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
-
-	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
-
-	filter := func(tenantList *capsulev1alpha1.TenantList) *capsulev1alpha1.TenantList {
-		filtered := &capsulev1alpha1.TenantList{}
-
-		for _, tenant := range tenantList.Items {
-			var annotation string
-			switch request.Method {
-			case "GET":
-				annotation = nodeListingAnnotation
-			case "PUT", "PATCH":
-				annotation = nodeUpdateAnnotation
-			case "DELETE":
-				annotation = nodeDeletionAnnotation
-			default:
-				break
-			}
-
-			var ok bool
-			var strVal string
-			strVal, ok = tenant.Annotations[annotation]
-			if !ok {
-				continue
-			}
-
-			var err error
-			ok, err = strconv.ParseBool(strVal)
-			if err != nil {
-				log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", annotation, "value", strVal)
-				continue
-			}
-
-			if ok {
-				filtered.Items = append(filtered.Items, tenant)
-			}
-		}
-
-		return filtered
-	}
-
-	var err error
-	selector, err = n.getLabelSelectorForOwner(username, groups, filter)
+	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
-		log.Error(err, "cannot create label selector")
-		panic(err)
+		handleError(w, err, "cannot list Tenant resources")
 	}
 
-	return selector
+	selectors := n.getNodeSelectors(request, tenantList)
+
+	nl := &corev1.NodeList{}
+	if err = n.client.List(context.Background(), nl); err != nil {
+		handleError(w, err, "cannot list Node resources")
+	}
+
+	var r *labels.Requirement
+	r, err = n.getNodeSelector(nl, selectors)
+	if err != nil {
+		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
+	}
+
+	n.handleRequest(request, username, labels.NewSelector().Add(*r))
 }
