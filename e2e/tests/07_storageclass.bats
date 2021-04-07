@@ -16,6 +16,7 @@ teardown() {
   delete_storageclass cephfs || true
   delete_storageclass glusterfs || true
   delete_storageclass custom || true
+  delete_storageclass nonallowed || true
 }
 
 @test "Storage Class retrieval via kubectl" {
@@ -24,9 +25,16 @@ teardown() {
   create_storageclass cephfs
   create_storageclass glusterfs
   create_storageclass custom
+  create_storageclass nonallowed
 
   local list="storageclass.storage.k8s.io/cephfs
 storageclass.storage.k8s.io/custom
 storageclass.storage.k8s.io/glusterfs"
   poll_until_equals "StorageClass retrieval" "$list" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get storageclasses.storage.k8s.io --output=name" 3 5
+}
+
+@test "Listing Non-allowed StorageClass is denied" {
+  run sh -c "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get storageclasses.storage.k8s.io nonallowed"
+  [ $status -ne 0 ]
+  [ "${lines[0]}" = 'Error from server (NotFound): storageclasses.storage.k8s.io "nonallowed" not found' ]
 }

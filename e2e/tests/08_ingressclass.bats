@@ -16,6 +16,7 @@ teardown() {
   delete_ingressclass custom || true
   delete_ingressclass external-lb || true
   delete_ingressclass internal-lb || true
+  delete_ingressclass nonallowed || true
 }
 
 @test "Ingress Class retrieval via kubectl" {
@@ -33,9 +34,21 @@ teardown() {
   create_ingressclass "${version}" custom
   create_ingressclass "${version}" external-lb
   create_ingressclass "${version}" internal-lb
+  create_ingressclass "${version}" nonallowed
 
   local list="ingressclass.networking.k8s.io/custom
 ingressclass.networking.k8s.io/external-lb
 ingressclass.networking.k8s.io/internal-lb"
   poll_until_equals "IngressClass retrieval" "$list" "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get ingressclasses.networking.k8s.io --output=name" 3 5
+}
+
+@test "Listing Non-allowed IngressClass is denied" {
+  if [[ $(kubectl version -o json | jq -r .serverVersion.minor) -lt 18 ]]; then
+    kubectl version
+    skip "IngressClass resources is not suported on Kubernetes < 1.18"
+  fi
+
+  run sh -c "KUBECONFIG=${HACK_DIR}/alice.kubeconfig kubectl get ingressclasses.networking.k8s.io nonallowed"
+  [ $status -ne 0 ]
+  [ "${lines[0]}" = 'Error from server (NotFound): ingressclasses.networking.k8s.io "nonallowed" not found' ]
 }
