@@ -112,14 +112,19 @@ func (n kubeFilter) nodeGetHandler(w http.ResponseWriter, request *http.Request)
 		return
 	}
 
-	handleNotFound(
-		w,
-		fmt.Sprintf("nodes \"%s\" not found", mux.Vars(request)["name"]),
-		&metav1.StatusDetails{
-			Name: mux.Vars(request)["name"],
-			Kind: "nodes",
-		},
-	)
+	switch request.Method {
+	case http.MethodGet:
+		handleNotFound(
+			w,
+			fmt.Sprintf("nodes \"%s\" not found", mux.Vars(request)["name"]),
+			&metav1.StatusDetails{
+				Name: mux.Vars(request)["name"],
+				Kind: "nodes",
+			},
+		)
+	default:
+		n.impersonateHandler(w, request)
+	}
 }
 
 func (n kubeFilter) nodeListHandler(w http.ResponseWriter, request *http.Request) {

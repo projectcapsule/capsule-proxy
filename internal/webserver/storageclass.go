@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+
 	"github.com/gorilla/mux"
 	v1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +18,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	req "github.com/clastix/capsule-proxy/internal/request"
+)
+
+const (
+	storageClassListingAnnotation  = "capsule.clastix.io/enable-storageclass-listing"
+	storageClassUpdateAnnotation   = "capsule.clastix.io/enable-storageclass-update"
+	storageClassDeletionAnnotation = "capsule.clastix.io/enable-storageclass-deletion"
 )
 
 func (n kubeFilter) registerStorageClass(router *mux.Router) {
@@ -29,17 +37,45 @@ func (n kubeFilter) registerStorageClass(router *mux.Router) {
 	})
 }
 
-func (n kubeFilter) getStorageClasses(tenantList *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
-	for _, tnt := range tenantList.Items {
-		sc := tnt.Spec.StorageClasses
-		if sc == nil {
+func (n kubeFilter) getStorageClasses(request *http.Request, tenantList *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
+	for _, tenant := range tenantList.Items {
+		var annotation string
+		switch request.Method {
+		case http.MethodGet:
+			annotation = storageClassListingAnnotation
+		case http.MethodPut, http.MethodPatch:
+			annotation = storageClassUpdateAnnotation
+		case http.MethodDelete:
+			annotation = storageClassDeletionAnnotation
+		default:
+			break
+		}
+
+		var ok bool
+		var strVal string
+		strVal, ok = tenant.Annotations[annotation]
+		if !ok {
 			continue
 		}
-		if len(sc.Exact) > 0 {
-			exact = append(exact, sc.Exact...)
+
+		var err error
+		ok, err = strconv.ParseBool(strVal)
+		if err != nil {
+			log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", annotation, "value", strVal)
+			continue
 		}
-		if r := sc.Regex; len(r) > 0 {
-			regex = append(regex, regexp.MustCompile(r))
+
+		if ok {
+			sc := tenant.Spec.StorageClasses
+			if sc == nil {
+				continue
+			}
+			if len(sc.Exact) > 0 {
+				exact = append(exact, sc.Exact...)
+			}
+			if r := sc.Regex; len(r) > 0 {
+				regex = append(regex, regexp.MustCompile(r))
+			}
 		}
 	}
 
@@ -83,7 +119,7 @@ func (n kubeFilter) storageClassGetHandler(w http.ResponseWriter, request *http.
 		handleError(w, err, "cannot list Tenant resources")
 	}
 
-	exactMatch, regexMatch := n.getStorageClasses(tenantList)
+	exactMatch, regexMatch := n.getStorageClasses(request, tenantList)
 
 	sc := &v1.StorageClassList{}
 	if err = n.client.List(context.Background(), sc, client.MatchingLabels{"name": mux.Vars(request)["name"]}); err != nil {
@@ -97,15 +133,20 @@ func (n kubeFilter) storageClassGetHandler(w http.ResponseWriter, request *http.
 		return
 	}
 
-	handleNotFound(
-		w,
-		fmt.Sprintf("storageclasses.storage.k8s.io \"%s\" not found", mux.Vars(request)["name"]),
-		&metav1.StatusDetails{
-			Name:  mux.Vars(request)["name"],
-			Group: "storage.k8s.io",
-			Kind:  "storageclasses",
-		},
-	)
+	switch request.Method {
+	case http.MethodGet:
+		handleNotFound(
+			w,
+			fmt.Sprintf("storageclasses.storage.k8s.io \"%s\" not found", mux.Vars(request)["name"]),
+			&metav1.StatusDetails{
+				Name:  mux.Vars(request)["name"],
+				Group: "storage.k8s.io",
+				Kind:  "storageclasses",
+			},
+		)
+	default:
+		n.impersonateHandler(w, request)
+	}
 }
 
 func (n kubeFilter) storageClassListHandler(w http.ResponseWriter, request *http.Request) {
@@ -115,7 +156,7 @@ func (n kubeFilter) storageClassListHandler(w http.ResponseWriter, request *http
 		handleError(w, err, "cannot list Tenant resources")
 	}
 
-	exactMatch, regexMatch := n.getStorageClasses(tenantList)
+	exactMatch, regexMatch := n.getStorageClasses(request, tenantList)
 
 	sc := &v1.StorageClassList{}
 	if err = n.client.List(context.Background(), sc); err != nil {
