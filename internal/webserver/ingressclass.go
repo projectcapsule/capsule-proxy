@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"github.com/gorilla/mux"
@@ -19,6 +20,12 @@ import (
 	req "github.com/clastix/capsule-proxy/internal/request"
 )
 
+const (
+	ingressClassListingAnnotation  = "capsule.clastix.io/enable-ingressclass-listing"
+	ingressClassUpdateAnnotation   = "capsule.clastix.io/enable-ingressclass-update"
+	ingressClassDeletionAnnotation = "capsule.clastix.io/enable-ingressclass-deletion"
+)
+
 func (n kubeFilter) registerIngressClass(router *mux.Router) {
 	ic := router.PathPrefix("/apis/networking.k8s.io/{version}/ingressclasses").Subrouter()
 	ic.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
@@ -30,17 +37,45 @@ func (n kubeFilter) registerIngressClass(router *mux.Router) {
 	})
 }
 
-func (n kubeFilter) getIngressClasses(tenantList *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
-	for _, tnt := range tenantList.Items {
-		ic := tnt.Spec.IngressClasses
-		if ic == nil {
+func (n kubeFilter) getIngressClasses(request *http.Request, tenantList *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
+	for _, tenant := range tenantList.Items {
+		var annotation string
+		switch request.Method {
+		case http.MethodGet:
+			annotation = ingressClassListingAnnotation
+		case http.MethodPut, http.MethodPatch:
+			annotation = ingressClassUpdateAnnotation
+		case http.MethodDelete:
+			annotation = ingressClassDeletionAnnotation
+		default:
+			break
+		}
+
+		var ok bool
+		var strVal string
+		strVal, ok = tenant.Annotations[annotation]
+		if !ok {
 			continue
 		}
-		if len(ic.Exact) > 0 {
-			exact = append(exact, ic.Exact...)
+
+		var err error
+		ok, err = strconv.ParseBool(strVal)
+		if err != nil {
+			log.Error(err, "unable to parse value for tenant annotation", "tenant", tenant.GetName(), "annotation", annotation, "value", strVal)
+			continue
 		}
-		if r := ic.Regex; len(r) > 0 {
-			regex = append(regex, regexp.MustCompile(r))
+
+		if ok {
+			ic := tenant.Spec.IngressClasses
+			if ic == nil {
+				continue
+			}
+			if len(ic.Exact) > 0 {
+				exact = append(exact, ic.Exact...)
+			}
+			if r := ic.Regex; len(r) > 0 {
+				regex = append(regex, regexp.MustCompile(r))
+			}
 		}
 	}
 
@@ -112,7 +147,7 @@ func (n kubeFilter) ingressClassGetHandler(w http.ResponseWriter, request *http.
 		handleError(w, err, "cannot list Tenant resources")
 	}
 
-	exactMatch, regexMatch := n.getIngressClasses(tenantList)
+	exactMatch, regexMatch := n.getIngressClasses(request, tenantList)
 
 	ic := n.getIngressClassFromRequest(w, request)
 
@@ -127,15 +162,20 @@ func (n kubeFilter) ingressClassGetHandler(w http.ResponseWriter, request *http.
 		return
 	}
 
-	handleNotFound(
-		w,
-		fmt.Sprintf("ingressclasses.networking.k8s.io \"%s\" not found", mux.Vars(request)["name"]),
-		&metav1.StatusDetails{
-			Name:  mux.Vars(request)["name"],
-			Group: "networking.k8s.io",
-			Kind:  "ingressclasses",
-		},
-	)
+	switch request.Method {
+	case http.MethodGet:
+		handleNotFound(
+			w,
+			fmt.Sprintf("ingressclasses.networking.k8s.io \"%s\" not found", mux.Vars(request)["name"]),
+			&metav1.StatusDetails{
+				Name:  mux.Vars(request)["name"],
+				Group: "networking.k8s.io",
+				Kind:  "ingressclasses",
+			},
+		)
+	default:
+		n.impersonateHandler(w, request)
+	}
 }
 
 func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http.Request) {
@@ -145,7 +185,7 @@ func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http
 		handleError(w, err, "cannot list Tenant resources")
 	}
 
-	exactMatch, regexMatch := n.getIngressClasses(tenantList)
+	exactMatch, regexMatch := n.getIngressClasses(request, tenantList)
 
 	ic := n.getIngressClassFromRequest(w, request)
 
