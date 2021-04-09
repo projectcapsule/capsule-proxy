@@ -42,7 +42,8 @@ e2e/%: docker-build
 		--set "options.enableSSL=true" \
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
-		--set "hostNetwork=true"
+		--set "kind=DaemonSet" \
+		--set "daemonset.hostNetwork=true"
 	# kubectl RBAC fix
 	kubectl create clusterrole capsule-selfsubjectaccessreviews --verb=create --resource=selfsubjectaccessreviews.authorization.k8s.io
 	kubectl create clusterrole capsule-apis --verb="get" --non-resource-url="/api/*" --non-resource-url="/api" --non-resource-url="/apis/*" --non-resource-url="/apis" --non-resource-url="/version"

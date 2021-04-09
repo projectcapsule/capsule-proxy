@@ -2,17 +2,15 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
-hostNetwork: false
-hostPort: false
-imagePullSecrets: []
+kind: Deployment # Deployment | DaemonSet
 image:
   repository: quay.io/clastix/capsule-proxy
   pullPolicy: IfNotPresent
   tag: ""
+imagePullSecrets: []
 options:
   listeningPort: 9001
-  logLevel: '5'
+  logLevel: '4'
   k8sControlPlaneUrl: https://kubernetes.default.svc
   capsuleUserGroup: capsule.clastix.io
   oidcUsernameClaim: preferred_username
@@ -24,24 +22,16 @@ options:
 serviceAccount:
   create: true
   annotations: {}
-  name: "capsule-proxy"
+  name: capsule-proxy
+#  The following annotations guarantee scheduling for critical add-on pods
+#  podAnnotations:
+#    scheduler.alpha.kubernetes.io/critical-pod: ''
 podAnnotations: {}
+# Set a pod priorityClassName
+# priorityClassName: system-node-critical
+priorityClassName: ""
 podSecurityContext: {}
 securityContext: {}
-service:
-  type: ClusterIP # ClusterIP | NodePort | LoadBalancer
-  port: 9001
-  portName: proxy
-  nodePort:
-  annotations: {}
-  labels: {}
-ingress:
-  enabled: false
-  annotations: {}
-  hosts:
-  - host: kube.clastix.io
-    paths: [ "/" ]
-  tls: []
 resources: 
   limits:
     cpu: 200m
@@ -49,11 +39,44 @@ resources:
   requests:
     cpu: 200m
     memory: 128Mi
+replicaCount: 1
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 5
   targetCPUUtilizationPercentage: 80
+# Enable node selector and tolerations when deploying on the controlplane
+# nodeSelector:
+#   node-role.kubernetes.io/master: ""
+# tolerations:
+# - key: CriticalAddonsOnly
+#   operator: Exists
+# - effect: NoSchedule
+#   key: node-role.kubernetes.io/master
 nodeSelector: {}
 tolerations: []
 affinity: {}
+restartPolicy: Always
+# When deployed as DaemonSet use
+# hostNetwork: true
+daemonset:
+  hostNetwork: false
+  hostPort: false
+service:
+  type: ClusterIP # ClusterIP | NodePort | LoadBalancer
+  port: 9001
+  portName: proxy
+  nodePort:
+  #  Add these labels to have capsule-proxy show up in `kubectl cluster-info`
+  #  kubernetes.io/cluster-service: "true"
+  #  kubernetes.io/name: "Capsule Proxy"
+  labels: {}
+  annotations: {}
+ingress:
+  enabled: false
+  annotations: {}
+  hosts:
+  - host: ""
+    paths: [ "/" ]
+  tls: []
+

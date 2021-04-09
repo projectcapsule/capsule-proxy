@@ -60,11 +60,12 @@ Here the values you can override:
 
 Parameter | Description | Default
 --- | --- | ---
+`kind` | Set the deployment mode of the capsule-proxy as Deployment or DaemonSet. | `Deployment`
 `image.repository` | Set the image repository of the capsule-proxy. | `quay.io/clastix/capsule-proxy`
 `image.pullPolicy` | Set the image pull policy. | `IfNotPresent`
 `image.tag` | Overrides the image tag whose default is the chart. `appVersion` | `null`
 `options.listeningPort` | Set the listening port of the capsule-proxy.| `9001`
-`options.logLevel` | Set the log verbosity of the capsule-proxy with a value from 1 to 10.| `5`
+`options.logLevel` | Set the log verbosity of the capsule-proxy with a value from 1 to 10.| `4`
 `options.k8sControlPlaneUrl` | Set the URL of kubernetes control plane. | `https://kubernetes.default.svc`
 `options.capsuleUserGroup` | Override the Capsule user group | `capsule.clastix.io`
 `options.oidcUsernameClaim` | Override the OIDC field name used to identify the user | `preferred_username`
@@ -78,6 +79,7 @@ Parameter | Description | Default
 `serviceAccount.annotations` | Annotations to add to the service account. | `{}`
 `serviceAccount.name` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template | `capsule-proxy`
 `podAnnotations` | Annotations to add to the capsule-proxy pod. | `{}`
+`priorityClassName` | Specifies PriorityClass of the capsule-proxy pod. | ``
 `podSecurityContext` | Security context for the capsule-proxy pod. | `{}`
 `securityContext` | Security context for the capsule-proxy deployment. | `{}`
 `service.type` | Specifies the service type should be created. | `ClusterIP`
@@ -103,8 +105,8 @@ Parameter | Description | Default
 `tolerations` | Set list of tolerations for the capsule-proxy pod. | `[]`
 `affinity` | Set affinity rules for the capsule-proxy pod. | `{}`
 `replicaCount` | Set the replica count for capsule-proxy pod. | `1`
-`hostNetwork` | Use the host network namespace for capsule-proxy pod. | `false`
-`hostPort` | Binding the capsule-proxy listening port to the host port. | `false`
+`daemonset.hostNetwork` | Use the host network namespace for capsule-proxy pod. | `false`
+`daemonset.hostPort` | Binding the capsule-proxy listening port to the host port. | `false`
 
 ## Created resources
 

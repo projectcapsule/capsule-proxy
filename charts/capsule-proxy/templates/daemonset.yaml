@@ -1,16 +1,13 @@
-{{- if eq .Values.kind "Deployment" }}
+{{- if eq .Values.kind "DaemonSet" }}
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
-  strategy:
+  updateStrategy:
     type: RollingUpdate
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "capsule-proxy.selectorLabels" . | nindent 6 }}
@@ -23,6 +20,10 @@ spec:
       labels:
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
     spec:
+      {{- if .Values.daemonset.hostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -59,6 +60,9 @@ spec:
         - name: proxy
           protocol: TCP
           containerPort: {{ .Values.options.listeningPort }}
+          {{- if .Values.daemonset.hostPort }}
+          hostPort: {{ .Values.options.listeningPort }}
+          {{- end }}
         - name: metrics
           containerPort: 8080
           protocol: TCP
