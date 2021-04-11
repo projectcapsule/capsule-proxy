@@ -113,7 +113,7 @@ func (n kubeFilter) getStorageClassSelector(sc *v1.StorageClassList, exact []str
 }
 
 func (n kubeFilter) storageClassGetHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")
@@ -150,7 +150,7 @@ func (n kubeFilter) storageClassGetHandler(w http.ResponseWriter, request *http.
 }
 
 func (n kubeFilter) storageClassListHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")

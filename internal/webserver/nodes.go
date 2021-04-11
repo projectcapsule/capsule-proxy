@@ -92,7 +92,7 @@ func (n kubeFilter) getNodeSelectors(request *http.Request, tenantList *capsulev
 }
 
 func (n kubeFilter) nodeGetHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")
@@ -128,7 +128,7 @@ func (n kubeFilter) nodeGetHandler(w http.ResponseWriter, request *http.Request)
 }
 
 func (n kubeFilter) nodeListHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")

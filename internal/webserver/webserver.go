@@ -95,7 +95,7 @@ func (n *kubeFilter) InjectClient(client client.Client) error {
 
 func (n kubeFilter) checkUserInCapsuleGroupMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		_, groups, err := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+		_, groups, err := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 		if err != nil {
 			log.Error(err, "Cannot retrieve username and group from request")
 		}
@@ -115,7 +115,7 @@ func (n kubeFilter) checkJWTMiddleware(next http.Handler) http.Handler {
 		token := strings.ReplaceAll(request.Header.Get("Authorization"), "Bearer ", "")
 
 		if len(token) > 0 {
-			log.V(4).Info("Checking JWT token", "value", token)
+			log.V(4).Info("Checking Bearer token", "value", token)
 			tr := &v1.TokenReview{
 				Spec: v1.TokenReviewSpec{
 					Token: token,
@@ -170,7 +170,7 @@ func (n kubeFilter) handleRequest(request *http.Request, username string, select
 func (n kubeFilter) namespacesHandler(writer http.ResponseWriter, request *http.Request) {
 	log.V(2).Info("Decorating request for Namespace filtering")
 
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 	log.V(4).Info("Getting user from request", "username", username, "groups", groups)
 
 	selector, err := n.getLabelSelectorForOwner(username, groups, nil)
@@ -186,7 +186,7 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 		log.V(3).Info("running on TLS, need to check the certificate")
 
 		if pc := request.TLS.PeerCertificates; len(pc) == 1 {
-			hr := req.NewHTTP(request, n.usernameClaimField)
+			hr := req.NewHTTP(request, n.usernameClaimField, n.client)
 			username, groups, err := hr.GetUserAndGroups()
 			if err != nil {
 				handleError(writer, err, "Cannot retrieve user and group from Request certificate")
