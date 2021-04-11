@@ -141,7 +141,7 @@ func (n kubeFilter) getIngressClassFromRequest(w http.ResponseWriter, request *h
 }
 
 func (n kubeFilter) ingressClassGetHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")
@@ -179,7 +179,7 @@ func (n kubeFilter) ingressClassGetHandler(w http.ResponseWriter, request *http.
 }
 
 func (n kubeFilter) ingressClassListHandler(w http.ResponseWriter, request *http.Request) {
-	username, groups, _ := req.NewHTTP(request, n.usernameClaimField).GetUserAndGroups()
+	username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
 	tenantList, err := n.getTenantsForOwner(username, groups)
 	if err != nil {
 		handleError(w, err, "cannot list Tenant resources")
