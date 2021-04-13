@@ -215,7 +215,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	root := r.PathPrefix("").Subrouter()
 	root.Use(n.reverseProxyMiddleware)
 
-	ns := root.Path("/api/v1/namespaces").Subrouter()
+	ns := root.Path("/api/v1/namespaces").Methods(http.MethodGet).Subrouter()
 	ns.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
 	ns.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 		n.namespacesHandler(writer, request)
