@@ -215,15 +215,56 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	root := r.PathPrefix("").Subrouter()
 	root.Use(n.reverseProxyMiddleware)
 
-	ns := root.Path("/api/v1/namespaces").Methods(http.MethodGet).Subrouter()
-	ns.Use(n.checkJWTMiddleware, n.checkUserInCapsuleGroupMiddleware)
-	ns.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-		n.namespacesHandler(writer, request)
-	})
+	modList := []modules.Module{
+		namespace.List(n.client),
+		node.List(n.client),
+		node.Get(n.client),
+		ingressclass.List(n.client),
+		ingressclass.Get(n.client),
+		storageclass.Get(n.client),
+		storageclass.List(n.client),
+	}
+	for _, i := range modList {
+		mod := i
+		rp := root.Path(mod.Path())
 
-	n.registerNode(root)
-	n.registerStorageClass(root)
-	n.registerIngressClass(root)
+		if m := mod.Methods(); len(m) > 0 {
+			rp = rp.Methods(m...)
+		}
+
+		sr := rp.Subrouter()
+		sr.Use(
+			middleware.CheckJWTMiddleware(n.client, n.log),
+			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.capsuleUserGroup, n.impersonateHandler),
+		)
+		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
+			username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
+			tenantList, err := n.getTenantsForOwner(username, groups)
+			if err != nil {
+				serverr.HandleError(writer, err, "cannot list Tenant resources")
+			}
+
+			var selector labels.Selector
+			selector, err = mod.Handle(tenantList, request)
+			switch {
+			case err != nil:
+				var t moderrors.Error
+				if errors.As(err, &t) {
+					writer.Header().Set("content-type", "application/json")
+					writer.Header().Set("content-type", "application/json")
+					b, _ := json.Marshal(t.Status())
+					_, _ = writer.Write(b)
+					panic(err.Error())
+				}
+				serverr.HandleError(writer, err, err.Error())
+			case selector == nil:
+				// if there's no selector, let it pass to the
+				n.impersonateHandler(writer, request)
+			default:
+				n.handleRequest(request, username, selector)
+			}
+		})
+	}
 
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
