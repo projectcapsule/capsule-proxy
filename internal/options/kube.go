@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/pkg/errors"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 )
@@ -24,9 +25,10 @@ func NewKube(controlPlaneURL string, groupName string, claimName string, config 
 	if controlPlaneURL != "" {
 		host = controlPlaneURL
 	}
+
 	u, err := url.Parse(host)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %s", err.Error())
+		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
 	}
 
 	return &kubeOpts{
@@ -56,12 +58,14 @@ func (k kubeOpts) PreferredUsernameClaim() string {
 func (k kubeOpts) ReverseProxyTransport() (*http.Transport, error) {
 	transportConfig, err := k.config.TransportConfig()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "cannot get transport configuration")
 	}
+
 	tlsConfig, err := transport.TLSConfigFor(transportConfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "cannot create tls configuration")
 	}
+
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, e error) {
