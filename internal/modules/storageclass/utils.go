@@ -19,7 +19,6 @@ const (
 	storageClassDeletionAnnotation = "capsule.clastix.io/enable-storageclass-deletion"
 )
 
-// nolint:lll
 func getStorageClasses(req *http.Request, tenants *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
 	for _, tenant := range tenants.Items {
 		var annotation string
@@ -67,7 +66,6 @@ func getStorageClasses(req *http.Request, tenants *capsulev1alpha1.TenantList) (
 	return exact, regex
 }
 
-// nolint:lll
 func getStorageClassSelector(classes *storagev1.StorageClassList, exact []string, regex []*regexp.Regexp) (*labels.Requirement, error) {
 	isStorageClassRegexed := func(name string, regex []*regexp.Regexp) bool {
 		for _, r := range regex {
