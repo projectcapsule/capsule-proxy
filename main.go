@@ -19,18 +19,16 @@ import (
 	"github.com/clastix/capsule-proxy/internal/webserver"
 )
 
-var (
-	scheme = runtime.NewScheme()
-	log    = ctrl.Log.WithName("main")
-)
+// nolint:funlen
+func main() {
+	scheme := runtime.NewScheme()
+	log := ctrl.Log.WithName("main")
 
-func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(capsulev1alpha1.AddToScheme(scheme))
-}
 
-func main() {
 	var err error
+
 	var mgr ctrl.Manager
 
 	listeningPort := flag.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
@@ -55,16 +53,17 @@ func main() {
 	log.Info("---")
 	log.Info(fmt.Sprintf("Manager listening on port %d", *listeningPort))
 	log.Info(fmt.Sprintf("Listening on HTTPS: %t", *bindSsl))
+
 	if *k8sControlPlaneURL != "" {
 		log.Info(fmt.Sprintf("Connecting to the Kubernete API Server listening on %s", *k8sControlPlaneURL))
 		log.Info("k8s-control-plane-url is DEPRECATED and won't be used in future release")
 	}
+
 	log.Info(fmt.Sprintf("The selected Capsule User Group is %s", *capsuleUserGroup))
 	log.Info(fmt.Sprintf("The OIDC username selected is %s", *usernameClaimField))
-
 	log.Info("---")
-
 	log.Info("Creating the manager")
+
 	mgr, err = ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: ":8081",
@@ -75,26 +74,28 @@ func main() {
 	}
 
 	log.Info("Creating the Field Indexer")
+
 	ow := tenant.OwnerReference{}
-	err = mgr.GetFieldIndexer().IndexField(context.Background(), ow.Object(), ow.Field(), ow.Func())
-	if err != nil {
+
+	if err = mgr.GetFieldIndexer().IndexField(context.Background(), ow.Object(), ow.Field(), ow.Func()); err != nil {
 		log.Error(err, "cannot create new Field Indexer")
 		os.Exit(1)
 	}
 
 	var r webserver.Filter
+
 	log.Info("Creating the NamespaceFilter runner")
 
 	var listenerOpts options.ListenerOpts
-	listenerOpts, err = options.NewKube(*k8sControlPlaneURL, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie())
-	if err != nil {
+
+	if listenerOpts, err = options.NewKube(*k8sControlPlaneURL, *capsuleUserGroup, *usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
 
 	var serverOpts options.ServerOptions
-	serverOpts, err = options.NewServer(*bindSsl, *listeningPort, *certPath, *keyPath, ctrl.GetConfigOrDie())
-	if err != nil {
+
+	if serverOpts, err = options.NewServer(*bindSsl, *listeningPort, *certPath, *keyPath, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
@@ -106,8 +107,8 @@ func main() {
 	}
 
 	log.Info("Adding the NamespaceFilter runner to the Manager")
-	err = mgr.Add(r)
-	if err != nil {
+
+	if err = mgr.Add(r); err != nil {
 		log.Error(err, "cannot add NameSpaceFilter as Runnable")
 		os.Exit(1)
 	}
@@ -116,14 +117,15 @@ func main() {
 		log.Error(err, "cannot create healthcheck probe")
 		os.Exit(1)
 	}
+
 	if err = mgr.AddReadyzCheck("ready", r.ReadinessProbe); err != nil {
 		log.Error(err, "cannot create readiness probe")
 		os.Exit(1)
 	}
 
 	log.Info("Starting the Manager")
-	err = mgr.Start(ctrl.SetupSignalHandler())
-	if err != nil {
+
+	if err = mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Error(err, "cannot start the Manager")
 		os.Exit(1)
 	}

@@ -39,6 +39,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 		if h.isJwtToken() {
 			return h.processJwtClaims()
 		}
+
 		return h.processBearerToken()
 	case anonymousBased:
 		return
@@ -49,19 +50,23 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 
 func (h http) processJwtClaims() (username string, groups []string, err error) {
 	claims := h.getJwtClaims()
+
 	u, ok := claims[h.usernameClaimField]
 	if !ok {
 		return "", nil, fmt.Errorf("missing groups claim in JWT")
 	}
+
 	username = u.(string)
 
 	g, ok := claims["groups"]
 	if !ok {
 		return "", nil, fmt.Errorf("missing groups claim in JWT")
 	}
+
 	for _, v := range g.([]interface{}) {
 		groups = append(groups, v.(string))
 	}
+
 	return username, groups, nil
 }
 
@@ -72,12 +77,15 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 			Token: token,
 		},
 	}
+
 	if err = h.client.Create(context.Background(), tr); err != nil {
 		return "", nil, fmt.Errorf("cannot create TokenReview")
 	}
+
 	if statusErr := tr.Status.Error; len(statusErr) > 0 {
 		return "", nil, fmt.Errorf("cannot verify the token due to error")
 	}
+
 	return tr.Status.User.Username, tr.Status.User.Groups, nil
 }
 
@@ -86,21 +94,26 @@ func (h http) bearerToken() string {
 }
 
 func (h http) getAuthType() authType {
-	if len(h.bearerToken()) > 0 {
+	switch {
+	case len(h.bearerToken()) > 0:
 		return bearerBased
-	}
-	if h.TLS != nil {
+	case h.TLS != nil:
 		return certificateBased
+	default:
+		return anonymousBased
 	}
-	return anonymousBased
 }
 
 func (h http) getJwtClaims() jwt.MapClaims {
 	parser := jwt.Parser{
 		SkipClaimsValidation: true,
 	}
-	token, _, err := parser.ParseUnverified(h.bearerToken(), jwt.MapClaims{})
-	if err != nil {
+
+	var token *jwt.Token
+
+	var err error
+
+	if token, _, err = parser.ParseUnverified(h.bearerToken(), jwt.MapClaims{}); err != nil {
 		panic(err)
 	}
 
@@ -112,5 +125,6 @@ func (h http) isJwtToken() bool {
 		SkipClaimsValidation: true,
 	}
 	_, _, err := parser.ParseUnverified(h.bearerToken(), jwt.MapClaims{})
+
 	return err == nil
 }

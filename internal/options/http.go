@@ -17,29 +17,28 @@ type httpOptions struct {
 	caPool  *x509.CertPool
 }
 
-func NewServer(isTLS bool, listeningPort uint, certificatePath string, keyPath string, config *rest.Config) (ServerOptions, error) {
+func NewServer(isTLS bool, port uint, crtPath string, keyPath string, config *rest.Config) (ServerOptions, error) {
 	var err error
 
 	if isTLS {
-		_, err = os.Stat(certificatePath)
-		if err != nil {
-			return nil, fmt.Errorf("cannot lookup TLS certificate file: %s", err.Error())
+		if _, err = os.Stat(crtPath); err != nil {
+			return nil, fmt.Errorf("cannot lookup TLS certificate file: %w", err)
 		}
-		_, err = os.Stat(keyPath)
-		if err != nil {
-			return nil, fmt.Errorf("cannot lookup TLS certificate key file: %s", err.Error())
+
+		if _, err = os.Stat(keyPath); err != nil {
+			return nil, fmt.Errorf("cannot lookup TLS certificate key file: %w", err)
 		}
 	}
 
 	var caPool *x509.CertPool
-	caPool, err = cert.NewPool(config.CAFile)
-	if err != nil {
-		caPool, err = cert.NewPoolFromBytes(config.CAData)
+
+	if caPool, err = cert.NewPool(config.CAFile); err != nil {
+		if caPool, err = cert.NewPoolFromBytes(config.CAData); err != nil {
+			return nil, fmt.Errorf("cannot find any CA data, nor from file nor from kubeconfig: %w", err)
+		}
 	}
-	if err != nil {
-		return nil, fmt.Errorf("cannot find any CA data, nor from file nor from kubeconfig: %s", err.Error())
-	}
-	return &httpOptions{isTLS: isTLS, port: listeningPort, crtPath: certificatePath, keyPath: keyPath, caPool: caPool}, nil
+
+	return &httpOptions{isTLS: isTLS, port: port, crtPath: crtPath, keyPath: keyPath, caPool: caPool}, nil
 }
 
 func (h httpOptions) GetCertificateAuthorityPool() *x509.CertPool {
