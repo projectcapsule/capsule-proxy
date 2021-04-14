@@ -13,40 +13,12 @@ linters-settings:
     min-len: 2
     min-occurrences: 2
 linters:
-  disable-all: true
-  enable:
-    - bodyclose
-    - deadcode
-    - depguard
-    - dogsled
-    # Planned with https://github.com/clastix/capsule-proxy/issues/81
-    # - dupl
-    - errcheck
-    - goconst
-    - gocritic
-    - gofmt
-    - goimports
-    - golint
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - interfacer
-    - misspell
-    - nolintlint
-    - rowserrcheck
-    - scopelint
-    - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - varcheck
-    - whitespace
-    - maligned
+  enable-all: true
+  disable:
+    - gomnd
+    - goerr113
+    - exhaustivestruct
+    - lll
 
 service:
   golangci-lint-version: 1.33.x
