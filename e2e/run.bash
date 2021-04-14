@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-export HACK_DIR="$(git rev-parse --show-toplevel)/hack"
+HACK_DIR="$(git rev-parse --show-toplevel)/hack"
+export HACK_DIR
 
 echo ">>> Waiting for capsule-proxy pod to be ready for accepting requests"
 kubectl --namespace capsule-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/instance=capsule-proxy
