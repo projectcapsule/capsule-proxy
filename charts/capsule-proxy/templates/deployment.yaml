@@ -46,7 +46,6 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
         - --listening-port={{ .Values.options.listeningPort }}
-        - --k8s-control-plane-url={{ .Values.options.k8sControlPlaneUrl }}
         - --capsule-user-group={{ .Values.options.capsuleUserGroup }}
         - --zap-log-level={{ .Values.options.logLevel }}
         - --enable-ssl={{ .Values.options.enableSSL }}
