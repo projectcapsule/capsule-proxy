@@ -48,10 +48,9 @@ spec:
       containers:
       - name: proxy
         image: quay.io/clastix/capsule-proxy
-        imagePullPolicy: IfNotPresent 
+        imagePullPolicy: IfNotPresent
         command:
         - /capsule-proxy
-        - --k8s-control-plane-url=https://kubernetes.default.svc
         - --capsule-user-group=capsule.clastix.io
         - --zap-log-level=5
         - --enable-ssl=true
