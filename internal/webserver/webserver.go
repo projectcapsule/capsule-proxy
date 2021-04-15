@@ -182,21 +182,7 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 	}
 }
 
-// nolint:funlen
-func (n kubeFilter) Start(ctx context.Context) error {
-	r := mux.NewRouter()
-	r.StrictSlash(true)
-	r.Use(handlers.RecoveryHandler())
-
-	h := r.Path("/_healthz").Subrouter()
-	h.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		_, _ = writer.Write([]byte("ok"))
-	})
-
-	root := r.PathPrefix("").Subrouter()
-	root.Use(n.reverseProxyMiddleware)
-
+func (n kubeFilter) registerModules(root *mux.Router) {
 	modList := []modules.Module{
 		namespace.List(n.client),
 		node.List(n.client),
@@ -233,7 +219,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 				var t moderrors.Error
 				if errors.As(err, &t) {
 					writer.Header().Set("content-type", "application/json")
-					writer.Header().Set("content-type", "application/json")
 					b, _ := json.Marshal(t.Status())
 					_, _ = writer.Write(b)
 					panic(err.Error())
@@ -247,7 +232,19 @@ func (n kubeFilter) Start(ctx context.Context) error {
 			}
 		})
 	}
+}
 
+func (n kubeFilter) Start(ctx context.Context) error {
+	r := mux.NewRouter().StrictSlash(true)
+	r.Use(handlers.RecoveryHandler())
+	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(200)
+		_, _ = writer.Write([]byte("ok"))
+	})
+
+	root := r.PathPrefix("").Subrouter()
+	root.Use(n.reverseProxyMiddleware)
+	n.registerModules(root)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
 	})
