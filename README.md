@@ -274,7 +274,7 @@ localhost-key.pem localhost.pem
 3. Run the proxy with the following options
 
 ```bash
-go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --k8s-control-plane-url=https://localhost:<KIND PORT> --enable-ssl=true --kubeconfig=<YOUR KUBERNETES CONFIGURATION FILE>
+go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --enable-ssl=true --kubeconfig=<YOUR KUBERNETES CONFIGURATION FILE>
 ```
 
 5. Edit the `KUBECONFIG` file (you should make a copy and work on it) as follows:
