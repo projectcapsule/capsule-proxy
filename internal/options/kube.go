@@ -20,13 +20,8 @@ type kubeOpts struct {
 	config    *rest.Config
 }
 
-func NewKube(controlPlaneURL string, groupName string, claimName string, config *rest.Config) (ListenerOpts, error) {
-	host := config.Host
-	if controlPlaneURL != "" {
-		host = controlPlaneURL
-	}
-
-	u, err := url.Parse(host)
+func NewKube(groupName string, claimName string, config *rest.Config) (ListenerOpts, error) {
+	u, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
 	}
