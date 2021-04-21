@@ -54,7 +54,7 @@ The values in your overrides file `myvalues.yaml` will override their counterpar
 
 If you only need to make minor customizations, you can specify them on the command line by using the `--set` option. For example:
 
-        $ helm install capsule-proxy clastix/capsule-proxy --values myvalues.yaml -n capsule-system
+        $ helm install capsule-proxy clastix/capsule-proxy --set "kind=DaemonSet" -n capsule-system
 
 Here the values you can override:
 
