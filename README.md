@@ -75,7 +75,7 @@ oil-production      Active   2m
 ### Nodes
 
 When a Tenant defines a `.spec.nodeSelector`, the nodes matching that labels can be easily retrieved.
-The annotation `capsule.clastix.io/enable-ingressclass-listing` allows the ability for the owners to retrieve the node list (useful in shared HW scenarios).
+The annotation `capsule.clastix.io/enable-node-listing` allows the ability for the owners to retrieve the node list (useful in shared HW scenarios).
 
 ```yaml
 apiVersion: capsule.clastix.io/v1alpha1
@@ -83,13 +83,13 @@ kind: Tenant
 metadata:
   name: oil
   annotations:
-    capsule.clastix.io/enable-ingressclass-listing: "true"
+    capsule.clastix.io/enable-node-listing: "true"
 spec:
   owner:
     kind: User
     name: alice
   nodeSelector:
-    clastix.capsule.io/tenant: gold
+    kubernetes.io/hostname: capsule-gold-qwerty
 ```
 
 ```bash
@@ -100,9 +100,9 @@ capsule-gold-qwerty     Ready    <none>   43h   v1.19.1
 
 > The following Tenant annotations allow a sort of RBAC on the operations of the nodes:
 > 
-> - `capsule.clastix.io/enable-ingressclass-listing`: allows listing of nodes and node retrieval
-> - `capsule.clastix.io/enable-ingressclass-update`: allows the update of the node (cordoning and uncording, node tainting)
-> - `capsule.clastix.io/enable-ingressclass-deletion`: allows deletion of the node
+> - `capsule.clastix.io/enable-node-listing`: allows listing of nodes and node retrieval
+> - `capsule.clastix.io/enable-node-update`: allows the update of the node (cordoning and uncording, node tainting)
+> - `capsule.clastix.io/enable-node-deletion`: allows deletion of the node
 
 ### Storage Classes
 
@@ -163,7 +163,7 @@ kind: Tenant
 metadata:
   name: oil
   annotations:
-    capsule.clastix.io/enable-storageclass-listing: "true"
+    capsule.clastix.io/enable-ingressclass-listing: "true"
 spec:
   owner:
     kind: User
@@ -186,7 +186,7 @@ internal-lb       example.com/internal       IngressParameters.k8s.example.com/e
 nginx             nginx.plus/ingress                                                         5d
 ```
 
-The expected output using `capsule-proxy` is the retrieval of the `custom` Storage Class as well the other ones matching the regex `\w+-lb`.
+The expected output using `capsule-proxy` is the retrieval of the `custom` Ingress Class as well the other ones matching the regex `\w+-lb`.
 
 ```bash
 $ kubectl --context admin@mycluster get ingressclasses
@@ -196,7 +196,7 @@ external-lb       example.com/external       IngressParameters.k8s.example.com/e
 internal-lb       example.com/internal       IngressParameters.k8s.example.com/internal-lb   15m
 ```
 
-> The following Tenant annotations allow a sort of RBAC on the Storage Class operations:
+> The following Tenant annotations allow a sort of RBAC on the Ingress Class operations:
 >
 > - `capsule.clastix.io/enable-ingressclass-listing`: allows listing of Ingress Class and Ingress Classes retrieval
 > - `capsule.clastix.io/enable-ingressclass-update`: allows the update of the Ingress Class
@@ -208,7 +208,7 @@ For Storage and Ingress Class resources, the `name` label reflecting the resourc
 
 ```yaml
 ---
-apiVersion: storage.k8sio/v1
+apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   labels:
