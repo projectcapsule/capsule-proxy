@@ -3,12 +3,13 @@ package node
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+
+	utils "github.com/clastix/capsule-proxy/internal/modules/utils"
 )
 
 const (
@@ -45,29 +46,22 @@ func getNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*label
 
 func getNodeSelectors(request *http.Request, tenantList *capsulev1alpha1.TenantList) (selectors []map[string]string) {
 	for _, tenant := range tenantList.Items {
-		var annotation string
+		var ok bool
 
 		switch request.Method {
 		case http.MethodGet:
-			annotation = nodeListingAnnotation
+			ok = utils.IsAnnotationTrue(tenant, nodeListingAnnotation)
 		case http.MethodPut, http.MethodPatch:
-			annotation = nodeUpdateAnnotation
+			ok = utils.IsAnnotationTrue(tenant, nodeListingAnnotation)
+			ok = ok && utils.IsAnnotationTrue(tenant, nodeUpdateAnnotation)
 		case http.MethodDelete:
-			annotation = nodeDeletionAnnotation
+			ok = utils.IsAnnotationTrue(tenant, nodeListingAnnotation)
+			ok = ok && utils.IsAnnotationTrue(tenant, nodeDeletionAnnotation)
 		default:
 			break
 		}
 
-		var ok bool
-
-		var strVal string
-
-		strVal, ok = tenant.Annotations[annotation]
-		if !ok {
-			continue
-		}
-
-		if ok, _ = strconv.ParseBool(strVal); ok {
+		if ok {
 			selectors = append(selectors, tenant.Spec.NodeSelector)
 		}
 	}

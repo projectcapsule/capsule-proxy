@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-	"strconv"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+
+	utils "github.com/clastix/capsule-proxy/internal/modules/utils"
 )
 
 const (
@@ -21,29 +22,22 @@ const (
 
 func getStorageClasses(req *http.Request, tenants *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
 	for _, tenant := range tenants.Items {
-		var annotation string
+		var ok bool
 
 		switch req.Method {
 		case http.MethodGet:
-			annotation = storageClassListingAnnotation
+			ok = utils.IsAnnotationTrue(tenant, storageClassListingAnnotation)
 		case http.MethodPut, http.MethodPatch:
-			annotation = storageClassUpdateAnnotation
+			ok = utils.IsAnnotationTrue(tenant, storageClassListingAnnotation)
+			ok = ok && utils.IsAnnotationTrue(tenant, storageClassUpdateAnnotation)
 		case http.MethodDelete:
-			annotation = storageClassDeletionAnnotation
+			ok = utils.IsAnnotationTrue(tenant, storageClassListingAnnotation)
+			ok = ok && utils.IsAnnotationTrue(tenant, storageClassDeletionAnnotation)
 		default:
 			break
 		}
 
-		var ok bool
-
-		var strVal string
-
-		strVal, ok = tenant.Annotations[annotation]
-		if !ok {
-			continue
-		}
-
-		if ok, _ = strconv.ParseBool(strVal); ok {
+		if ok {
 			sc := tenant.Spec.StorageClasses
 			if sc == nil {
 				continue
