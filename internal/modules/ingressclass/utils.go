@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
-	"strconv"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"github.com/gorilla/mux"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	utils "github.com/clastix/capsule-proxy/internal/modules/utils"
 )
 
 const (
@@ -24,29 +25,20 @@ const (
 
 func getIngressClasses(request *http.Request, tenantList *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
 	for _, tenant := range tenantList.Items {
-		var annotation string
+		var ok bool
 
 		switch request.Method {
 		case http.MethodGet:
-			annotation = ingressClassListingAnnotation
+			ok = utils.IsAnnotationTrue(tenant, ingressClassListingAnnotation)
 		case http.MethodPut, http.MethodPatch:
-			annotation = ingressClassUpdateAnnotation
+			ok = utils.IsAnnotationTrue(tenant, ingressClassListingAnnotation)
+			ok = ok && utils.IsAnnotationTrue(tenant, ingressClassUpdateAnnotation)
 		case http.MethodDelete:
-			annotation = ingressClassDeletionAnnotation
+			ok = utils.IsAnnotationTrue(tenant, ingressClassListingAnnotation)
+			ok = ok && utils.IsAnnotationTrue(tenant, ingressClassDeletionAnnotation)
 		default:
 			break
 		}
-
-		var ok bool
-
-		var strVal string
-
-		strVal, ok = tenant.Annotations[annotation]
-		if !ok {
-			continue
-		}
-
-		ok, _ = strconv.ParseBool(strVal)
 
 		if ok {
 			ic := tenant.Spec.IngressClasses
