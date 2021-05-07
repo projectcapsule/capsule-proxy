@@ -49,8 +49,7 @@ spec:
       - name: proxy
         image: quay.io/clastix/capsule-proxy
         imagePullPolicy: IfNotPresent
-        command:
-        - /capsule-proxy
+        args:
         - --capsule-user-group=capsule.clastix.io
         - --zap-log-level=5
         - --enable-ssl=true

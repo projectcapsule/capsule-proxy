@@ -75,8 +75,7 @@ spec:
         - name: proxy
           image: quay.io/clastix/capsule-proxy
           imagePullPolicy: Always
-          command:
-          - /capsule-proxy
+          args:
           - --capsule-user-group=capsule.clastix.io
           - --zap-devel
           - --zap-log-level=10
