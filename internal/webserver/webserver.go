@@ -178,7 +178,10 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 		}
 
 		request.Header.Add("Impersonate-User", username)
-		request.Header.Add("Impersonate-Group", strings.Join(groups, ","))
+
+		for _, group := range groups {
+			request.Header.Add("Impersonate-Group", group)
+		}
 	}
 }
 
