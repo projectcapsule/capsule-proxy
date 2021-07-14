@@ -124,12 +124,12 @@ func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 }
 
 // nolint:interfacer
-func (n kubeFilter) handleRequest(request *http.Request, username string, selector labels.Selector) {
+func (n kubeFilter) handleRequest(request *http.Request, username string, groups []string, selector labels.Selector) {
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
 		n.log.V(4).Info("handling current labelSelector", "selector", e)
 
-		if err := n.validateCapsuleLabel(e, username); err != nil {
+		if err := n.validateCapsuleLabel(e, username, groups); err != nil {
 			n.log.Error(err, "cannot validate Capsule label selector, ignoring it")
 			panic(err)
 		}
@@ -210,7 +210,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 			username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
-			tenantList, err := n.getTenantsForOwner(username, groups)
+			tenantList, _, err := n.getTenantsForOwner(username, groups)
 			if err != nil {
 				serverr.HandleError(writer, err, "cannot list Tenant resources")
 			}
@@ -231,7 +231,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 				// if there's no selector, let it pass to the
 				n.impersonateHandler(writer, request)
 			default:
-				n.handleRequest(request, username, selector)
+				n.handleRequest(request, username, groups, selector)
 			}
 		})
 	}
@@ -289,22 +289,23 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	return srv.Shutdown(ctx)
 }
 
-func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (tenants *capsulev1alpha1.TenantList, err error) {
-	ownedTenants, _, err := n.getTenantsForOwnerKind("User", username)
+func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (ownedTenants *capsulev1alpha1.TenantList, tenants []string, err error) {
+	ownedTenants, tenants, err = n.getTenantsForOwnerKind("User", username)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
+		return nil, nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 	}
 	// Find tenants belonging to a group
 	for _, group := range groups {
-		t, _, err := n.getTenantsForOwnerKind("Group", group)
+		tl, t, err := n.getTenantsForOwnerKind("Group", group)
 		if err != nil {
-			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
+			return nil, nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 
-		ownedTenants.Items = append(ownedTenants.Items, t.Items...)
+		tenants = append(tenants, t...)
+		ownedTenants.Items = append(ownedTenants.Items, tl.Items...)
 	}
 
-	return ownedTenants, nil
+	return
 }
 
 func (n kubeFilter) getTenantsForOwnerKind(ownerKind string, ownerName string) (tl *capsulev1alpha1.TenantList, tenants []string, err error) {
@@ -329,7 +330,7 @@ func (n kubeFilter) getTenantsForOwnerKind(ownerKind string, ownerName string) (
 // We have to validate User requesting labels since we're changing the Authorization Bearer since the Tenant Owner
 // does not have permission to list Namespaces: in case of filtering by non-owned namespaces, we have to return an
 // error, otherwise everything is good.
-func (n kubeFilter) validateCapsuleLabel(value, username string) error {
+func (n kubeFilter) validateCapsuleLabel(value, username string, groups []string) error {
 	p, err := labels.Parse(value)
 	if err != nil {
 		// we're ignoring this, API Server will deal with this
@@ -348,7 +349,7 @@ func (n kubeFilter) validateCapsuleLabel(value, username string) error {
 
 	for _, i := range r {
 		if i.Key() == capsuleLabel {
-			_, tenants, _ := n.getTenantsForOwnerKind("User", username)
+			_, tenants, _ := n.getTenantsForOwner(username, groups)
 			// nolint:exhaustive
 			switch i.Operator() {
 			case selection.Exists:
