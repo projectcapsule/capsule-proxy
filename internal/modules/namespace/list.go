@@ -3,7 +3,6 @@ package namespace
 import (
 	"net/http"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
 type list struct {

@@ -54,6 +54,7 @@ func (h http) processJwtClaims() (username string, groups []string, err error) {
 	if claims["iss"] == "kubernetes/serviceaccount" {
 		username = claims["sub"].(string)
 		groups = append(groups, "system:serviceaccounts", fmt.Sprintf("system:serviceaccounts:%s", claims["kubernetes.io/serviceaccount/namespace"]))
+
 		return
 	}
 

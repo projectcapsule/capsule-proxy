@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+
+	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
 func getNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*labels.Requirement, error) {

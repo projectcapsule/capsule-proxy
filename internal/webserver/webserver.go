@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/handlers"
@@ -29,6 +28,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/modules/storageclass"
 	"github.com/clastix/capsule-proxy/internal/options"
 	req "github.com/clastix/capsule-proxy/internal/request"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 	serverr "github.com/clastix/capsule-proxy/internal/webserver/errors"
 	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
 )
@@ -323,8 +323,6 @@ func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (proxy
 func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	tl := &capsulev1beta1.TenantList{}
 
-	var tenants []string
-
 	f := client.MatchingFields{
 		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind.String(), ownerName),
 	}
@@ -332,9 +330,8 @@ func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKi
 		return nil, fmt.Errorf("cannot retrieve Tenants list: %w", err)
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to get proxyTenants for owner")
-	}
+	tenants := make([]string, len(tl.Items))
+
 	for _, t := range tl.Items {
 		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, t))
 		tenants = append(tenants, t.GetName())
@@ -343,7 +340,6 @@ func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKi
 	n.log.V(4).Info("Proxy tenant list", "owner", ownerKind, "name", ownerName, "tenants", tenants)
 
 	return
-
 }
 
 // We have to validate User requesting labels since we're changing the Authorization Bearer since the Tenant Owner

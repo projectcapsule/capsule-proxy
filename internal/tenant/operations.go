@@ -44,5 +44,6 @@ func (o *Operations) IsAllowed(request *http.Request) (ok bool) {
 	default:
 		break
 	}
+
 	return
 }
