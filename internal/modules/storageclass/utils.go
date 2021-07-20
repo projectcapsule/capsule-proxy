@@ -6,39 +6,17 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-
-	utils "github.com/clastix/capsule-proxy/internal/modules/utils"
 )
 
-const (
-	storageClassListingAnnotation  = "capsule.clastix.io/enable-storageclass-listing"
-	storageClassUpdateAnnotation   = "capsule.clastix.io/enable-storageclass-update"
-	storageClassDeletionAnnotation = "capsule.clastix.io/enable-storageclass-deletion"
-)
-
-func getStorageClasses(req *http.Request, tenants *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
-	for _, tenant := range tenants.Items {
-		var ok bool
-
-		switch req.Method {
-		case http.MethodGet:
-			ok = utils.IsAnnotationTrue(tenant, storageClassListingAnnotation)
-		case http.MethodPut, http.MethodPatch:
-			ok = utils.IsAnnotationTrue(tenant, storageClassListingAnnotation)
-			ok = ok && utils.IsAnnotationTrue(tenant, storageClassUpdateAnnotation)
-		case http.MethodDelete:
-			ok = utils.IsAnnotationTrue(tenant, storageClassListingAnnotation)
-			ok = ok && utils.IsAnnotationTrue(tenant, storageClassDeletionAnnotation)
-		default:
-			break
-		}
-
-		if ok {
-			sc := tenant.Spec.StorageClasses
+func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {
+	for _, pt := range proxyTenants {
+		if ok := pt.RequestAllowed(req, capsulev1beta1.StorageClassesProxy); ok {
+			sc := pt.Tenant.Spec.StorageClasses
 			if sc == nil {
 				continue
 			}

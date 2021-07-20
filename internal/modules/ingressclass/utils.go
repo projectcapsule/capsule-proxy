@@ -6,42 +6,20 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/gorilla/mux"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	utils "github.com/clastix/capsule-proxy/internal/modules/utils"
 )
 
-const (
-	ingressClassListingAnnotation  = "capsule.clastix.io/enable-ingressclass-listing"
-	ingressClassUpdateAnnotation   = "capsule.clastix.io/enable-ingressclass-update"
-	ingressClassDeletionAnnotation = "capsule.clastix.io/enable-ingressclass-deletion"
-)
-
-func getIngressClasses(request *http.Request, tenantList *capsulev1alpha1.TenantList) (exact []string, regex []*regexp.Regexp) {
-	for _, tenant := range tenantList.Items {
-		var ok bool
-
-		switch request.Method {
-		case http.MethodGet:
-			ok = utils.IsAnnotationTrue(tenant, ingressClassListingAnnotation)
-		case http.MethodPut, http.MethodPatch:
-			ok = utils.IsAnnotationTrue(tenant, ingressClassListingAnnotation)
-			ok = ok && utils.IsAnnotationTrue(tenant, ingressClassUpdateAnnotation)
-		case http.MethodDelete:
-			ok = utils.IsAnnotationTrue(tenant, ingressClassListingAnnotation)
-			ok = ok && utils.IsAnnotationTrue(tenant, ingressClassDeletionAnnotation)
-		default:
-			break
-		}
-
-		if ok {
-			ic := tenant.Spec.IngressClasses
+func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {
+	for _, pt := range proxyTenants {
+		if ok := pt.RequestAllowed(request, capsulev1beta1.IngressClassesProxy); ok {
+			ic := pt.Tenant.Spec.IngressClasses
 			if ic == nil {
 				continue
 			}

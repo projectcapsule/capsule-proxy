@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,8 +34,8 @@ func (g get) Methods() []string {
 	return []string{}
 }
 
-func (g get) Handle(tenantList *capsulev1alpha1.TenantList, request *http.Request) (selector labels.Selector, err error) {
-	exactMatch, regexMatch := getIngressClasses(request, tenantList)
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
+	exactMatch, regexMatch := getIngressClasses(request, proxyTenants)
 
 	name := mux.Vars(request)["name"]
 

@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	authenticationv1 "k8s.io/api/authentication/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/clastix/capsule-proxy/internal/webserver/errors"
@@ -22,15 +23,18 @@ func CheckJWTMiddleware(client client.Client, log logr.Logger) mux.MiddlewareFun
 
 			if len(token) > 0 {
 				log.V(4).Info("Checking Bearer token", "value", token)
-				tr := &authenticationv1.TokenReview{
+				tr := authenticationv1.TokenReview{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "TokenReview",
+						APIVersion: "authentication.k8s.io/v1",
+					},
 					Spec: authenticationv1.TokenReviewSpec{
 						Token: token,
 					},
 				}
-				if err = client.Create(context.Background(), tr); err != nil {
+				if err = client.Create(context.Background(), &tr); err != nil {
 					errors.HandleError(writer, err, "cannot create TokenReview")
 				}
-				log.V(5).Info("TokenReview", "value", tr.String())
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
 					errors.HandleError(writer, err, "cannot verify the token due to error")
 				}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,8 +34,8 @@ func (l list) Methods() []string {
 	return []string{}
 }
 
-func (l list) Handle(tenantList *capsulev1alpha1.TenantList, req *http.Request) (selector labels.Selector, err error) {
-	exactMatch, regexMatch := getStorageClasses(req, tenantList)
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, req *http.Request) (selector labels.Selector, err error) {
+	exactMatch, regexMatch := getStorageClasses(req, proxyTenants)
 
 	sc := &v1.StorageClassList{}
 	if err = l.client.List(context.Background(), sc); err != nil {

@@ -6,7 +6,7 @@ import (
 	h "net/http"
 	"strings"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -51,9 +51,15 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 func (h http) processJwtClaims() (username string, groups []string, err error) {
 	claims := h.getJwtClaims()
 
+	if claims["iss"] == "kubernetes/serviceaccount" {
+		username = claims["sub"].(string)
+		groups = append(groups, "system:serviceaccounts", fmt.Sprintf("system:serviceaccounts:%s", claims["kubernetes.io/serviceaccount/namespace"]))
+		return
+	}
+
 	u, ok := claims[h.usernameClaimField]
 	if !ok {
-		return "", nil, fmt.Errorf("missing groups claim in JWT")
+		return "", nil, fmt.Errorf("missing users claim in JWT")
 	}
 
 	username = u.(string)

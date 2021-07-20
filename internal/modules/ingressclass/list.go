@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,8 +38,8 @@ func (l list) Subrouter(router *mux.Router) *mux.Router {
 	return router.Path("/apis/networking.k8s.io/{version}/ingressclasses").Subrouter()
 }
 
-func (l list) Handle(tenantList *capsulev1alpha1.TenantList, request *http.Request) (selector labels.Selector, err error) {
-	exactMatch, regexMatch := getIngressClasses(request, tenantList)
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
+	exactMatch, regexMatch := getIngressClasses(request, proxyTenants)
 
 	var ic client.ObjectList
 
