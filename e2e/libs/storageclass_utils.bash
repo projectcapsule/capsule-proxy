@@ -14,8 +14,6 @@ provisioner: capsule.clastix.io/${name}
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 EOF
-
-  sleep 1
 }
 
 function delete_storageclass() {
@@ -24,5 +22,4 @@ function delete_storageclass() {
 
   kubectl delete storageclasses.storage.k8s.io "${name}"
 
-  sleep 1
 }

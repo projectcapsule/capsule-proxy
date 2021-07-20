@@ -14,8 +14,6 @@ metadata:
 spec:
   controller: example.com/ingress-controller
 EOF
-
-  sleep 1
 }
 
 function delete_ingressclass() {
@@ -23,6 +21,4 @@ function delete_ingressclass() {
   name=${1}
 
   kubectl delete ingressclasses.networking.k8s.io "${name}"
-
-  sleep 1
 }
