@@ -3,8 +3,9 @@ package modules
 import (
 	"net/http"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
 type Module interface {

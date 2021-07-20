@@ -21,5 +21,4 @@ function delete_storageclass() {
   name=${1}
 
   kubectl delete storageclasses.storage.k8s.io "${name}"
-
 }

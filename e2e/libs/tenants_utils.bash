@@ -25,5 +25,4 @@ function delete_tenant() {
 
   kubectl get tenants.capsule.clastix.io "${name}" -o=jsonpath='{.status.namespaces}' | jq ".[]" | xargs -L1 -I'{}' kubectl delete namespace {}
   kubectl delete tenants.capsule.clastix.io "${name}"
-
 }

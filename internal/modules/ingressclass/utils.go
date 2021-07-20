@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/gorilla/mux"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
 func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {

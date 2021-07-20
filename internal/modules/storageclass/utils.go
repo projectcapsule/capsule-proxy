@@ -6,11 +6,12 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+
+	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
 func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {

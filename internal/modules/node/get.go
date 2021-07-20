@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
 type get struct {
