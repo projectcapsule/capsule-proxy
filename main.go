@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/clastix/capsule/pkg/indexer/tenant"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,7 +25,7 @@ func main() {
 	log := ctrl.Log.WithName("main")
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(capsulev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(capsulev1beta1.AddToScheme(scheme))
 
 	var err error
 

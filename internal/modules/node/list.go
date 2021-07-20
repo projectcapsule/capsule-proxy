@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,8 +34,8 @@ func (l list) Methods() []string {
 	return []string{}
 }
 
-func (l list) Handle(tenantList *capsulev1alpha1.TenantList, request *http.Request) (selector labels.Selector, err error) {
-	selectors := getNodeSelectors(request, tenantList)
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
+	selectors := getNodeSelectors(request, proxyTenants)
 
 	nl := &corev1.NodeList{}
 	if err = l.client.List(context.Background(), nl); err != nil {

@@ -3,7 +3,8 @@ package namespace
 import (
 	"net/http"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -32,16 +33,16 @@ func (l list) Methods() []string {
 	return []string{http.MethodGet}
 }
 
-func (l list) Handle(tenantList *capsulev1alpha1.TenantList, request *http.Request) (selector labels.Selector, err error) {
-	ownedTenants := make([]string, len(tenantList.Items))
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
+	ownedTenants := make([]string, len(proxyTenants))
 
-	for i, t := range tenantList.Items {
-		ownedTenants[i] = t.GetName()
+	for i, pt := range proxyTenants {
+		ownedTenants[i] = pt.Tenant.GetName()
 	}
 
 	var capsuleLabel string
 
-	if capsuleLabel, err = capsulev1alpha1.GetTypeLabel(&capsulev1alpha1.Tenant{}); err != nil {
+	if capsuleLabel, err = capsulev1beta1.GetTypeLabel(&capsulev1beta1.Tenant{}); err != nil {
 		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "tenants"})
 	}
 

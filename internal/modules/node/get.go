@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/clastix/capsule/api/v1alpha1"
+	"github.com/clastix/capsule-proxy/internal/tenant"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
@@ -35,8 +35,8 @@ func (g get) Methods() []string {
 	return []string{}
 }
 
-func (g get) Handle(tenantList *v1alpha1.TenantList, request *http.Request) (selector labels.Selector, err error) {
-	selectors := getNodeSelectors(request, tenantList)
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
+	selectors := getNodeSelectors(request, proxyTenants)
 
 	name := mux.Vars(request)["name"]
 
