@@ -17,12 +17,12 @@ e2e/clean:
 e2e/%: docker-build
 	kind create cluster --name capsule --image kindest/node:$* --config ./e2e/kind.yaml --wait=120s \
     && kubectl taint nodes capsule-worker2 key1=value1:NoSchedule \
-    && wget https://github.com/clastix/capsule/archive/refs/tags/v0.1.0-rc4.tar.gz -P hack \
-    && tar -C hack/ -xvf hack/v0.1.0-rc4.tar.gz
-	helm upgrade --install --create-namespace --namespace capsule-system capsule hack/capsule-0.1.0-rc4/charts/capsule \
+    && wget https://github.com/clastix/capsule/archive/refs/tags/v0.1.0-rc5.tar.gz -P hack \
+    && tar -C hack/ -xvf hack/v0.1.0-rc5.tar.gz
+	helm upgrade --install --create-namespace --namespace capsule-system capsule hack/capsule-0.1.0-rc5/charts/capsule \
 		--set "manager.resources=null" \
 		--set "manager.options.forceTenantPrefix=true" \
-		--set "manager.image.tag=v0.1.0-rc4"
+		--set "manager.image.tag=v0.1.0-rc5"
 	# capsule-proxy certificates
 	cd hack \
         && mkcert -install && mkcert 127.0.0.1 \
