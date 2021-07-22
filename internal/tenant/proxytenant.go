@@ -13,9 +13,10 @@ type ProxyTenant struct {
 
 func defaultProxySettings() map[capsulev1beta1.ProxyServiceKind]*Operations {
 	return map[capsulev1beta1.ProxyServiceKind]*Operations{
-		capsulev1beta1.NodesProxy:          defaultOperations(),
-		capsulev1beta1.StorageClassesProxy: defaultOperations(),
-		capsulev1beta1.IngressClassesProxy: defaultOperations(),
+		capsulev1beta1.NodesProxy:           defaultOperations(),
+		capsulev1beta1.StorageClassesProxy:  defaultOperations(),
+		capsulev1beta1.IngressClassesProxy:  defaultOperations(),
+		capsulev1beta1.PriorityClassesProxy: defaultOperations(),
 	}
 }
 
