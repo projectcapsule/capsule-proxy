@@ -3,7 +3,7 @@ module github.com/clastix/capsule-proxy
 go 1.16
 
 require (
-	github.com/clastix/capsule v0.0.4
+	github.com/clastix/capsule v0.1.0-rc6
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-logr/logr v0.2.1
 	github.com/gorilla/handlers v1.5.1
