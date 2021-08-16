@@ -34,21 +34,30 @@ func main() {
 
 	var capsuleUserGroups []string
 
-	var goFlagSet goflag.FlagSet
+	var listeningPort uint
 
-	listeningPort := goflag.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
-	usernameClaimField := goflag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
-	bindSsl := goflag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
-	certPath := goflag.String("ssl-cert-path", "/opt/capsule-proxy/tls.crt", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
-	keyPath := goflag.String("ssl-key-path", "/opt/capsule-proxy/tls.key", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
+	var usernameClaimField string
+
+	var bindSsl bool
+
+	var certPath string
+
+	var keyPath string
 
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{capsulev1beta1.GroupVersion.Group}, "Names of the groups for capsule users")
+	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
+	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
+	flag.BoolVar(&bindSsl, "enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
+	flag.StringVar(&certPath, "ssl-cert-path", "/opt/capsule-proxy/tls.crt", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
+	flag.StringVar(&keyPath, "ssl-key-path", "/opt/capsule-proxy/tls.key", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
 			config.EncodeTime = zapcore.ISO8601TimeEncoder
 		}),
 	}
+
+	var goFlagSet goflag.FlagSet
 
 	opts.BindFlags(&goFlagSet)
 	flag.CommandLine.AddGoFlagSet(&goFlagSet)
@@ -57,11 +66,11 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	log.Info("---")
-	log.Info(fmt.Sprintf("Manager listening on port %d", *listeningPort))
-	log.Info(fmt.Sprintf("Listening on HTTPS: %t", *bindSsl))
+	log.Info(fmt.Sprintf("Manager listening on port %d", listeningPort))
+	log.Info(fmt.Sprintf("Listening on HTTPS: %t", bindSsl))
 
 	log.Info(fmt.Sprintf("The selected Capsule User Group is %v", capsuleUserGroups))
-	log.Info(fmt.Sprintf("The OIDC username selected is %s", *usernameClaimField))
+	log.Info(fmt.Sprintf("The OIDC username selected is %s", usernameClaimField))
 	log.Info("---")
 	log.Info("Creating the manager")
 
@@ -89,14 +98,14 @@ func main() {
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(capsuleUserGroups, *usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
+	if listenerOpts, err = options.NewKube(capsuleUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
 
 	var serverOpts options.ServerOptions
 
-	if serverOpts, err = options.NewServer(*bindSsl, *listeningPort, *certPath, *keyPath, ctrl.GetConfigOrDie()); err != nil {
+	if serverOpts, err = options.NewServer(bindSsl, listeningPort, certPath, keyPath, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}

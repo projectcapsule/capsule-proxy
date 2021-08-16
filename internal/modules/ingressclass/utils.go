@@ -20,7 +20,7 @@ import (
 func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {
 	for _, pt := range proxyTenants {
 		if ok := pt.RequestAllowed(request, capsulev1beta1.IngressClassesProxy); ok {
-			ic := pt.Tenant.Spec.IngressClasses
+			ic := pt.Tenant.Spec.IngressOptions.AllowedClasses
 			if ic == nil {
 				continue
 			}
