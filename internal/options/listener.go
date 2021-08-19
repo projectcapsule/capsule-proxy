@@ -7,7 +7,7 @@ import (
 
 type ListenerOpts interface {
 	KubernetesControlPlaneURL() *url.URL
-	UserGroupName() string
+	UserGroupNames() []string
 	PreferredUsernameClaim() string
 	ReverseProxyTransport() (*http.Transport, error)
 	BearerToken() string

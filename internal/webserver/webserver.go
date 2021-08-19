@@ -46,7 +46,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
-		capsuleUserGroup:   opts.UserGroupName(),
+		capsuleUserGroups:  opts.UserGroupNames(),
 		reverseProxy:       reverseProxy,
 		bearerToken:        opts.BearerToken(),
 		usernameClaimField: opts.PreferredUsernameClaim(),
@@ -56,7 +56,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter
 }
 
 type kubeFilter struct {
-	capsuleUserGroup   string
+	capsuleUserGroups  []string
 	reverseProxy       *httputil.ReverseProxy
 	client             client.Client
 	bearerToken        string
@@ -210,7 +210,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 		sr := rp.Subrouter()
 		sr.Use(
 			middleware.CheckJWTMiddleware(n.client, n.log),
-			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.capsuleUserGroup, n.impersonateHandler),
+			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.capsuleUserGroups, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 			username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()

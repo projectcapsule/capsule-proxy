@@ -14,23 +14,23 @@ import (
 )
 
 type kubeOpts struct {
-	url       url.URL
-	groupName string
-	claimName string
-	config    *rest.Config
+	url        url.URL
+	groupNames []string
+	claimName  string
+	config     *rest.Config
 }
 
-func NewKube(groupName string, claimName string, config *rest.Config) (ListenerOpts, error) {
+func NewKube(groupNames []string, claimName string, config *rest.Config) (ListenerOpts, error) {
 	u, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
 	}
 
 	return &kubeOpts{
-		url:       *u,
-		groupName: groupName,
-		claimName: claimName,
-		config:    config,
+		url:        *u,
+		groupNames: groupNames,
+		claimName:  claimName,
+		config:     config,
 	}, nil
 }
 
@@ -42,8 +42,8 @@ func (k kubeOpts) KubernetesControlPlaneURL() *url.URL {
 	return &k.url
 }
 
-func (k kubeOpts) UserGroupName() string {
-	return k.groupName
+func (k kubeOpts) UserGroupNames() []string {
+	return k.groupNames
 }
 
 func (k kubeOpts) PreferredUsernameClaim() string {
