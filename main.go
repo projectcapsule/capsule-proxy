@@ -31,15 +31,18 @@ func main() {
 	var err error
 
 	var mgr ctrl.Manager
+
 	var capsuleUserGroups []string
+
 	var goFlagSet goflag.FlagSet
 
 	listeningPort := goflag.Uint("listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
-	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{capsulev1beta1.GroupVersion.Group}, "Names of the groups for capsule users")
 	usernameClaimField := goflag.String("oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 	bindSsl := goflag.Bool("enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
 	certPath := goflag.String("ssl-cert-path", "/opt/capsule-proxy/tls.crt", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
 	keyPath := goflag.String("ssl-key-path", "/opt/capsule-proxy/tls.key", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
+
+	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{capsulev1beta1.GroupVersion.Group}, "Names of the groups for capsule users")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
