@@ -47,7 +47,9 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
         - --listening-port={{ .Values.options.listeningPort }}
-        - --capsule-user-group={{ .Values.options.capsuleUserGroups }}
+        {{- range .Values.options.capsuleUserGroups }}
+        - --capsule-user-group={{ . }}
+        {{- end}}
         - --zap-log-level={{ .Values.options.logLevel }}
         - --enable-ssl={{ .Values.options.enableSSL }}
         - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
