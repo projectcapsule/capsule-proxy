@@ -9,18 +9,18 @@ setup() {
   create_tenant oil alice User
   kubectl patch tenants.capsule.clastix.io oil --type=json -p '[{"op": "add", "path": "/spec/owners/1", "value": {"kind": "ServiceAccount", "name": "system:serviceaccount:oil-dev:sa"}}]'
   kubectl patch tenants.capsule.clastix.io oil --type=json -p '[{"op": "add", "path": "/spec/owners/2", "value": {"kind": "Group", "name": "foo.clastix.io"}}]'
-  kubectl patch tenants.capsule.clastix.io oil --type=json -p '[{"op": "add", "path": "/spec/namespacesMetadata", "value": {"additionalLabels": {"bizz": "buzz"}}}]'
+  kubectl patch tenants.capsule.clastix.io oil --type=json -p '[{"op": "add", "path": "/spec/namespaceOptions", "value": {"additionalMetadata": {"labels": {"bizz": "buzz"}}}}]'
   create_namespace alice oil-dev
   create_namespace alice oil-staging
   create_namespace alice oil-production
   create_serviceaccount sa oil-dev
 
   create_tenant metal alice User
-  kubectl patch tenants.capsule.clastix.io metal --type=json -p '[{"op": "add", "path": "/spec/namespacesMetadata", "value": {"additionalLabels": {"foo": "bar"}}}]'
+  kubectl patch tenants.capsule.clastix.io metal --type=json -p '[{"op": "add", "path": "/spec/namespaceOptions", "value": {"additionalMetadata": {"labels": {"foo": "bar"}}}}]'
   create_namespace alice metal-staging
 
   create_tenant gas foo.clastix.io Group
-  kubectl patch tenants.capsule.clastix.io gas --type=json -p '[{"op": "add", "path": "/spec/namespacesMetadata", "value": {"additionalLabels": {"bizz": "buzz"}}}]'
+  kubectl patch tenants.capsule.clastix.io gas --type=json -p '[{"op": "add", "path": "/spec/namespaceOptions", "value": {"additionalMetadata": {"labels": {"bizz": "buzz"}}}}]'
   create_namespace joe gas-qa foo.clastix.io
 }
 
