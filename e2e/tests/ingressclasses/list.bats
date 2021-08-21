@@ -8,14 +8,14 @@ load "$BATS_TEST_DIRNAME/../../libs/serviceaccount_utils.bash"
 
 setup() {
   create_tenant ingressclassuser alice User
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/ingressClasses", "value": {"allowed": ["custom"], "allowedRegex": "\\w+-lb"}}]'
+  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/ingressOptions", "value": {"allowedClasses": {"allowed": ["custom"], "allowedRegex": "\\w+-lb"}}}]'
   kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/1", "value": {"kind": "ServiceAccount", "name": "system:serviceaccount:ingressclassuser-namespace:sa"}}]'
   kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/2", "value": {"kind": "Group", "name": "foo.clastix.io"}}]'
   create_namespace alice ingressclassuser-namespace
   create_serviceaccount sa ingressclassuser-namespace
 
   create_tenant ingressclassgroup foo.clastix.io Group
-  kubectl patch tenants.capsule.clastix.io ingressclassgroup --type=json -p '[{"op": "add", "path": "/spec/ingressClasses", "value": {"allowed": ["custom2"]}}]'
+  kubectl patch tenants.capsule.clastix.io ingressclassgroup --type=json -p '[{"op": "add", "path": "/spec/ingressOptions", "value": {"allowedClasses": {"allowed": ["custom2"]}}}]'
 
   if [[ $(kubectl version -o json | jq -r .serverVersion.minor) -gt 17 ]]; then
     local version="v1"
