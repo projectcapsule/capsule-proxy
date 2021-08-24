@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Clastix Labs
+// SPDX-License-Identifier: Apache-2.0
+
 package request
 
 import (
@@ -6,7 +9,7 @@ import (
 	h "net/http"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
