@@ -36,6 +36,8 @@ Current implementation filters the following requests:
 
 * `api/v1/namespaces`
 * `api/v1/nodes{/name}`
+* `api/v1/pods?fieldSelector=spec.nodeName%3D{name}`
+* `/apis/coordination.k8s.io/v1/namespaces/kube-node-lease/leases/{name}`
 * `apis/storage.k8s.io/v1/storageclasses{/name}`
 * `apis/networking.k8s.io/{v1,v1beta1}/ingressclasses{/name}`
 * `api/scheduling.k8s.io/{v1}/priorityclasses{/name}`
@@ -132,6 +134,15 @@ $ kubectl --context alice-oidc@mycluster get nodes
 NAME                    STATUS   ROLES    AGE   VERSION
 capsule-gold-qwerty     Ready    <none>   43h   v1.19.1
 ```
+
+#### Special routes for kubectl describe
+
+When issuing a `kubectl describe node`, some other endpoints are put in place:
+
+* `api/v1/pods?fieldSelector=spec.nodeName%3D{name}`
+* `/apis/coordination.k8s.io/v1/namespaces/kube-node-lease/leases/{name}`
+
+These are mandatory in order to retrieve the list of the running Pods on the required node, and providing info about the lease status of it.
 
 ### Storage Classes
 
