@@ -23,8 +23,10 @@ import (
 	"github.com/clastix/capsule-proxy/internal/modules"
 	moderrors "github.com/clastix/capsule-proxy/internal/modules/errors"
 	"github.com/clastix/capsule-proxy/internal/modules/ingressclass"
+	"github.com/clastix/capsule-proxy/internal/modules/lease"
 	"github.com/clastix/capsule-proxy/internal/modules/namespace"
 	"github.com/clastix/capsule-proxy/internal/modules/node"
+	"github.com/clastix/capsule-proxy/internal/modules/pod"
 	"github.com/clastix/capsule-proxy/internal/modules/priorityclass"
 	"github.com/clastix/capsule-proxy/internal/modules/storageclass"
 	"github.com/clastix/capsule-proxy/internal/options"
@@ -198,6 +200,8 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 		storageclass.List(n.client),
 		priorityclass.List(n.client),
 		priorityclass.Get(n.client),
+		lease.Get(n.client),
+		pod.Get(n.client),
 	}
 	for _, i := range modList {
 		mod := i
