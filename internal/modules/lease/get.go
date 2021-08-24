@@ -1,0 +1,65 @@
+package lease
+
+import (
+	"context"
+	"net/http"
+
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	"github.com/go-logr/logr"
+	"github.com/gorilla/mux"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/clastix/capsule-proxy/internal/modules"
+	"github.com/clastix/capsule-proxy/internal/tenant"
+)
+
+type get struct {
+	client client.Client
+	log    logr.Logger
+}
+
+func Get(client client.Client) modules.Module {
+	return &get{client: client, log: ctrl.Log.WithName("node_get")}
+}
+
+func (g get) Path() string {
+	return "/apis/coordination.k8s.io/v1/namespaces/kube-node-lease/leases/{name}"
+}
+
+func (g get) Methods() []string {
+	return []string{"get"}
+}
+
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
+	var selectors []map[string]string
+
+	for _, pt := range proxyTenants {
+		if ok := pt.RequestAllowed(request, capsulev1beta1.NodesProxy); ok {
+			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
+		}
+	}
+
+	name := mux.Vars(request)["name"]
+
+	node := &corev1.Node{}
+	if err = g.client.Get(context.Background(), types.NamespacedName{Name: name}, node); err != nil {
+		// offload failure to Kubernetes API due to missing RBAC
+		return nil, nil
+	}
+
+	for _, sel := range selectors {
+		for k := range sel {
+			if sel[k] == node.GetLabels()[k] {
+				// We're matching the nodeSelector of the Tenant:
+				// adding an empty selector in order to decorate the request
+				return labels.NewSelector().Add(), nil
+			}
+		}
+	}
+	// requesting lease for a non owner Node: let Kubernetes deal with it
+	return nil, nil
+}
