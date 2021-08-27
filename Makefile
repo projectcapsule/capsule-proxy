@@ -16,8 +16,8 @@ e2e/clean:
 
 e2e/%: docker-build
 	kind create cluster --name capsule --image kindest/node:$* --config ./e2e/kind.yaml --wait=120s \
-    && kubectl taint nodes capsule-worker2 key1=value1:NoSchedule
-    helm repo add clastix https://clastix.github.io/charts
+	&& kubectl taint nodes capsule-worker2 key1=value1:NoSchedule
+	helm repo add clastix https://clastix.github.io/charts
 	helm upgrade --install --create-namespace --namespace capsule-system capsule clastix/capsule \
 		--set "manager.resources=null" \
 		--set "manager.options.forceTenantPrefix=true"
