@@ -52,7 +52,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
-		capsuleUserGroups:  opts.UserGroupNames(),
+		capsuleUserGroups:  sets.NewString(opts.UserGroupNames()...),
 		ignoredUserGroups:  sets.NewString(opts.IgnoredGroupNames()...),
 		reverseProxy:       reverseProxy,
 		bearerToken:        opts.BearerToken(),
@@ -63,7 +63,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter
 }
 
 type kubeFilter struct {
-	capsuleUserGroups  []string
+	capsuleUserGroups  sets.String
 	ignoredUserGroups  sets.String
 	reverseProxy       *httputil.ReverseProxy
 	client             client.Client
