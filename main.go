@@ -37,6 +37,8 @@ func main() {
 
 	var capsuleUserGroups []string
 
+	var ignoredUserGroups []string
+
 	var listeningPort uint
 
 	var usernameClaimField string
@@ -48,6 +50,7 @@ func main() {
 	var keyPath string
 
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{capsulev1beta1.GroupVersion.Group}, "Names of the groups for capsule users")
+	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
 	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 	flag.BoolVar(&bindSsl, "enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
@@ -72,7 +75,8 @@ func main() {
 	log.Info(fmt.Sprintf("Manager listening on port %d", listeningPort))
 	log.Info(fmt.Sprintf("Listening on HTTPS: %t", bindSsl))
 
-	log.Info(fmt.Sprintf("The selected Capsule User Group is %v", capsuleUserGroups))
+	log.Info(fmt.Sprintf("The selected Capsule User Groups are %v", capsuleUserGroups))
+	log.Info(fmt.Sprintf("The ignored User Groups are %v", ignoredUserGroups))
 	log.Info(fmt.Sprintf("The OIDC username selected is %s", usernameClaimField))
 	log.Info("---")
 	log.Info("Creating the manager")
@@ -101,7 +105,7 @@ func main() {
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(capsuleUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
+	if listenerOpts, err = options.NewKube(capsuleUserGroups, ignoredUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}

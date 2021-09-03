@@ -9,10 +9,35 @@ import (
 	"github.com/clastix/capsule/pkg/utils"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	req "github.com/clastix/capsule-proxy/internal/request"
 )
+
+func CheckUserInIgnoredGroupMiddleware(client client.Client, log logr.Logger, claim string, ignoredUserGroups sets.String, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if ignoredUserGroups.Len() > 0 {
+				user, groups, err := req.NewHTTP(request, claim, client).GetUserAndGroups()
+				if err != nil {
+					log.Error(err, "Cannot retrieve username and group from request")
+				}
+
+				for _, group := range groups {
+					if ignoredUserGroups.Has(group) {
+						log.V(5).Info("current user belongs to ignored groups", "user", user)
+						fn(writer, request)
+
+						return
+					}
+				}
+			}
+
+			next.ServeHTTP(writer, request)
+		})
+	}
+}
 
 func CheckUserInCapsuleGroupMiddleware(client client.Client, log logr.Logger, claim string, groupNames []string, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {

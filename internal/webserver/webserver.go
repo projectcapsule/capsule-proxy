@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -52,6 +53,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter
 
 	return &kubeFilter{
 		capsuleUserGroups:  opts.UserGroupNames(),
+		ignoredUserGroups:  sets.NewString(opts.IgnoredGroupNames()...),
 		reverseProxy:       reverseProxy,
 		bearerToken:        opts.BearerToken(),
 		usernameClaimField: opts.PreferredUsernameClaim(),
@@ -62,6 +64,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter
 
 type kubeFilter struct {
 	capsuleUserGroups  []string
+	ignoredUserGroups  sets.String
 	reverseProxy       *httputil.ReverseProxy
 	client             client.Client
 	bearerToken        string
@@ -217,6 +220,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 		sr := rp.Subrouter()
 		sr.Use(
 			middleware.CheckJWTMiddleware(n.client, n.log),
+			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.ignoredUserGroups, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.capsuleUserGroups, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
