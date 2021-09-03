@@ -68,6 +68,7 @@ Parameter | Description | Default
 `options.logLevel` | Set the log verbosity of the capsule-proxy with a value from 1 to 10.| `4`
 `options.k8sControlPlaneUrl` | Set the URL of kubernetes control plane. | `https://kubernetes.default.svc`
 `options.capsuleUserGroups` | Override the Capsule user group | `[ "capsule.clastix.io" ]`
+`options.ignoredUserGroups` | Define which groups must be ignored while proxying requests | `[ ]`
 `options.oidcUsernameClaim` | Override the OIDC field name used to identify the user | `preferred_username`
 `options.enableSSL` | Specify if capsule-proxy will use SSL | `false`
 `options.SSLDirectory` | Set the directory, where SSL certificate and keyfile will be located | `/opt/capsule-proxy`

@@ -13,6 +13,7 @@ options:
   logLevel: '4'
   k8sControlPlaneUrl: https://kubernetes.default.svc
   capsuleUserGroups: ["capsule.clastix.io"]
+  ignoredUserGroups: []
   oidcUsernameClaim: preferred_username
   enableSSL: false
   SSLDirectory: /opt/capsule-proxy
