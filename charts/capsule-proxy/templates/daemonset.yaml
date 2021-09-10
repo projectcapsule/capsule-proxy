@@ -50,6 +50,9 @@ spec:
         {{- range .Values.options.capsuleUserGroups }}
         - --capsule-user-group={{ . }}
         {{- end}}
+        {{- range .Values.options.ignoredUserGroups }}
+        - --ignored-user-group={{ . }}
+        {{- end}}
         - --zap-log-level={{ .Values.options.logLevel }}
         - --enable-ssl={{ .Values.options.enableSSL }}
         - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
