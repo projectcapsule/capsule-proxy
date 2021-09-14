@@ -1,7 +1,7 @@
 // Copyright 2020-2021 Clastix Labs
 // SPDX-License-Identifier: Apache-2.0
 
-package node
+package utils
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
-func getNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*labels.Requirement, error) {
+func GetNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*labels.Requirement, error) {
 	var names []string
 
 	for _, node := range nl.Items {
@@ -41,7 +41,7 @@ func getNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*label
 	return nil, fmt.Errorf("cannot create LabelSelector for the requested Node requirement")
 }
 
-func getNodeSelectors(request *http.Request, proxyTenants []*tenant.ProxyTenant) (selectors []map[string]string) {
+func GetNodeSelectors(request *http.Request, proxyTenants []*tenant.ProxyTenant) (selectors []map[string]string) {
 	for _, pt := range proxyTenants {
 		if ok := pt.RequestAllowed(request, capsulev1beta1.NodesProxy); ok {
 			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)

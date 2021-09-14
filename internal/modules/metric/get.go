@@ -1,7 +1,7 @@
 // Copyright 2020-2021 Clastix Labs
 // SPDX-License-Identifier: Apache-2.0
 
-package node
+package metric
 
 import (
 	"context"
@@ -28,11 +28,11 @@ type get struct {
 }
 
 func Get(client client.Client) modules.Module {
-	return &get{client: client, log: ctrl.Log.WithName("node_get")}
+	return &get{client: client, log: ctrl.Log.WithName("metrics_get")}
 }
 
 func (g get) Path() string {
-	return "/api/v1/nodes/{name}"
+	return "/apis/metrics.k8s.io/{version}/nodes/{name}"
 }
 
 func (g get) Methods() []string {
