@@ -12,7 +12,7 @@ options:
   listeningPort: 9001
   logLevel: '4'
   k8sControlPlaneUrl: https://kubernetes.default.svc
-  capsuleUserGroups: ["capsule.clastix.io"]
+  capsuleConfigurationName: default
   ignoredUserGroups: []
   oidcUsernameClaim: preferred_username
   enableSSL: false
