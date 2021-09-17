@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/clastix/capsule-proxy/internal/controllers"
 	req "github.com/clastix/capsule-proxy/internal/request"
 )
 
@@ -38,7 +39,7 @@ func CheckUserInIgnoredGroupMiddleware(client client.Client, log logr.Logger, cl
 	}
 }
 
-func CheckUserInCapsuleGroupMiddleware(client client.Client, log logr.Logger, claim string, groupNames sets.String, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
+func CheckUserInCapsuleGroupMiddleware(client client.Client, log logr.Logger, claim string, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			_, groups, err := req.NewHTTP(request, claim, client).GetUserAndGroups()
@@ -46,7 +47,7 @@ func CheckUserInCapsuleGroupMiddleware(client client.Client, log logr.Logger, cl
 				log.Error(err, "Cannot retrieve username and group from request")
 			}
 			for _, group := range groups {
-				if groupNames.Has(group) || group == "system:serviceaccounts" {
+				if controllers.CapsuleUserGroups.Has(group) || group == "system:serviceaccounts" {
 					next.ServeHTTP(writer, request)
 
 					return

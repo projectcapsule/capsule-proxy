@@ -18,13 +18,12 @@ import (
 
 type kubeOpts struct {
 	url           url.URL
-	groupNames    []string
 	ignoredGroups []string
 	claimName     string
 	config        *rest.Config
 }
 
-func NewKube(groupNames, ignoredGroups []string, claimName string, config *rest.Config) (ListenerOpts, error) {
+func NewKube(ignoredGroups []string, claimName string, config *rest.Config) (ListenerOpts, error) {
 	u, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
@@ -32,7 +31,6 @@ func NewKube(groupNames, ignoredGroups []string, claimName string, config *rest.
 
 	return &kubeOpts{
 		url:           *u,
-		groupNames:    groupNames,
 		ignoredGroups: ignoredGroups,
 		claimName:     claimName,
 		config:        config,
@@ -45,10 +43,6 @@ func (k kubeOpts) BearerToken() string {
 
 func (k kubeOpts) KubernetesControlPlaneURL() *url.URL {
 	return &k.url
-}
-
-func (k kubeOpts) UserGroupNames() []string {
-	return k.groupNames
 }
 
 func (k kubeOpts) IgnoredGroupNames() []string {
