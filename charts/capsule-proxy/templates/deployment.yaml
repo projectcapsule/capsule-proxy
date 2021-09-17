@@ -46,9 +46,7 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
         - --listening-port={{ .Values.options.listeningPort }}
-        {{- range .Values.options.capsuleUserGroups }}
-        - --capsule-user-group={{ . }}
-        {{- end }}
+        - --capsule-configuration-name={{ .Values.options.capsuleConfigurationName }}
         {{- range .Values.options.ignoredUserGroups }}
         - --ignored-user-group={{ . }}
         {{- end}}
