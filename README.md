@@ -34,13 +34,14 @@ The `capsule-proxy` implements a simple reverse proxy that intercepts only speci
 
 Current implementation filters the following requests:
 
-* `api/v1/namespaces`
-* `api/v1/nodes{/name}`
-* `api/v1/pods?fieldSelector=spec.nodeName%3D{name}`
+* `/api/scheduling.k8s.io/{v1}/priorityclasses{/name}`
+* `/api/v1/namespaces`
+* `/api/v1/nodes{/name}`
+* `/api/v1/pods?fieldSelector=spec.nodeName%3D{name}`
 * `/apis/coordination.k8s.io/v1/namespaces/kube-node-lease/leases/{name}`
-* `apis/storage.k8s.io/v1/storageclasses{/name}`
-* `apis/networking.k8s.io/{v1,v1beta1}/ingressclasses{/name}`
-* `api/scheduling.k8s.io/{v1}/priorityclasses{/name}`
+* `/apis/metrics.k8s.io/{v1beta1}/nodes{/name}`
+* `/apis/networking.k8s.io/{v1,v1beta1}/ingressclasses{/name}`
+* `/apis/storage.k8s.io/v1/storageclasses{/name}`
 
 All other requests are proxied transparently to the APIs server, so no side effects are expected. We're planning to add new APIs in the future, so PRs are welcome!
 
