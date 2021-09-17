@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/clastix/capsule/pkg/indexer/tenant"
 	flag "github.com/spf13/pflag"
@@ -19,6 +20,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/clastix/capsule-proxy/internal/controllers"
 	"github.com/clastix/capsule-proxy/internal/options"
 	"github.com/clastix/capsule-proxy/internal/webserver"
 )
@@ -30,10 +32,13 @@ func main() {
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(capsulev1beta1.AddToScheme(scheme))
+	utilruntime.Must(capsulev1alpha1.AddToScheme(scheme))
 
 	var err error
 
 	var mgr ctrl.Manager
+
+	var capsuleConfigurationName string
 
 	var capsuleUserGroups []string
 
@@ -49,7 +54,8 @@ func main() {
 
 	var keyPath string
 
-	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{capsulev1beta1.GroupVersion.Group}, "Names of the groups for capsule users")
+	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
+	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
 	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
@@ -75,7 +81,13 @@ func main() {
 	log.Info(fmt.Sprintf("Manager listening on port %d", listeningPort))
 	log.Info(fmt.Sprintf("Listening on HTTPS: %t", bindSsl))
 
-	log.Info(fmt.Sprintf("The selected Capsule User Groups are %v", capsuleUserGroups))
+	if len(capsuleUserGroups) > 0 {
+		log.Info(
+			"the CLI flags --capsule-user-group is deprecated, " +
+				"please use the new one --capsule-configuration-name to select the CapsuleConfiguration")
+		log.Info(fmt.Sprintf("The selected Capsule User Groups are %v", capsuleUserGroups))
+	}
+
 	log.Info(fmt.Sprintf("The ignored User Groups are %v", ignoredUserGroups))
 	log.Info(fmt.Sprintf("The OIDC username selected is %s", usernameClaimField))
 	log.Info("---")
@@ -105,7 +117,7 @@ func main() {
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(capsuleUserGroups, ignoredUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
+	if listenerOpts, err = options.NewKube(ignoredUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
@@ -124,6 +136,14 @@ func main() {
 	}
 
 	log.Info("Adding the NamespaceFilter runner to the Manager")
+
+	if err = (&controllers.CapsuleConfiguration{
+		CapsuleConfigurationName:    capsuleConfigurationName,
+		DeprecatedCapsuleUserGroups: capsuleUserGroups,
+	}).SetupWithManager(mgr); err != nil {
+		log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
+		os.Exit(1)
+	}
 
 	if err = mgr.Add(r); err != nil {
 		log.Error(err, "cannot add NameSpaceFilter as Runnable")
