@@ -5,7 +5,6 @@ package lease
 
 import (
 	"context"
-	"net/http"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/go-logr/logr"
@@ -17,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/clastix/capsule-proxy/internal/modules"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
@@ -37,16 +37,18 @@ func (g get) Methods() []string {
 	return []string{"get"}
 }
 
-func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	var selectors []map[string]string
 
+	httpRequest := proxyRequest.GetHTTPRequest()
+
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(request, capsulev1beta1.NodesProxy); ok {
+		if ok := pt.RequestAllowed(httpRequest, capsulev1beta1.NodesProxy); ok {
 			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 		}
 	}
 
-	name := mux.Vars(request)["name"]
+	name := mux.Vars(httpRequest)["name"]
 
 	node := &corev1.Node{}
 	if err = g.client.Get(context.Background(), types.NamespacedName{Name: name}, node); err != nil {

@@ -3,6 +3,11 @@
 
 package request
 
+import (
+	h "net/http"
+)
+
 type Request interface {
 	GetUserAndGroups() (string, []string, error)
+	GetHTTPRequest() *h.Request
 }

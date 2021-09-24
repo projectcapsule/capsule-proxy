@@ -18,6 +18,7 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
@@ -38,10 +39,12 @@ func (g get) Methods() []string {
 	return []string{}
 }
 
-func (g get) Handle(proxyTenants []*tenant.ProxyTenant, req *http.Request) (selector labels.Selector, err error) {
-	exactMatch, regexMatch := getPriorityClass(req, proxyTenants)
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+	httpRequest := proxyRequest.GetHTTPRequest()
 
-	name := mux.Vars(req)["name"]
+	exactMatch, regexMatch := getPriorityClass(httpRequest, proxyTenants)
+
+	name := mux.Vars(httpRequest)["name"]
 
 	sc := &schedulingv1.PriorityClassList{}
 	if err = g.client.List(context.Background(), sc, client.MatchingLabels{"name": name}); err != nil {
@@ -60,7 +63,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, req *http.Request) (sele
 	switch {
 	case err == nil:
 		return labels.NewSelector().Add(*r), nil
-	case req.Method == http.MethodGet:
+	case httpRequest.Method == http.MethodGet:
 		return nil, errors.NewNotFoundError(
 			fmt.Sprintf("priorityclasses.scheduling.k8s.io \"%s\" not found", name),
 			&metav1.StatusDetails{

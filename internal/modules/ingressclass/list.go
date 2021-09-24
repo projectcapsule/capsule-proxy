@@ -5,7 +5,6 @@ package ingressclass
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
@@ -41,12 +41,13 @@ func (l list) Subrouter(router *mux.Router) *mux.Router {
 	return router.Path("/apis/networking.k8s.io/{version}/ingressclasses").Subrouter()
 }
 
-func (l list) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
-	exactMatch, regexMatch := getIngressClasses(request, proxyTenants)
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+	httpRequest := proxyRequest.GetHTTPRequest()
+	exactMatch, regexMatch := getIngressClasses(httpRequest, proxyTenants)
 
 	var ic client.ObjectList
 
-	if ic, err = getIngressClassFromRequest(request); err != nil {
+	if ic, err = getIngressClassFromRequest(httpRequest); err != nil {
 		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Group: "networking.k8s.io", Kind: "ingressclasses"})
 	}
 

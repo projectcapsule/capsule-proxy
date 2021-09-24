@@ -32,6 +32,10 @@ func NewHTTP(request *h.Request, usernameClaimField string, client client.Client
 	return &http{Request: request, usernameClaimField: usernameClaimField, client: client}
 }
 
+func (h http) GetHTTPRequest() *h.Request {
+	return h.Request
+}
+
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	switch h.getAuthType() {
 	case certificateBased:

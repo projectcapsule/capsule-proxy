@@ -5,7 +5,6 @@ package metric
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +17,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
 	"github.com/clastix/capsule-proxy/internal/modules/utils"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
@@ -38,8 +38,10 @@ func (l list) Methods() []string {
 	return []string{}
 }
 
-func (l list) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
-	selectors := utils.GetNodeSelectors(request, proxyTenants)
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+	httpRequest := proxyRequest.GetHTTPRequest()
+
+	selectors := utils.GetNodeSelectors(httpRequest, proxyTenants)
 
 	nl := &corev1.NodeList{}
 	if err = l.client.List(context.Background(), nl); err != nil {
