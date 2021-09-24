@@ -6,7 +6,8 @@ RUN go mod download
 COPY main.go main.go
 COPY internal internal
 ARG GCFLAGS
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
 
 FROM golang:1.16-alpine as dlv
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
