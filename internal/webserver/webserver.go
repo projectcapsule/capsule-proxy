@@ -19,11 +19,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/clastix/capsule-proxy/internal/controllers"
 	"github.com/clastix/capsule-proxy/internal/modules"
 	moderrors "github.com/clastix/capsule-proxy/internal/modules/errors"
 	"github.com/clastix/capsule-proxy/internal/modules/ingressclass"
@@ -41,7 +42,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
 )
 
-func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter, error) {
+func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
@@ -53,23 +54,25 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions) (Filter
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
-		ignoredUserGroups:  sets.NewString(opts.IgnoredGroupNames()...),
-		reverseProxy:       reverseProxy,
-		bearerToken:        opts.BearerToken(),
-		usernameClaimField: opts.PreferredUsernameClaim(),
-		serverOptions:      srv,
-		log:                ctrl.Log.WithName("proxy"),
+		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
+		reverseProxy:          reverseProxy,
+		bearerToken:           opts.BearerToken(),
+		usernameClaimField:    opts.PreferredUsernameClaim(),
+		serverOptions:         srv,
+		log:                   ctrl.Log.WithName("proxy"),
+		roleBindingsReflector: rbReflector,
 	}, nil
 }
 
 type kubeFilter struct {
-	ignoredUserGroups  sets.String
-	reverseProxy       *httputil.ReverseProxy
-	client             client.Client
-	bearerToken        string
-	usernameClaimField string
-	serverOptions      options.ServerOptions
-	log                logr.Logger
+	ignoredUserGroups     sets.String
+	reverseProxy          *httputil.ReverseProxy
+	client                client.Client
+	bearerToken           string
+	usernameClaimField    string
+	serverOptions         options.ServerOptions
+	log                   logr.Logger
+	roleBindingsReflector *controllers.RoleBindingReflector
 }
 
 func (n *kubeFilter) LivenessProbe(req *http.Request) error {
@@ -133,15 +136,10 @@ func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 }
 
 // nolint:interfacer
-func (n kubeFilter) handleRequest(request *http.Request, tenants []string, selector labels.Selector) {
+func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
 		n.log.V(4).Info("handling current labelSelector", "selector", e)
-
-		if err := n.validateCapsuleLabel(e, tenants); err != nil {
-			n.log.Error(err, "cannot validate Capsule label selector, ignoring it")
-			panic(err)
-		}
 
 		v := strings.Join([]string{e, selector.String()}, ",")
 		q.Set("labelSelector", v)
@@ -196,7 +194,7 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 
 func (n kubeFilter) registerModules(root *mux.Router) {
 	modList := []modules.Module{
-		namespace.List(n.client),
+		namespace.List(n.roleBindingsReflector),
 		node.List(n.client),
 		node.Get(n.client),
 		ingressclass.List(n.client),
@@ -225,14 +223,15 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			username, groups, _ := req.NewHTTP(request, n.usernameClaimField, n.client).GetUserAndGroups()
-			proxyTenants, tenants, err := n.getTenantsForOwner(username, groups)
+			proxyRequest := req.NewHTTP(request, n.usernameClaimField, n.client)
+			username, groups, _ := proxyRequest.GetUserAndGroups()
+			proxyTenants, err := n.getTenantsForOwner(username, groups)
 			if err != nil {
 				serverr.HandleError(writer, err, "cannot list Tenant resources")
 			}
 
 			var selector labels.Selector
-			selector, err = mod.Handle(proxyTenants, request)
+			selector, err = mod.Handle(proxyTenants, proxyRequest)
 			switch {
 			case err != nil:
 				var t moderrors.Error
@@ -247,7 +246,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 				// if there's no selector, let it pass to the
 				n.impersonateHandler(writer, request)
 			default:
-				n.handleRequest(request, tenants, selector)
+				n.handleRequest(request, selector)
 			}
 		})
 	}
@@ -305,16 +304,16 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	return srv.Shutdown(ctx)
 }
 
-func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (proxyTenants []*tenant.ProxyTenant, tenants []string, err error) {
-	if strings.HasPrefix(username, "system:serviceaccount:") {
+func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
+	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
 		proxyTenants, err = n.getProxyTenantsForOwnerKind(capsulev1beta1.ServiceAccountOwner, username)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
+			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 	} else {
 		proxyTenants, err = n.getProxyTenantsForOwnerKind(capsulev1beta1.UserOwner, username)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
+			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 	}
 
@@ -322,20 +321,19 @@ func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (proxy
 	for _, group := range groups {
 		pt, err := n.getProxyTenantsForOwnerKind(capsulev1beta1.GroupOwner, group)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
+			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 
 		proxyTenants = append(proxyTenants, pt...)
-	}
-
-	for _, pt := range proxyTenants {
-		tenants = append(tenants, pt.Tenant.GetName())
 	}
 
 	return
 }
 
 func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
+	// nolint:prealloc
+	var tenants []string
+
 	tl := &capsulev1beta1.TenantList{}
 
 	f := client.MatchingFields{
@@ -345,7 +343,7 @@ func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKi
 		return nil, fmt.Errorf("cannot retrieve Tenants list: %w", err)
 	}
 
-	tenants := make([]string, len(tl.Items))
+	n.log.V(8).Info("Tenant", "owner", ownerKind, "name", ownerName, "tenantList items", tl.Items, "number of tenants", len(tl.Items))
 
 	for _, t := range tl.Items {
 		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, t))
@@ -355,45 +353,4 @@ func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKi
 	n.log.V(4).Info("Proxy tenant list", "owner", ownerKind, "name", ownerName, "tenants", tenants)
 
 	return
-}
-
-// We have to validate User requesting labels since we're changing the Authorization Bearer since the Tenant Owner
-// does not have permission to list Namespaces: in case of filtering by non-owned namespaces, we have to return an
-// error, otherwise everything is good.
-func (n kubeFilter) validateCapsuleLabel(value string, tenants []string) error {
-	p, err := labels.Parse(value)
-	if err != nil {
-		// we're ignoring this, API Server will deal with this
-		return nil
-	}
-
-	capsuleLabel, err := capsulev1beta1.GetTypeLabel(&capsulev1beta1.Tenant{})
-	if err != nil {
-		return fmt.Errorf("cannot get Capsule Tenant label: %w", err)
-	}
-
-	r, selectable := p.Requirements()
-	if !selectable {
-		return nil
-	}
-
-	for _, i := range r {
-		if i.Key() == capsuleLabel {
-			// nolint:exhaustive
-			switch i.Operator() {
-			case selection.Exists:
-				return fmt.Errorf("cannot return list of all Tenant namespaces")
-			case selection.In:
-				if ss := i.Values().Delete(tenants...); ss.Len() > 0 {
-					tnts := strings.Join(ss.List(), ", ")
-
-					return fmt.Errorf("cannot list Namespaces for the following Tenant(s): %s", tnts)
-				}
-			default:
-				break
-			}
-		}
-	}
-
-	return nil
 }

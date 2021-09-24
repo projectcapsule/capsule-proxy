@@ -23,7 +23,8 @@ e2e/%: docker-build
 	helm repo add clastix https://clastix.github.io/charts
 	helm upgrade --install --create-namespace --namespace capsule-system capsule clastix/capsule \
 		--set "manager.resources=null" \
-		--set "manager.options.forceTenantPrefix=true"
+		--set "manager.options.forceTenantPrefix=true" \
+		--set "options.logLevel=8"
 	# capsule-proxy certificates
 	cd hack \
         && mkcert -install && mkcert 127.0.0.1 \
@@ -42,6 +43,10 @@ e2e/%: docker-build
         && mv joe-gas.kubeconfig foo.clastix.io.kubeconfig \
         && KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
         && KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001
+		&& curl -s https://raw.githubusercontent.com/clastix/capsule/master/hack/create-user.sh | bash -s -- dave soil capsule.clastix.io,bar.clastix.io \
+        && mv dave-soil.kubeconfig dave.kubeconfig \
+        && kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
+        && kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.server https://127.0.0.1:9001
 	# capsule-proxy installation
 	kind load docker-image --name capsule --nodes capsule-worker quay.io/clastix/capsule-proxy:latest
 	helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \

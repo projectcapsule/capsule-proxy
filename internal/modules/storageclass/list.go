@@ -5,7 +5,6 @@ package storageclass
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/storage/v1"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
@@ -37,8 +37,10 @@ func (l list) Methods() []string {
 	return []string{}
 }
 
-func (l list) Handle(proxyTenants []*tenant.ProxyTenant, req *http.Request) (selector labels.Selector, err error) {
-	exactMatch, regexMatch := getStorageClasses(req, proxyTenants)
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+	httpRequest := proxyRequest.GetHTTPRequest()
+
+	exactMatch, regexMatch := getStorageClasses(httpRequest, proxyTenants)
 
 	sc := &v1.StorageClassList{}
 	if err = l.client.List(context.Background(), sc); err != nil {

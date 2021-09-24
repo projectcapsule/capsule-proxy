@@ -17,6 +17,7 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
@@ -37,14 +38,15 @@ func (g get) Methods() []string {
 	return []string{}
 }
 
-func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
-	exactMatch, regexMatch := getIngressClasses(request, proxyTenants)
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+	httpRequest := proxyRequest.GetHTTPRequest()
+	exactMatch, regexMatch := getIngressClasses(httpRequest, proxyTenants)
 
-	name := mux.Vars(request)["name"]
+	name := mux.Vars(httpRequest)["name"]
 
 	var ic client.ObjectList
 
-	if ic, err = getIngressClassFromRequest(request); err != nil {
+	if ic, err = getIngressClassFromRequest(httpRequest); err != nil {
 		br := errors.NewBadRequest(err, &metav1.StatusDetails{Group: "networking.k8s.io", Kind: "ingressclasses"})
 		// nolint:wrapcheck
 		return nil, br
@@ -62,7 +64,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (
 		return labels.NewSelector().Add(*r), nil
 	}
 
-	switch request.Method {
+	switch httpRequest.Method {
 	case http.MethodGet:
 		nf := errors.NewNotFoundError(
 			fmt.Sprintf("ingressclasses.networking.k8s.io \"%s\" not found", name),

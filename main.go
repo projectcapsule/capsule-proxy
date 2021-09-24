@@ -102,6 +102,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.Info("Creating the Rolebindings reflector")
+
+	rbReflector, err := controllers.NewRoleBindingReflector(ctrl.GetConfigOrDie())
+	if err != nil {
+		log.Error(err, "cannot create Rolebindings reflector")
+		os.Exit(1)
+	}
+
+	log.Info("Adding the Rolebindings reflector to the Manager")
+
+	if err = mgr.Add(rbReflector); err != nil {
+		log.Error(err, "cannot add Rolebindings reflector as Runnable")
+		os.Exit(1)
+	}
+
 	log.Info("Creating the Field Indexer")
 
 	ow := tenant.OwnerReference{}
@@ -129,7 +144,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts)
+	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector)
 	if err != nil {
 		log.Error(err, "cannot create NamespaceFilter runner")
 		os.Exit(1)

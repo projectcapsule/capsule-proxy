@@ -5,7 +5,6 @@ package pod
 
 import (
 	"context"
-	"net/http"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/go-logr/logr"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/clastix/capsule-proxy/internal/modules"
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
@@ -40,8 +40,10 @@ func (g get) Methods() []string {
 	return []string{"get"}
 }
 
-func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (selector labels.Selector, err error) {
-	rawFieldSelector, ok := request.URL.Query()["fieldSelector"]
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+	httpRequest := proxyRequest.GetHTTPRequest()
+
+	rawFieldSelector, ok := httpRequest.URL.Query()["fieldSelector"]
 	// we want to process just the requests that are required by the kubectl describe feature and these contain the
 	// field selector in the query string: if it's not there, we can skip the processing.
 	if !ok || len(rawFieldSelector) == 0 {
@@ -74,7 +76,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, request *http.Request) (
 	var selectors []map[string]string
 	// Ensuring the Tenant Owner can deal with the node listing
 	for _, pt := range proxyTenants {
-		if ok = pt.RequestAllowed(request, capsulev1beta1.NodesProxy); ok {
+		if ok = pt.RequestAllowed(httpRequest, capsulev1beta1.NodesProxy); ok {
 			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 		}
 	}
