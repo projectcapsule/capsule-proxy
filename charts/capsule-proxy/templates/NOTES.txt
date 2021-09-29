@@ -1,7 +1,7 @@
 - Capsule-proxy Helm Chart deployed:
 
    # Check the capsule-proxy logs
-   $ kubectl logs -f deployment/{{ template "capsule-proxy.fullname" . }} -n{{ .Release.Namespace }}
+   $ kubectl logs -f deployment/{{ template "capsule-proxy.fullname" . }} -n {{ .Release.Namespace }}
 
 - Manage this chart:
 
