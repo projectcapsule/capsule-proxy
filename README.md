@@ -364,7 +364,9 @@ localhost-key.pem localhost.pem
 3. Run the proxy with the following options
 
 ```bash
-go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --enable-ssl=true --kubeconfig=<YOUR KUBERNETES CONFIGURATION FILE>
+# Set KUBECONFIG environment variable with the Kubernetes configuration file if you are not currently using it.
+# export KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> or just type it before the command, i.e. `KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> go run main.go ...`
+$ go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --enable-ssl=true
 ```
 
 5. Edit the `KUBECONFIG` file (you should make a copy and work on it) as follows:
