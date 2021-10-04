@@ -369,12 +369,12 @@ localhost-key.pem localhost.pem
 $ go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem --enable-ssl=true
 ```
 
-5. Edit the `KUBECONFIG` file (you should make a copy and work on it) as follows:
+4. Edit the `KUBECONFIG` file (you should make a copy and work on it) as follows:
 - Find the section of your cluster
 - replace the server path with `https://localhost:9001`
 - replace the certificate-authority-data path with the content of your rootCA.pem file. (if you use mkcert, you'll find with `cat "$(mkcert -CAROOT)/rootCA.pem"|base64|tr -d '\n'`)
 
-6. Now you should be able to run kubectl using the proxy!
+5. Now you should be able to run kubectl using the proxy!
 
 ### Debug in a remote Kubernetes cluster
 
