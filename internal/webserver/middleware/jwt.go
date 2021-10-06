@@ -41,7 +41,7 @@ func CheckJWTMiddleware(client client.Client, log logr.Logger, tls bool) mux.Mid
 					errors.HandleError(writer, err, "cannot create TokenReview")
 				}
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
-					errors.HandleError(writer, err, "cannot verify the token due to error")
+					errors.HandleUnauthorized(writer, fmt.Errorf(statusErr), "cannot authenticate the token due to error")
 				}
 			case !tls && len(token) == 0:
 				errors.HandleUnauthorized(writer, fmt.Errorf("missing token"), "cannot determinate the current user, no cert-based authentication is available when TLS is disabled, and no JWT token is detected.")
