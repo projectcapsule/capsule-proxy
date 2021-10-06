@@ -218,7 +218,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 
 		sr := rp.Subrouter()
 		sr.Use(
-			middleware.CheckJWTMiddleware(n.client, n.log),
+			middleware.CheckJWTMiddleware(n.client, n.log, n.serverOptions.IsListeningTLS()),
 			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.ignoredUserGroups, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.impersonateHandler),
 		)
