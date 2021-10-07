@@ -20,6 +20,7 @@ options:
   SSLCertFileName: tls.crt
   SSLKeyFileName: tls.key
   generateCertificates: false
+  rolebindingsResyncPeriod: 10h
 serviceAccount:
   create: true
   annotations: {}

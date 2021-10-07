@@ -56,6 +56,7 @@ spec:
         {{- if .Values.options.enableSSL }}
         - --ssl-cert-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLCertFileName }}
         - --ssl-key-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLKeyFileName }}
+        - --rolebindings-resync-period={{ .Values.options.rolebindingsResyncPeriod }}
         {{- end }}
         ports:
         - name: proxy

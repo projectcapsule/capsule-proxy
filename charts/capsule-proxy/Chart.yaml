@@ -3,4 +3,4 @@ appVersion: 0.1.1
 description: Helm Chart for Capsule Proxy, addon for Capsule, the multi-tenant Operator
 name: capsule-proxy
 type: application
-version: 0.1.5
+version: 0.1.6
