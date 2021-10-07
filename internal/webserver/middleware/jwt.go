@@ -25,8 +25,7 @@ func CheckJWTMiddleware(client client.Client, log logr.Logger, tls bool) mux.Mid
 
 			token := strings.ReplaceAll(request.Header.Get("Authorization"), "Bearer ", "")
 
-			switch {
-			case len(token) > 0:
+			if len(token) > 0 {
 				log.V(4).Info("Checking Bearer token", "value", token)
 				tr := authenticationv1.TokenReview{
 					TypeMeta: metav1.TypeMeta{
@@ -43,8 +42,6 @@ func CheckJWTMiddleware(client client.Client, log logr.Logger, tls bool) mux.Mid
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
 					errors.HandleUnauthorized(writer, fmt.Errorf(statusErr), "cannot authenticate the token due to error")
 				}
-			case !tls && len(token) == 0:
-				errors.HandleUnauthorized(writer, fmt.Errorf("missing token"), "cannot determinate the current user, no cert-based authentication is available when TLS is disabled, and no JWT token is detected.")
 			}
 
 			next.ServeHTTP(writer, request)

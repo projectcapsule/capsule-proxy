@@ -39,9 +39,14 @@ func (h http) GetHTTPRequest() *h.Request {
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	switch h.getAuthType() {
 	case certificateBased:
-		if pc := h.TLS.PeerCertificates; len(pc) == 1 {
-			username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
+		pc := h.TLS.PeerCertificates
+		if len(pc) == 0 {
+			err = fmt.Errorf("no provided peer certificates")
+
+			return
 		}
+
+		username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
 	case bearerBased:
 		if h.isJwtToken() {
 			return h.processJwtClaims()
@@ -49,7 +54,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 
 		return h.processBearerToken()
 	case anonymousBased:
-		return
+		err = fmt.Errorf("capsule does not support unauthenticated users")
 	}
 
 	return
@@ -109,10 +114,10 @@ func (h http) bearerToken() string {
 
 func (h http) getAuthType() authType {
 	switch {
+	case len(h.TLS.PeerCertificates) > 0:
+		return certificateBased
 	case len(h.bearerToken()) > 0:
 		return bearerBased
-	case h.TLS != nil:
-		return certificateBased
 	default:
 		return anonymousBased
 	}

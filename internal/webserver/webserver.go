@@ -54,6 +54,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
+		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
 		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
 		reverseProxy:          reverseProxy,
 		bearerToken:           opts.BearerToken(),
@@ -65,6 +66,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 }
 
 type kubeFilter struct {
+	allowedPaths          sets.String
 	ignoredUserGroups     sets.String
 	reverseProxy          *httputil.ReverseProxy
 	client                client.Client
@@ -159,13 +161,7 @@ func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selecto
 }
 
 func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	if !n.serverOptions.IsListeningTLS() {
-		return
-	}
-
-	n.log.V(3).Info("running on TLS, need to check the certificate")
-
-	if pc := request.TLS.PeerCertificates; len(pc) == 1 {
+	if request.TLS != nil && len(request.TLS.PeerCertificates) > 0 {
 		hr := req.NewHTTP(request, n.usernameClaimField, n.client)
 
 		var username string
@@ -175,10 +171,10 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 		var err error
 
 		if username, groups, err = hr.GetUserAndGroups(); err != nil {
-			serverr.HandleError(writer, err, "Cannot retrieve user and group from Request certificate")
+			serverr.HandleError(writer, err, "cannot retrieve user and group")
 		}
 
-		n.log.V(4).Info("Impersonating for the current request", "username", username, "groups", groups, "token", n.bearerToken)
+		n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups)
 
 		if len(n.bearerToken) > 0 {
 			request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
@@ -218,6 +214,8 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 
 		sr := rp.Subrouter()
 		sr.Use(
+			middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
+			middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
 			middleware.CheckJWTMiddleware(n.client, n.log, n.serverOptions.IsListeningTLS()),
 			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.ignoredUserGroups, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.impersonateHandler),
@@ -261,8 +259,13 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	})
 
 	root := r.PathPrefix("").Subrouter()
-	root.Use(n.reverseProxyMiddleware)
 	n.registerModules(root)
+	root.Use(
+		n.reverseProxyMiddleware,
+		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
+		middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
+		middleware.CheckJWTMiddleware(n.client, n.log, n.serverOptions.IsListeningTLS()),
+	)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
 	})
