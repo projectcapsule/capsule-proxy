@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"github.com/pkg/errors"
@@ -28,7 +29,7 @@ type RoleBindingReflector struct {
 	reflector *cache.Reflector
 }
 
-func NewRoleBindingReflector(config *rest.Config) (*RoleBindingReflector, error) {
+func NewRoleBindingReflector(config *rest.Config, resyncPeriod time.Duration) (*RoleBindingReflector, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create kubernetes clientset")
@@ -38,7 +39,7 @@ func NewRoleBindingReflector(config *rest.Config) (*RoleBindingReflector, error)
 
 	store := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{subjectIndex: OwnerRoleBindingsIndexFunc})
 
-	reflector := cache.NewReflector(watcher, &rbacv1.RoleBinding{}, store, 0)
+	reflector := cache.NewReflector(watcher, &rbacv1.RoleBinding{}, store, resyncPeriod)
 
 	return &RoleBindingReflector{
 		store:     store,

@@ -8,6 +8,7 @@ import (
 	goflag "flag"
 	"fmt"
 	"os"
+	"time"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
@@ -54,6 +55,8 @@ func main() {
 
 	var keyPath string
 
+	var rolebindingsResyncPeriod time.Duration
+
 	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
@@ -62,6 +65,7 @@ func main() {
 	flag.BoolVar(&bindSsl, "enable-ssl", false, "Enable the bind on HTTPS for secure communication (default: false)")
 	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
 	flag.StringVar(&keyPath, "ssl-key-path", "", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
+	flag.DurationVar(&rolebindingsResyncPeriod, "rolebindings-resync-period", 10*time.Hour, "Resync period for rolebindings reflector")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
@@ -115,7 +119,7 @@ func main() {
 
 	log.Info("Creating the Rolebindings reflector")
 
-	rbReflector, err := controllers.NewRoleBindingReflector(ctrl.GetConfigOrDie())
+	rbReflector, err := controllers.NewRoleBindingReflector(ctrl.GetConfigOrDie(), rolebindingsResyncPeriod)
 	if err != nil {
 		log.Error(err, "cannot create Rolebindings reflector")
 		os.Exit(1)
