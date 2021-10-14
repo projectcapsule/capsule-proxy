@@ -18,7 +18,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/webserver/errors"
 )
 
-func CheckJWTMiddleware(client client.Client, log logr.Logger, tls bool) mux.MiddlewareFunc {
+func CheckJWTMiddleware(client client.Client, log logr.Logger) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			var err error

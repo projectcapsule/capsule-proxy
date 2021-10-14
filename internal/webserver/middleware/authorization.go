@@ -19,7 +19,7 @@ const (
 	regexPatternForAuthHeader = "^(Bearer ([\\w-]*\\.[\\w-]*\\.[\\w-]*))$"
 )
 
-func CheckAuthorization(client client.Client, log logr.Logger, tls bool) mux.MiddlewareFunc {
+func CheckAuthorization(client client.Client, log logr.Logger) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			err := fmt.Errorf("no authentication method")
@@ -30,12 +30,8 @@ func CheckAuthorization(client client.Client, log logr.Logger, tls bool) mux.Mid
 				errors.HandleUnauthorized(writer, err, "authorization header does not contain valid data.")
 			}
 
-			if tls && (!isCertificates && !isBearerToken) {
+			if !isCertificates && !isBearerToken {
 				errors.HandleUnauthorized(writer, err, "cannot determinate the current user due to no cert-based authentication nor valid JWT token.")
-			}
-
-			if !tls && !isBearerToken {
-				errors.HandleUnauthorized(writer, err, "cannot determinate the current user, no cert-based authentication is available when TLS is disabled and no JWT token is detected.")
 			}
 
 			next.ServeHTTP(writer, request)

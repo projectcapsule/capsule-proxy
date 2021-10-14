@@ -13,24 +13,21 @@ import (
 )
 
 type httpOptions struct {
-	isTLS   bool
 	port    uint
 	crtPath string
 	keyPath string
 	caPool  *x509.CertPool
 }
 
-func NewServer(isTLS bool, port uint, crtPath string, keyPath string, config *rest.Config) (ServerOptions, error) {
+func NewServer(port uint, crtPath string, keyPath string, config *rest.Config) (ServerOptions, error) {
 	var err error
 
-	if isTLS {
-		if _, err = os.Stat(crtPath); err != nil {
-			return nil, fmt.Errorf("cannot lookup TLS certificate file: %w", err)
-		}
+	if _, err = os.Stat(crtPath); err != nil {
+		return nil, fmt.Errorf("cannot lookup TLS certificate file: %w", err)
+	}
 
-		if _, err = os.Stat(keyPath); err != nil {
-			return nil, fmt.Errorf("cannot lookup TLS certificate key file: %w", err)
-		}
+	if _, err = os.Stat(keyPath); err != nil {
+		return nil, fmt.Errorf("cannot lookup TLS certificate key file: %w", err)
 	}
 
 	var caPool *x509.CertPool
@@ -41,15 +38,11 @@ func NewServer(isTLS bool, port uint, crtPath string, keyPath string, config *re
 		}
 	}
 
-	return &httpOptions{isTLS: isTLS, port: port, crtPath: crtPath, keyPath: keyPath, caPool: caPool}, nil
+	return &httpOptions{port: port, crtPath: crtPath, keyPath: keyPath, caPool: caPool}, nil
 }
 
 func (h httpOptions) GetCertificateAuthorityPool() *x509.CertPool {
 	return h.caPool
-}
-
-func (h httpOptions) IsListeningTLS() bool {
-	return h.isTLS
 }
 
 func (h httpOptions) ListeningPort() uint {

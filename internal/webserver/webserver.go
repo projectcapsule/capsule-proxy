@@ -82,19 +82,14 @@ func (n *kubeFilter) LivenessProbe(req *http.Request) error {
 }
 
 func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
-	scheme := "http"
-	clt := &http.Client{}
-
-	if n.serverOptions.IsListeningTLS() {
-		scheme = "https"
-		clt = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					//nolint:gosec
-					InsecureSkipVerify: true,
-				},
+	scheme := "https"
+	clt := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				//nolint:gosec
+				InsecureSkipVerify: true,
 			},
-		}
+		},
 	}
 
 	url := fmt.Sprintf("%s://localhost:%d/_healthz", scheme, n.serverOptions.ListeningPort())
@@ -161,30 +156,28 @@ func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selecto
 }
 
 func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	if request.TLS != nil && len(request.TLS.PeerCertificates) > 0 {
-		hr := req.NewHTTP(request, n.usernameClaimField, n.client)
+	hr := req.NewHTTP(request, n.usernameClaimField, n.client)
 
-		var username string
+	var username string
 
-		var groups []string
+	var groups []string
 
-		var err error
+	var err error
 
-		if username, groups, err = hr.GetUserAndGroups(); err != nil {
-			serverr.HandleError(writer, err, "cannot retrieve user and group")
-		}
+	if username, groups, err = hr.GetUserAndGroups(); err != nil {
+		serverr.HandleError(writer, err, "cannot retrieve user and group")
+	}
 
-		n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups)
+	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups)
 
-		if len(n.bearerToken) > 0 {
-			request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
-		}
+	if len(n.bearerToken) > 0 {
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+	}
 
-		request.Header.Add("Impersonate-User", username)
+	request.Header.Add("Impersonate-User", username)
 
-		for _, group := range groups {
-			request.Header.Add("Impersonate-Group", group)
-		}
+	for _, group := range groups {
+		request.Header.Add("Impersonate-Group", group)
 	}
 }
 
@@ -215,8 +208,8 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 		sr := rp.Subrouter()
 		sr.Use(
 			middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
-			middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
-			middleware.CheckJWTMiddleware(n.client, n.log, n.serverOptions.IsListeningTLS()),
+			middleware.CheckAuthorization(n.client, n.log),
+			middleware.CheckJWTMiddleware(n.client, n.log),
 			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.ignoredUserGroups, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.impersonateHandler),
 		)
@@ -263,8 +256,8 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	root.Use(
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
-		middleware.CheckJWTMiddleware(n.client, n.log, n.serverOptions.IsListeningTLS()),
+		middleware.CheckAuthorization(n.client, n.log),
+		middleware.CheckJWTMiddleware(n.client, n.log),
 	)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
@@ -277,25 +270,17 @@ func (n kubeFilter) Start(ctx context.Context) error {
 
 		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
 
-		if n.serverOptions.IsListeningTLS() {
-			tlsConfig := &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
-				ClientAuth: tls.VerifyClientCertIfGiven,
-			}
-			srv = &http.Server{
-				Handler:   r,
-				Addr:      addr,
-				TLSConfig: tlsConfig,
-			}
-			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
-		} else {
-			srv = &http.Server{
-				Handler: r,
-				Addr:    addr,
-			}
-			err = srv.ListenAndServe()
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
+			ClientAuth: tls.VerifyClientCertIfGiven,
 		}
+		srv = &http.Server{
+			Handler:   r,
+			Addr:      addr,
+			TLSConfig: tlsConfig,
+		}
+		err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
 
 		if err != nil {
 			panic(err)

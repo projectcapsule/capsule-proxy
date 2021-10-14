@@ -8,7 +8,6 @@ import (
 )
 
 type ServerOptions interface {
-	IsListeningTLS() bool
 	ListeningPort() uint
 	TLSCertificatePath() string
 	TLSCertificateKeyPath() string

@@ -52,7 +52,6 @@ spec:
         - --ignored-user-group={{ . }}
         {{- end}}
         - --zap-log-level={{ .Values.options.logLevel }}
-        - --enable-ssl={{ .Values.options.enableSSL }}
         - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
         {{- if .Values.options.enableSSL }}
         - --ssl-cert-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLCertFileName }}
