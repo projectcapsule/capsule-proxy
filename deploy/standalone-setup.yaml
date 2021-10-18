@@ -52,6 +52,7 @@ spec:
         args:
         - --capsule-user-group=capsule.clastix.io
         - --zap-log-level=5
+        - --enable-ssl=true
         - --ssl-cert-path=/opt/certs/tls.crt
         - --ssl-key-path=/opt/certs/tls.key
         ports:

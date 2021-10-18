@@ -79,6 +79,7 @@ spec:
           - --capsule-user-group=capsule.clastix.io
           - --zap-devel
           - --zap-log-level=10
+          - --enable-ssl=true
           - --ssl-cert-path=/opt/certs/tls.crt
           - --ssl-key-path=/opt/certs/tls.key
           volumeMounts:
