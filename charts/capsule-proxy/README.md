@@ -74,6 +74,7 @@ Parameter | Description | Default
 `options.SSLDirectory` | Set the directory, where SSL certificate and keyfile will be located | `/opt/capsule-proxy`
 `options.SSLCertFileName` | Set the name of SSL certificate file | `tls.crt`
 `options.SSLKeyFileName` | Set the name of SSL key file | `tls.key`
+`options.rolebindingsResyncPeriod` | Set the rolebindings reflector resync period | `10h`
 `options.generateCertificates` | Specify if capsule-proxy will generate self-signed SSL certificates | `false`
 `imagePullSecrets` | Configuration for `imagePullSecrets` so that you can use a private images registry. | `[]`
 `serviceAccount.create` | Specifies whether a service account should be created. | `true`
