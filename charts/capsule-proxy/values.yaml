@@ -15,7 +15,6 @@ options:
   capsuleConfigurationName: default
   ignoredUserGroups: []
   oidcUsernameClaim: preferred_username
-  enableSSL: false
   SSLDirectory: /opt/capsule-proxy
   SSLCertFileName: tls.crt
   SSLKeyFileName: tls.key

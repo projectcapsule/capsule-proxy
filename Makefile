@@ -52,7 +52,6 @@ e2e/%: docker-build
 	helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=latest" \
-		--set "options.enableSSL=true" \
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \

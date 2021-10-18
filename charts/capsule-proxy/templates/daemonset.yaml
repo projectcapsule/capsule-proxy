@@ -32,13 +32,11 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       priorityClassName: {{ .Values.priorityClassName }}
-      {{- if .Values.options.enableSSL }}
       volumes:
       - name: certs
         secret:
           secretName: {{ include "capsule-proxy.fullname" . }}
           defaultMode: 420
-      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         securityContext:
@@ -54,10 +52,8 @@ spec:
         - --zap-log-level={{ .Values.options.logLevel }}
         - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
         - --rolebindings-resync-period={{ .Values.options.rolebindingsResyncPeriod }}
-        {{- if .Values.options.enableSSL }}
         - --ssl-cert-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLCertFileName }}
         - --ssl-key-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLKeyFileName }}
-        {{- end }}
         ports:
         - name: proxy
           protocol: TCP
@@ -83,11 +79,9 @@ spec:
             scheme: HTTP
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
-        {{- if .Values.options.enableSSL }}
         volumeMounts:
         - mountPath: {{ .Values.options.SSLDirectory }}
           name: certs
-        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

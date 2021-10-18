@@ -1,4 +1,4 @@
-{{- if and .Values.options.enableSSL .Values.options.generateCertificates -}}
+{{- if .Values.options.generateCertificates -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
