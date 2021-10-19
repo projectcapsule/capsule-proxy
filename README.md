@@ -366,7 +366,7 @@ localhost-key.pem localhost.pem
 ```bash
 # Set KUBECONFIG environment variable with the Kubernetes configuration file if you are not currently using it.
 # export KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> or just type it before the command, i.e. `KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> go run main.go ...`
-$ go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem
+$ go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem  --enable-ssl=true
 ```
 
 4. Edit the `KUBECONFIG` file (you should make a copy and work on it) as follows:
@@ -389,3 +389,18 @@ In some cases, you would need to debug the in-cluster mode and [`delve`](https:/
 
 > _Nota Bene_: the application could be killed by the Liveness Probe since delve will wait for the debugger connection before starting it.
 > Feel free to edit and remove the probes to avoid this kind of issue.
+
+## HTTP support
+
+Capsule proxy supports `https` and `http`, although the latter is not recommended, we understand that it can be useful for some use cases (i.e. development, working behind a TLS-terminated reverse proxy and so on).
+
+As the default behaviour is to work with `https`, we need to use the flag `--enable-ssl=false` if we really want to work under `http`.
+
+After having **Capsule-Proxy** working under `http`, requests must provide *authentication* using an allowed Bearer Token. Example:
+
+```bash
+$ TOKEN=<type your TOKEN>
+$ curl -H "Authorization: Bearer $TOKEN" http://localhost:9001/api/v1/namespaces
+```
+
+> **NOTE**: `kubectl` will not work against a http server.
