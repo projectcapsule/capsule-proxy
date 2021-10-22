@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+TESTS=$1
+
 HACK_DIR="$(git rev-parse --show-toplevel)/hack"
 export HACK_DIR
 
@@ -23,5 +25,5 @@ do
     sleep 5
 done
 
-echo -e "\n>>> Starting test suite"
-bats -t "$(git rev-parse --show-toplevel)"/e2e/tests/*
+echo -e "\n>>> Starting test suite ${TESTS}"
+bats -t "$(git rev-parse --show-toplevel)"/e2e/${TESTS}-tests/*
