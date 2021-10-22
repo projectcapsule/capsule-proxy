@@ -118,6 +118,8 @@ apiVersion: capsule.clastix.io/v1beta1
 kind: Tenant
 metadata:
   name: oil
+  annotations:
+    capsule.clastix.io/enable-node-listing: "true"
 spec:
   owners:
   - kind: User
