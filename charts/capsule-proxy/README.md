@@ -70,7 +70,7 @@ Parameter | Description | Default
 `options.capsuleConfigurationName` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups | `"default"`
 `options.ignoredUserGroups` | Define which groups must be ignored while proxying requests | `[ ]`
 `options.oidcUsernameClaim` | Override the OIDC field name used to identify the user | `preferred_username`
-`options.enableSSL` | Specify if capsule-proxy will use SSL | `false`
+`options.enableSSL` | Specify if capsule-proxy will use SSL | `true`
 `options.SSLDirectory` | Set the directory, where SSL certificate and keyfile will be located | `/opt/capsule-proxy`
 `options.SSLCertFileName` | Set the name of SSL certificate file | `tls.crt`
 `options.SSLKeyFileName` | Set the name of SSL key file | `tls.key`

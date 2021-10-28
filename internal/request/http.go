@@ -114,7 +114,7 @@ func (h http) bearerToken() string {
 
 func (h http) getAuthType() authType {
 	switch {
-	case len(h.TLS.PeerCertificates) > 0:
+	case (h.TLS != nil) && len(h.TLS.PeerCertificates) > 0:
 		return certificateBased
 	case len(h.bearerToken()) > 0:
 		return bearerBased

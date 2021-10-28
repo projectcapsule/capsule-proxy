@@ -26,7 +26,6 @@ func CheckJWTMiddleware(client client.Client, log logr.Logger) mux.MiddlewareFun
 			token := strings.ReplaceAll(request.Header.Get("Authorization"), "Bearer ", "")
 
 			if len(token) > 0 {
-				log.V(4).Info("Checking Bearer token", "value", token)
 				tr := authenticationv1.TokenReview{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "TokenReview",

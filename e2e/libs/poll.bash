@@ -12,6 +12,15 @@ function poll_until_equals() {
   poll_until_true "$what" "[ '$expected' = \"\$( $check_cmd )\" ]" "$retries" "$wait_period"
 }
 
+function poll_until_different() {
+  local what="$1"; shift
+  local expected="$1"; shift
+  local check_cmd="$1"; shift
+  local retries="$1"; shift
+  local wait_period="$1"
+  poll_until_true "$what" "[ '$expected' != \"\$( $check_cmd )\" ]" "$retries" "$wait_period"
+}
+
 function poll_until_true() {
   local what="$1"
   local check_cmd="$2"

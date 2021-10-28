@@ -82,14 +82,19 @@ func (n *kubeFilter) LivenessProbe(req *http.Request) error {
 }
 
 func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
-	scheme := "https"
-	clt := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				//nolint:gosec
-				InsecureSkipVerify: true,
+	scheme := "http"
+	clt := &http.Client{}
+
+	if n.serverOptions.IsListeningTLS() {
+		scheme = "https"
+		clt = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					//nolint:gosec
+					InsecureSkipVerify: true,
+				},
 			},
-		},
+		}
 	}
 
 	url := fmt.Sprintf("%s://localhost:%d/_healthz", scheme, n.serverOptions.ListeningPort())
@@ -208,7 +213,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 		sr := rp.Subrouter()
 		sr.Use(
 			middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
-			middleware.CheckAuthorization(n.client, n.log),
+			middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
 			middleware.CheckJWTMiddleware(n.client, n.log),
 			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.ignoredUserGroups, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.impersonateHandler),
@@ -256,7 +261,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	root.Use(
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckAuthorization(n.client, n.log),
+		middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
 		middleware.CheckJWTMiddleware(n.client, n.log),
 	)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -270,17 +275,25 @@ func (n kubeFilter) Start(ctx context.Context) error {
 
 		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
 
-		tlsConfig := &tls.Config{
-			MinVersion: tls.VersionTLS12,
-			ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
-			ClientAuth: tls.VerifyClientCertIfGiven,
+		if n.serverOptions.IsListeningTLS() {
+			tlsConfig := &tls.Config{
+				MinVersion: tls.VersionTLS12,
+				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
+				ClientAuth: tls.VerifyClientCertIfGiven,
+			}
+			srv = &http.Server{
+				Handler:   r,
+				Addr:      addr,
+				TLSConfig: tlsConfig,
+			}
+			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
+		} else {
+			srv = &http.Server{
+				Handler: r,
+				Addr:    addr,
+			}
+			err = srv.ListenAndServe()
 		}
-		srv = &http.Server{
-			Handler:   r,
-			Addr:      addr,
-			TLSConfig: tlsConfig,
-		}
-		err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
 
 		if err != nil {
 			panic(err)

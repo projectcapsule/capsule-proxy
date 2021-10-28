@@ -51,6 +51,7 @@ spec:
         - --ignored-user-group={{ . }}
         {{- end}}
         - --zap-log-level={{ .Values.options.logLevel }}
+        - --enable-ssl={{ .Values.options.enableSSL }}
         - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
         - --rolebindings-resync-period={{ .Values.options.rolebindingsResyncPeriod }}
         {{- if .Values.options.enableSSL }}

@@ -49,6 +49,8 @@ func main() {
 
 	var usernameClaimField string
 
+	var bindSsl bool
+
 	var certPath string
 
 	var keyPath string
@@ -60,6 +62,7 @@ func main() {
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
 	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
+	flag.BoolVar(&bindSsl, "enable-ssl", true, "Enable the bind on HTTPS for secure communication (default: true)")
 	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
 	flag.StringVar(&keyPath, "ssl-key-path", "", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
 	flag.DurationVar(&rolebindingsResyncPeriod, "rolebindings-resync-period", 10*time.Hour, "Resync period for rolebindings reflector")
@@ -80,6 +83,18 @@ func main() {
 
 	log.Info("---")
 	log.Info(fmt.Sprintf("Manager listening on port %d", listeningPort))
+	log.Info(fmt.Sprintf("Listening on HTTPS: %t", bindSsl))
+
+	if !bindSsl {
+		switch {
+		case len(certPath) > 0:
+			log.Info("cannot use a Certificate when TLS/SSL mode is disabled")
+			os.Exit(1)
+		case len(keyPath) > 0:
+			log.Info("cannot use a Certificate key when TLS/SSL mode is disabled")
+			os.Exit(1)
+		}
+	}
 
 	if len(capsuleUserGroups) > 0 {
 		log.Info(
@@ -139,7 +154,7 @@ func main() {
 
 	var serverOpts options.ServerOptions
 
-	if serverOpts, err = options.NewServer(listeningPort, certPath, keyPath, ctrl.GetConfigOrDie()); err != nil {
+	if serverOpts, err = options.NewServer(bindSsl, listeningPort, certPath, keyPath, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
