@@ -110,24 +110,21 @@ oil-production      Active   2m
 
 ### Nodes
 
-When a Tenant defines a `.spec.nodeSelector`, the nodes matching that labels can be easily retrieved.
-The annotation `capsule.clastix.io/enable-node-listing` allows the ability for the owners to retrieve the node list (useful in shared HW scenarios).
+The Capsule Proxy gives the owners the ability to access the nodes matching the `.spec.nodeSelector` in the Tenant manifest: 
 
 ```yaml
 apiVersion: capsule.clastix.io/v1beta1
 kind: Tenant
 metadata:
   name: oil
-  annotations:
-    capsule.clastix.io/enable-node-listing: "true"
 spec:
   owners:
-  - kind: User
-    name: alice
-    proxySettings:
-    - kind: Nodes
-      operations:
-        - List
+    - kind: User
+      name: alice
+      proxySettings:
+        - kind: Nodes
+          operations:
+            - List
   nodeSelector:
     kubernetes.io/hostname: capsule-gold-qwerty
 ```
@@ -137,6 +134,8 @@ $ kubectl --context alice-oidc@mycluster get nodes
 NAME                    STATUS   ROLES    AGE   VERSION
 capsule-gold-qwerty     Ready    <none>   43h   v1.19.1
 ```
+
+> Warning: when no `nodeSelector` is specified, the tenant owners has access to all the nodes, according to the permissions listed in the `proxySettings` specs.
 
 #### Special routes for kubectl describe
 
