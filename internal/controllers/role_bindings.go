@@ -93,7 +93,9 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 }
 
 func (r *RoleBindingReflector) Start(ctx context.Context) error {
-	return r.reflector.ListAndWatch(ctx.Done())
+	r.reflector.Run(ctx.Done())
+
+	return nil
 }
 
 func OwnerRoleBindingsIndexFunc(obj interface{}) (result []string, err error) {
