@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled -}}
 {{- $fullName := include "capsule-proxy.fullname" . -}}
-{{- if semverCompare ">=1.12-0" .Capabilities.KubeVersion.GitVersion -}}
+{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" -}}
 apiVersion: networking.k8s.io/v1
 {{- else -}}
 apiVersion: networking.k8s.io/v1beta1
@@ -31,10 +31,20 @@ spec:
     http:
       paths:
       {{- range .paths }}
+      {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" }}
+      - path: {{ . }}
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ $fullName }}
+            port:
+              number: {{ $.Values.service.port }}
+      {{- else }}
       - path: {{ . }}
         backend:
           serviceName: {{ $fullName }}
           servicePort: {{ $.Values.service.port }}
+      {{- end }}
       {{- end }}
   {{- end }}
   {{- end }}
