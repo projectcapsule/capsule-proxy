@@ -21,3 +21,7 @@
 .idea/
 *.tmproj
 .vscode/
+# Helm
+/*.tgz
+ci/
+*.gotmpl

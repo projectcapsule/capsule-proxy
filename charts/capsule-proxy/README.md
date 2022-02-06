@@ -37,7 +37,7 @@ The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on you
         $ helm upgrade capsule-proxy clastix/capsule-proxy -n capsule-system
 
 5. Uninstall the Chart
-   
+  
         $ helm uninstall capsule-proxy -n capsule-system
 
 ## Customize the installation
@@ -48,7 +48,7 @@ The `--values` option is the preferred method because it allows you to keep your
 
 Specify your overrides file when you install the chart:
 
-        $ helm install capsule-proxy clastix/capsule-proxy --values myvalues.yaml -n capsule-system  
+        $ helm install capsule-proxy clastix/capsule-proxy --values myvalues.yaml -n capsule-system 
 
 The values in your overrides file `myvalues.yaml` will override their counterparts in the chart’s values.yaml file. Any values in `values.yaml` that weren’t overridden will keep their defaults.
 
@@ -56,59 +56,102 @@ If you only need to make minor customizations, you can specify them on the comma
 
         $ helm install capsule-proxy clastix/capsule-proxy --set "kind=DaemonSet" -n capsule-system
 
-Here the values you can override:
+### General Paremters
 
-Parameter | Description | Default
---- | --- | ---
-`kind` | Set the deployment mode of the capsule-proxy as Deployment or DaemonSet. | `Deployment`
-`image.repository` | Set the image repository of the capsule-proxy. | `quay.io/clastix/capsule-proxy`
-`image.pullPolicy` | Set the image pull policy. | `IfNotPresent`
-`image.tag` | Overrides the image tag whose default is the chart. `appVersion` | `null`
-`options.listeningPort` | Set the listening port of the capsule-proxy.| `9001`
-`options.logLevel` | Set the log verbosity of the capsule-proxy with a value from 1 to 10.| `4`
-`options.k8sControlPlaneUrl` | Set the URL of kubernetes control plane. | `https://kubernetes.default.svc`
-`options.capsuleConfigurationName` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups | `"default"`
-`options.ignoredUserGroups` | Define which groups must be ignored while proxying requests | `[ ]`
-`options.oidcUsernameClaim` | Override the OIDC field name used to identify the user | `preferred_username`
-`options.enableSSL` | Specify if capsule-proxy will use SSL | `true`
-`options.SSLDirectory` | Set the directory, where SSL certificate and keyfile will be located | `/opt/capsule-proxy`
-`options.SSLCertFileName` | Set the name of SSL certificate file | `tls.crt`
-`options.SSLKeyFileName` | Set the name of SSL key file | `tls.key`
-`options.rolebindingsResyncPeriod` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/clastix/capsule-proxy/issues/174) | `10h`
-`options.generateCertificates` | Specify if capsule-proxy will generate self-signed SSL certificates | `false`
-`imagePullSecrets` | Configuration for `imagePullSecrets` so that you can use a private images registry. | `[]`
-`serviceAccount.create` | Specifies whether a service account should be created. | `true`
-`serviceAccount.annotations` | Annotations to add to the service account. | `{}`
-`serviceAccount.name` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template | `capsule-proxy`
-`podAnnotations` | Annotations to add to the capsule-proxy pod. | `{}`
-`priorityClassName` | Specifies PriorityClass of the capsule-proxy pod. | ``
-`podSecurityContext` | Security context for the capsule-proxy pod. | `{}`
-`securityContext` | Security context for the capsule-proxy deployment. | `{}`
-`service.type` | Specifies the service type should be created. | `ClusterIP`
-`service.port` | Specifies the service port number. | `9001`
-`service.portName` | Specifies the service port name. | `proxy`
-`service.nodePort` | Specifies the node port number (only for `NodePort` service type). | ``
-`service.annotations` | Annotations to add to the service. | `{}`
-`service.labels` | Labels to add to the service. | `{}`
-`ingress.enabled` | Specifies whether an ingress should be created. | `false`
-`ingress.annotations` | Annotations to add to the capsule-proxy ingress. | `true`
-`ingress.hosts.host` | Set the host configuration for the capsule-proxy ingress. | `kube.clastix.io`
-`ingress.hosts.path` | Set the path configuration for the capsule-proxy ingress. | `["/"]`
-`ingress.tls` | Set the tls configuration for the capsule-proxy ingress. | `[]`
-`resources.requests/cpu` | Set the CPU requests assigned to the controller. | `200m`
-`resources.requests/memory` | Set the memory requests assigned to the controller. | `128Mi`
-`resources.limits/cpu` | Set the CPU limits assigned to the controller. | `200m`
-`resources.limits/cpu` | Set the memory limits assigned to the controller. | `128Mi`
-`autoscaling.enabled` | Specifies whether an hpa for capsule-proxy should be created. | `true`
-`autoscaling.minReplicas` | Set the minReplicas for capsule-proxy hpa. | `1`
-`autoscaling.maxReplicas` | Set the maxReplicas for capsule-proxy hpa. | `5`
-`autoscaling.targetCPUUtilizationPercentage` | Set the targetCPUUtilizationPercentage for capsule-proxy hpa. | `80`
-`nodeSelector` | Set the node selector for the capsule-proxy pod. | `{}`
-`tolerations` | Set list of tolerations for the capsule-proxy pod. | `[]`
-`affinity` | Set affinity rules for the capsule-proxy pod. | `{}`
-`replicaCount` | Set the replica count for capsule-proxy pod. | `1`
-`daemonset.hostNetwork` | Use the host network namespace for capsule-proxy pod. | `false`
-`daemonset.hostPort` | Binding the capsule-proxy listening port to the host port. | `false`
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
+| daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
+| daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
+| image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
+| image.repository | string | `"quay.io/clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
+| image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
+| imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
+| jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
+| jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
+| jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.  |
+| nodeSelector | object | `{}` |  |
+| podAnnotations | object | `{}` |  |
+| podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
+| podSecurityContext | object | `{}` | Security context for the capsule-proxy pod. |
+| priorityClassName | string | `""` |  |
+| replicaCount | int | `1` | Set the replica count for capsule-proxy pod.  |
+| resources.limits.cpu | string | `"200m"` | Set the CPU requests assigned to the controller. |
+| resources.limits.memory | string | `"128Mi"` | Set the memory requests assigned to the controller.  |
+| resources.requests.cpu | string | `"200m"` | Set the CPU limits assigned to the controller. |
+| resources.requests.memory | string | `"128Mi"` | Set the memory limits assigned to the controller. |
+| restartPolicy | string | `"Always"` | Set the restartPolicy for the capsule-proxy pod. |
+| securityContext | object | `{}` | Security context for the capsule-proxy deployment. |
+| serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
+| serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
+| serviceAccount.name | string | `capsule-proxy`` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template |
+| tolerations | list | `[]` | Set list of tolerations for the capsule-proxy pod. |
+| topologySpreadConstraints | string | `nil` | Topology Spread Constraints for the capsule-proxy pod. |
+
+### Controller Options Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| options.SSLCertFileName | string | `"tls.crt"` | Set the name of SSL certificate file |
+| options.SSLDirectory | string | `"/opt/capsule-proxy"` | Set the directory, where SSL certificate and keyfile will be located |
+| options.SSLKeyFileName | string | `"tls.key"` | Set the name of SSL key file |
+| options.capsuleConfigurationName | string | `"default"` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups |
+| options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
+| options.generateCertificates | bool | `false` | Specify if capsule-proxy will generate self-signed SSL certificates |
+| options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
+| options.k8sControlPlaneUrl | string | `"https://kubernetes.default.svc"` | Set the URL of kubernetes control plane |
+| options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
+| options.logLevel | string | `"4"` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
+| options.oidcUsernameClaim | string | `"preferred_username"` | Specify if capsule-proxy will use SSL |
+| options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/clastix/capsule-proxy/issues/174) |
+
+### Service Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| service.annotations | object | `{}` | Annotations to add to the service. |
+| service.labels | object | `{}` |  |
+| service.nodePort | string | `nil` | Specifies the node port number (only for `NodePort` service type). |
+| service.port | int | `9001` | Specifies the service port number. |
+| service.portName | string | `"proxy"` | Specifies the service port name. |
+| service.type | string | `"ClusterIP"` | Specifies the service type should be created (`ClusterIP`, `NodePort`or `LoadBalancer`) |
+
+### Ingress Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| ingress.annotations | object | `{}` | Annotations to add to the capsule-proxy ingress. |
+| ingress.enabled | bool | `false` | Specifies whether an ingress should be created.  |
+| ingress.hosts[0] | object | `{"host":"kube.clastix.io","paths":["/"]}` | Set the host configuration for the capsule-proxy ingress. |
+| ingress.hosts[0].paths | list | `["/"]` | Set the path configuration for the capsule-proxy ingress. |
+| ingress.tls | list | `[]` | Set the tls configuration for the capsule-proxy ingress. |
+
+### Autoscaler Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| autoscaling.enabled | bool | `false` | Specifies whether an hpa for capsule-proxy should be created. |
+| autoscaling.maxReplicas | int | `5` | Set the maxReplicas for capsule-proxy hpa. |
+| autoscaling.minReplicas | int | `1` | Set the minReplicas for capsule-proxy hpa. |
+| autoscaling.targetCPUUtilizationPercentage | int | `80` | Set the targetCPUUtilizationPercentage for capsule-proxy hpa. |
+
+### ServiceMonitor Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| serviceMonitor.annotations | object | `{}` | Assign additional Annotations |
+| serviceMonitor.enabled | bool | `true` | Enable ServiceMonitor |
+| serviceMonitor.endpoint.interval | string | `"15s"` | Set the scrape interval for the endpoint of the serviceMonitor |
+| serviceMonitor.endpoint.metricRelabelings | list | `[]` | Set metricRelabelings for the endpoint of the serviceMonitor |
+| serviceMonitor.endpoint.relabelings | list | `[]` | Set relabelings for the endpoint of the serviceMonitor |
+| serviceMonitor.endpoint.scrapeTimeout | string | `""` | Set the scrape timeout for the endpoint of the serviceMonitor |
+| serviceMonitor.labels | object | `{}` | Assign additional labels according to Prometheus' serviceMonitorSelector matching labels |
+| serviceMonitor.matchLabels | object | `{}` | Change matching labels |
+| serviceMonitor.namespace | string | `""` | Install the ServiceMonitor into a different Namespace, as the monitoring stack one (default: the release one) |
+| serviceMonitor.serviceAccount.name | string | `""` |  |
+| serviceMonitor.serviceAccount.namespace | string | `""` |  |
+| serviceMonitor.targetLabels | list | `[]` | Set targetLabels for the serviceMonitor |
 
 ## Created resources
 

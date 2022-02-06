@@ -22,6 +22,9 @@ spec:
       {{- end }}
       labels:
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -37,6 +40,9 @@ spec:
         secret:
           secretName: {{ include "capsule-proxy.fullname" . }}
           defaultMode: 420
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
       - name: {{ .Chart.Name }}
