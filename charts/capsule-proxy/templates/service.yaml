@@ -39,4 +39,3 @@ spec:
     {{ end }}
   selector:
     {{- include "capsule-proxy.selectorLabels" . | nindent 4 }}
-

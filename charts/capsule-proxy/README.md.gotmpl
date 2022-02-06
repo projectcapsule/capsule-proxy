@@ -1,0 +1,154 @@
+# Deploying the Capsule-proxy
+
+This project is an add-on for [Capsule](https://github.com/clastix/capsule), the operator providing multi-tenancy in Kubernetes.
+
+## Requirements
+
+* [Helm 3](https://github.com/helm/helm/releases) is required when installing the Capsule-proxy chart. Follow Helm’s official [steps](https://helm.sh/docs/intro/install/) for installing helm on your particular operating system.
+
+* A Kubernetes cluster 1.16+ with [Capsule](https://github.com/clastix/capsule) installed and following [Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/) enabled:
+
+    * PodNodeSelector
+    * LimitRanger
+    * ResourceQuota
+    * MutatingAdmissionWebhook
+    * ValidatingAdmissionWebhook
+
+* A [`kubeconfig`](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) file accessing the Kubernetes cluster with cluster admin permissions.
+
+## Quick Start
+
+The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on your Kubernetes cluster.
+
+1. Add this repository:
+
+        $ helm repo add clastix https://clastix.github.io/charts
+
+2. Install the Chart:
+
+        $ helm install capsule-proxy clastix/capsule-proxy -n capsule-system
+
+3. Show the status:
+
+        $ helm status capsule-proxy -n capsule-system
+
+4. Upgrade the Chart
+
+        $ helm upgrade capsule-proxy clastix/capsule-proxy -n capsule-system
+
+5. Uninstall the Chart
+   
+        $ helm uninstall capsule-proxy -n capsule-system
+
+## Customize the installation
+
+There are two methods for specifying overrides of values during chart installation: `--values` and `--set`.
+
+The `--values` option is the preferred method because it allows you to keep your overrides in a YAML file, rather than specifying them all on the command line. Create a copy of the YAML file `values.yaml` and add your overrides to it.
+
+Specify your overrides file when you install the chart:
+
+        $ helm install capsule-proxy clastix/capsule-proxy --values myvalues.yaml -n capsule-system  
+
+The values in your overrides file `myvalues.yaml` will override their counterparts in the chart’s values.yaml file. Any values in `values.yaml` that weren’t overridden will keep their defaults.
+
+If you only need to make minor customizations, you can specify them on the command line by using the `--set` option. For example:
+
+        $ helm install capsule-proxy clastix/capsule-proxy --set "kind=DaemonSet" -n capsule-system
+
+### General Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if not (or (hasPrefix "options" .Key) (hasPrefix "service." .Key) (hasPrefix "ingress" .Key) (hasPrefix "autoscaling" .Key) (hasPrefix "serviceMonitor" .Key) )  }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+
+### Controller Options Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "options" .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+
+### Service Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "service." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+### Ingress Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "ingress" .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+### Autoscaler Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "autoscaling" .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+### ServiceMonitor Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "serviceMonitor" .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+
+## Created resources
+
+This Helm Chart cretes the following Kubernetes resources in the release namespace:
+
+* Capsule-proxy Namespace
+* Capsule-proxy Deployment
+* Capsule-proxy Service
+* RBAC Cluster Roles
+
+And optionally, depending on the values set:
+
+* Capsule-proxy ServiceAccount
+* Capsule-proxy Ingress
+* Capsule-proxy SSL certificate and key secret
+
+## Using TLS with capsule-proxy
+
+If you plan to use you own certificates for `capsule-proxy`, you need to create a secret in a namespace, where `capsule-proxy` will be deployed named the same, as your `capsule-proxy` deployment.
+
+For example, if your deployment name is `capsule-filter` and it is deployed to `capsule-system` and `options.SSLCertFileName` is set to `tls.crt` and `options.SSLKeyFileName` is set to `tls.key` you secret should be like:
+
+```yml
+apiVersion: v1
+data:
+  tls.crt: <>
+  tls.key: <>
+kind: Secret
+metadata:
+  name: capsule-filter
+  namespace: capsule-system
+type: Opaque
+```
+Otherwise, you can set `options.generateCertificates` to `true` and self-signed certificates will be generated during deployment process by a post-install job.

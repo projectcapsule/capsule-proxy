@@ -1,5 +1,20 @@
 # How to
 
+## Chart Development
+
+
+### Documentation
+
+The documentation for each chart is done with [helm-docs](https://github.com/norwoodj/helm-docs). This way we can ensure that values are consistent with the chart documentation.
+
+We have a script on the repository which will execute the helm-docs docker container, so that you don't have to worry about downloading the binary etc. Simply execute the script (Bash compatible, might require sudo privileges):
+
+```
+bash scripts/helm-docs.sh
+```
+
+Run this script anytime you made changes to the values of the helm chart.
+
 ## Run locally for test and debug
 
 This guide helps new contributors to locally debug in _out or cluster_ mode the project.
@@ -64,3 +79,4 @@ $ curl -H "Authorization: Bearer $TOKEN" http://localhost:9001/api/v1/namespaces
 ```
 
 > **NOTE**: `kubectl` will not work against a http server.
+

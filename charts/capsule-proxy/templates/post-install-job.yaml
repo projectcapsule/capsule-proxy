@@ -11,7 +11,7 @@ metadata:
   annotations:
     # This is what defines this resource as a hook. Without this line, the
     # job is considered part of the release.
-    "helm.sh/hook": post-install
+    "helm.sh/hook": "post-install"
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
@@ -26,7 +26,8 @@ spec:
       restartPolicy: Never
       containers:
       - name: post-install-job
-        image: "docker.io/jettech/kube-webhook-certgen:v1.3.0"
+        image: {{ include "capsule.jobs.certsFullyQualifiedDockerImage" $ }}
+        imagePullPolicy: {{ .Values.jobs.certs.pullPolicy }}
         args:
             - create
             - --host={{ include "capsule-proxy.fullname" . }}.{{.Release.Namespace}}.svc,{{ include "capsule-proxy.fullname" . }}
@@ -40,4 +41,4 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
       serviceAccountName: {{ include "capsule-proxy.serviceAccountName" . }}
-  {{- end }}
+{{- end }}

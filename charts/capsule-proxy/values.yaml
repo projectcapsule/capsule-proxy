@@ -2,51 +2,120 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-kind: Deployment # Deployment | DaemonSet
+# -- Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. 
+kind: Deployment
 image:
+  # -- Set the image repository of the capsule-proxy.
   repository: quay.io/clastix/capsule-proxy
+  # -- Set the image pull policy.
   pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
+jobs:
+  certs:
+    # -- Set the image repository of the post install certgen job
+    repository: docker.io/jettech/kube-webhook-certgen
+    # -- Set the image pull policy of the post install certgen job
+    pullPolicy: IfNotPresent
+    # -- Set the image tag of the post install certgen job
+    tag: "v1.3.0"
+
+# -- Configuration for `imagePullSecrets` so that you can use a private images registry.
 imagePullSecrets: []
+
+# Controller Options
 options:
+  # -- Set the listening port of the capsule-proxy
   listeningPort: 9001
+  # -- Set the log verbosity of the capsule-proxy with a value from 1 to 10
   logLevel: '4'
+  # -- Set the URL of kubernetes control plane
   k8sControlPlaneUrl: https://kubernetes.default.svc
+  # -- Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups
   capsuleConfigurationName: default
+  # -- Define which groups must be ignored while proxying requests
   ignoredUserGroups: []
+  # -- Specify if capsule-proxy will use SSL
   oidcUsernameClaim: preferred_username
+  # -- Specify if capsule-proxy will use SSL
   enableSSL: true
+  # -- Set the directory, where SSL certificate and keyfile will be located
   SSLDirectory: /opt/capsule-proxy
+  # -- Set the name of SSL certificate file
   SSLCertFileName: tls.crt
+  # -- Set the name of SSL key file
   SSLKeyFileName: tls.key
+  # -- Specify if capsule-proxy will generate self-signed SSL certificates
   generateCertificates: false
+  # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/clastix/capsule-proxy/issues/174)
   rolebindingsResyncPeriod: 10h
+
+# ServiceAccount
 serviceAccount:
+  # -- Specifies whether a service account should be created.
   create: true
+  # -- Annotations to add to the service account.
   annotations: {}
-  name: capsule-proxy
+  # -- The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template
+  # @default -- `capsule-proxy``
+  name: ""
+
+# -- Set the replica count for capsule-proxy pod. 
+replicaCount: 1
+
 #  The following annotations guarantee scheduling for critical add-on pods
 #  podAnnotations:
 #    scheduler.alpha.kubernetes.io/critical-pod: ''
+# -- Annotations to add to the capsule-proxy pod.
 podAnnotations: {}
+
+# -- Labels to add to the capsule-proxy pod.
+podLabels: {}
+
+# -- Topology Spread Constraints for the capsule-proxy pod.
+topologySpreadConstraints: []
+# Ensure Replicas are spreaded across different Nodes: 
+# - maxSkew: 1
+#   topologyKey: kubernetes.io/hostname
+#   whenUnsatisfiable: ScheduleAnyway
+#   labelSelector:
+#     matchLabels:
+#       app.kubernetes.io/name: capsule-proxy
+
 # Set a pod priorityClassName
 # priorityClassName: system-node-critical
+# -- Specifies PriorityClass of the capsule-proxy pod.
 priorityClassName: ""
+
+# -- Security context for the capsule-proxy pod.
 podSecurityContext: {}
+
+# -- Security context for the capsule-proxy deployment.
 securityContext: {}
+
 resources: 
   limits:
+    # -- Set the CPU requests assigned to the controller.
     cpu: 200m
+    # -- Set the memory requests assigned to the controller. 
     memory: 128Mi
   requests:
+    # -- Set the CPU limits assigned to the controller.
     cpu: 200m
+    # -- Set the memory limits assigned to the controller.
     memory: 128Mi
-replicaCount: 1
+
+# HorizontalPodAutoscaler
 autoscaling:
+  # -- Specifies whether an hpa for capsule-proxy should be created.
   enabled: false
+  # -- Set the minReplicas for capsule-proxy hpa.
   minReplicas: 1
+  # -- Set the maxReplicas for capsule-proxy hpa.
   maxReplicas: 5
+  # -- Set the targetCPUUtilizationPercentage for capsule-proxy hpa.
   targetCPUUtilizationPercentage: 80
+
 # Enable node selector and tolerations when deploying on the controlplane
 # nodeSelector:
 #   node-role.kubernetes.io/master: ""
@@ -55,30 +124,80 @@ autoscaling:
 #   operator: Exists
 # - effect: NoSchedule
 #   key: node-role.kubernetes.io/master
+# -- Set the node selector for the capsule-proxy pod.
 nodeSelector: {}
+# -- Set list of tolerations for the capsule-proxy pod.
 tolerations: []
+# -- Set affinity rules for the capsule-proxy pod.
 affinity: {}
+# -- Set the restartPolicy for the capsule-proxy pod.
 restartPolicy: Always
+
 # When deployed as DaemonSet use
 # hostNetwork: true
 daemonset:
+  # -- Use the host network namespace for capsule-proxy pod.
   hostNetwork: false
+  # -- Binding the capsule-proxy listening port to the host port.
   hostPort: false
+
+# Service  
 service:
-  type: ClusterIP # ClusterIP | NodePort | LoadBalancer
+  # -- Specifies the service type should be created (`ClusterIP`, `NodePort`or `LoadBalancer`)
+  type: ClusterIP
+  # -- Specifies the service port number.
   port: 9001
+  # -- Specifies the service port name.
   portName: proxy
+  # -- Specifies the node port number (only for `NodePort` service type).
   nodePort:
   #  Add these labels to have capsule-proxy show up in `kubectl cluster-info`
   #  kubernetes.io/cluster-service: "true"
   #  kubernetes.io/name: "Capsule Proxy"
+  # -- Labels to add to the service.
   labels: {}
+  # -- Annotations to add to the service.
   annotations: {}
+
+# Ingress  
 ingress:
+  # -- Specifies whether an ingress should be created. 
   enabled: false
+  # -- Annotations to add to the capsule-proxy ingress.
   annotations: {}
   hosts:
-  - host: ""
+    # -- Set the host configuration for the capsule-proxy ingress.
+  - host: "kube.clastix.io"
+    # -- Set the path configuration for the capsule-proxy ingress.
     paths: [ "/" ]
+  # -- Set the tls configuration for the capsule-proxy ingress.
   tls: []
 
+# ServiceMonitor
+serviceMonitor:
+  # -- Enable ServiceMonitor
+  enabled: true
+  # -- Install the ServiceMonitor into a different Namespace, as the monitoring stack one (default: the release one)
+  namespace: ''
+  # -- Assign additional labels according to Prometheus' serviceMonitorSelector matching labels
+  labels: {}
+  # -- Assign additional Annotations
+  annotations: {}
+  # -- Change matching labels
+  matchLabels: {}
+  # -- Set targetLabels for the serviceMonitor
+  targetLabels: []
+  serviceAccount:
+    # @default -- `capsule-proxy`
+    name: ""
+    # @default -- `.Release.Namespace`
+    namespace: ""
+  endpoint:
+    # -- Set the scrape interval for the endpoint of the serviceMonitor
+    interval: "15s"
+    # -- Set the scrape timeout for the endpoint of the serviceMonitor
+    scrapeTimeout: ""
+    # -- Set metricRelabelings for the endpoint of the serviceMonitor
+    metricRelabelings: []
+    # -- Set relabelings for the endpoint of the serviceMonitor
+    relabelings: []
