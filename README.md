@@ -6,7 +6,7 @@ This project is an add-on for [Capsule](https://github.com/clastix/capsule), the
 
 ## Documentation
 
-You can find more detailed documentation [here](https://github.com/clastix/capsule/blob/master/docs/index.md).
+You can find more detailed documentation [here](https://capsule.clastix.io/docs/general/proxy).
 
 ## Contributions
 
