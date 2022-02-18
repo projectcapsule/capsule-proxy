@@ -11,6 +11,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.18.1
+	golang.org/x/net v0.0.0-20210520170846-37e1c6afe023
 	k8s.io/api v0.22.0
 	k8s.io/apimachinery v0.22.1
 	k8s.io/apiserver v0.22.0
