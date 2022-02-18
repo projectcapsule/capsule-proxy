@@ -10,7 +10,7 @@ ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
 
 FROM golang:1.16-alpine as dlv
-RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN CGO_ENABLED=0 go install github.com/go-delve/delve/cmd/dlv@latest
 WORKDIR /
 COPY --from=builder /workspace/capsule-proxy .
 ENTRYPOINT ["dlv", "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "--", "/capsule-proxy"]
