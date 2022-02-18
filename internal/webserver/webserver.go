@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"net/textproto"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"golang.org/x/net/http/httpguts"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
@@ -178,6 +180,9 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 	if len(n.bearerToken) > 0 {
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
 	}
+	// Dropping malicious header connection
+	// https://github.com/clastix/capsule-proxy/issues/188
+	n.removingHopByHopHeaders(request)
 
 	request.Header.Add("Impersonate-User", username)
 
@@ -354,4 +359,29 @@ func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKi
 	n.log.V(4).Info("Proxy tenant list", "owner", ownerKind, "name", ownerName, "tenants", tenants)
 
 	return
+}
+
+func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
+	connectionHeaderName, upgradeHeaderName, requestUpgradeType := "connection", "upgrade", ""
+
+	if httpguts.HeaderValuesContainsToken(request.Header[connectionHeaderName], upgradeHeaderName) {
+		requestUpgradeType = request.Header.Get(upgradeHeaderName)
+	}
+	// Removing connection headers
+	for _, f := range request.Header.Values(connectionHeaderName) {
+		for _, sf := range strings.Split(f, ",") {
+			if sf = textproto.TrimString(sf); sf != "" {
+				request.Header.Del(sf)
+			}
+		}
+	}
+
+	if requestUpgradeType != "" {
+		request.Header.Set(connectionHeaderName, upgradeHeaderName)
+		request.Header.Set(upgradeHeaderName, requestUpgradeType)
+
+		return
+	}
+
+	request.Header.Del(connectionHeaderName)
 }
