@@ -54,7 +54,8 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
-		--set "daemonset.hostNetwork=true"
+		--set "daemonset.hostNetwork=true" \
+		--set "serviceMonitor.enabled=false"
 else
 	@echo "Running in HTTPS mode"
 	@echo "capsule proxy certificates..."
@@ -85,7 +86,8 @@ else
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
-		--set "daemonset.hostNetwork=true"
+		--set "daemonset.hostNetwork=true" \
+		--set "serviceMonitor.enabled=false"
 endif
 
 rbac-fix:
