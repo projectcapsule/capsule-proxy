@@ -364,7 +364,7 @@ func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKi
 func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
 	connectionHeaderName, upgradeHeaderName, requestUpgradeType := "connection", "upgrade", ""
 
-	if httpguts.HeaderValuesContainsToken(request.Header[connectionHeaderName], upgradeHeaderName) {
+	if httpguts.HeaderValuesContainsToken(request.Header.Values(connectionHeaderName), upgradeHeaderName) {
 		requestUpgradeType = request.Header.Get(upgradeHeaderName)
 	}
 	// Removing connection headers
