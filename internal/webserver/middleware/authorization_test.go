@@ -1,14 +1,18 @@
 // Copyright 2020-2021 Clastix Labs
 // SPDX-License-Identifier: Apache-2.0
 
-package middleware
+package middleware_test
 
 import (
 	"testing"
+
+	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
 )
 
 func TestCheckBearerToken(t *testing.T) {
-	var tests = []struct {
+	t.Parallel()
+
+	tests := []struct {
 		name  string
 		token string
 		want  bool
@@ -20,13 +24,15 @@ func TestCheckBearerToken(t *testing.T) {
 		{"fail space in token", "Bearer alksjdas239ld asdasd123lksadsj", false, false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := checkBearerToken(tt.token)
-			if got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
+	for _, eachTest := range tests {
+		eachTest := eachTest
+		t.Run(eachTest.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := middleware.CheckBearerToken(eachTest.token)
+			if got != eachTest.want {
+				t.Errorf("got %v, want %v", got, eachTest.want)
 			}
-			if err != nil && !tt.err {
+			if err != nil && !eachTest.err {
 				t.Errorf("got error: %v", err)
 			}
 		})

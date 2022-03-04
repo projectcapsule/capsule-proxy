@@ -26,7 +26,7 @@ func CheckAuthorization(client client.Client, log logr.Logger, tls bool) mux.Mid
 
 			isCertificates := request.TLS != nil && len(request.TLS.PeerCertificates) > 0
 
-			isBearerToken, errBT := checkBearerToken(request.Header.Get("Authorization"))
+			isBearerToken, errBT := CheckBearerToken(request.Header.Get("Authorization"))
 
 			unauthorized := errBT != nil || (tls && (!isCertificates && !isBearerToken)) || (!tls && !isBearerToken)
 
@@ -39,7 +39,7 @@ func CheckAuthorization(client client.Client, log logr.Logger, tls bool) mux.Mid
 	}
 }
 
-func checkBearerToken(authorizationHeader string) (bool, error) {
+func CheckBearerToken(authorizationHeader string) (bool, error) {
 	if authorizationHeader == "" {
 		return false, nil
 	}
