@@ -26,7 +26,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/clastix/capsule-proxy/api/v1beta1"
 	"github.com/clastix/capsule-proxy/internal/controllers"
+	"github.com/clastix/capsule-proxy/internal/indexer"
 	"github.com/clastix/capsule-proxy/internal/modules"
 	moderrors "github.com/clastix/capsule-proxy/internal/modules/errors"
 	"github.com/clastix/capsule-proxy/internal/modules/ingressclass"
@@ -191,7 +193,7 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 	}
 }
 
-func (n kubeFilter) registerModules(root *mux.Router) {
+func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	modList := []modules.Module{
 		namespace.List(n.roleBindingsReflector),
 		node.List(n.client),
@@ -226,7 +228,7 @@ func (n kubeFilter) registerModules(root *mux.Router) {
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 			proxyRequest := req.NewHTTP(request, n.usernameClaimField, n.client)
 			username, groups, _ := proxyRequest.GetUserAndGroups()
-			proxyTenants, err := n.getTenantsForOwner(username, groups)
+			proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
 			if err != nil {
 				serverr.HandleError(writer, err, "cannot list Tenant resources")
 			}
@@ -262,7 +264,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	})
 
 	root := r.PathPrefix("").Subrouter()
-	n.registerModules(root)
+	n.registerModules(ctx, root)
 	root.Use(
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
@@ -310,14 +312,14 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	return srv.Shutdown(ctx)
 }
 
-func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
+func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(capsulev1beta1.ServiceAccountOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulev1beta1.ServiceAccountOwner, username)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 	} else {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(capsulev1beta1.UserOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulev1beta1.UserOwner, username)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -325,7 +327,7 @@ func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (proxy
 
 	// Find tenants belonging to a group
 	for _, group := range groups {
-		pt, err := n.getProxyTenantsForOwnerKind(capsulev1beta1.GroupOwner, group)
+		pt, err := n.getProxyTenantsForOwnerKind(ctx, capsulev1beta1.GroupOwner, group)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -336,7 +338,7 @@ func (n *kubeFilter) getTenantsForOwner(username string, groups []string) (proxy
 	return
 }
 
-func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
+func (n kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulev1beta1.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	// nolint:prealloc
 	var tenants []string
 
@@ -345,20 +347,40 @@ func (n kubeFilter) getProxyTenantsForOwnerKind(ownerKind capsulev1beta1.OwnerKi
 	f := client.MatchingFields{
 		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind.String(), ownerName),
 	}
-	if err := n.client.List(context.Background(), tl, f); err != nil {
+	if err = n.client.List(ctx, tl, f); err != nil {
 		return nil, fmt.Errorf("cannot retrieve Tenants list: %w", err)
 	}
 
 	n.log.V(8).Info("Tenant", "owner", ownerKind, "name", ownerName, "tenantList items", tl.Items, "number of tenants", len(tl.Items))
 
+	proxySettings := &v1beta1.ProxySettingList{}
+	if err = n.client.List(ctx, proxySettings, client.MatchingFields{indexer.SubjectKindField: fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)}); err != nil {
+		n.log.Error(err, "cannot retrieve ProxySetting", "owner", ownerKind, "name", ownerName)
+	}
+
+	for _, proxySetting := range proxySettings.Items {
+		tntList := &capsulev1beta1.TenantList{}
+		if err = n.client.List(ctx, tntList, client.MatchingFields{".status.namespaces": proxySetting.GetNamespace()}); err != nil {
+			n.log.Error(err, "cannot retrieve Tenant list for ProxySetting", "owner", ownerKind, "name", ownerName)
+
+			continue
+		}
+
+		if len(tntList.Items) == 0 {
+			continue
+		}
+
+		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, tntList.Items[0], proxySetting.Spec.Subjects))
+	}
+
 	for _, t := range tl.Items {
-		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, t))
+		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, t, t.Spec.Owners))
 		tenants = append(tenants, t.GetName())
 	}
 
 	n.log.V(4).Info("Proxy tenant list", "owner", ownerKind, "name", ownerName, "tenants", tenants)
 
-	return
+	return proxyTenants, nil
 }
 
 func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
