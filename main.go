@@ -4,7 +4,6 @@
 package main
 
 import (
-	"context"
 	goflag "flag"
 	"fmt"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsuleindexer "github.com/clastix/capsule/pkg/indexer"
 	"github.com/clastix/capsule/pkg/indexer/tenant"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
@@ -21,7 +21,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	capsuleproxyv1beta1 "github.com/clastix/capsule-proxy/api/v1beta1"
 	"github.com/clastix/capsule-proxy/internal/controllers"
+	"github.com/clastix/capsule-proxy/internal/indexer"
 	"github.com/clastix/capsule-proxy/internal/options"
 	"github.com/clastix/capsule-proxy/internal/webserver"
 )
@@ -34,6 +36,7 @@ func main() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(capsulev1beta1.AddToScheme(scheme))
 	utilruntime.Must(capsulev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(capsuleproxyv1beta1.AddToScheme(scheme))
 
 	var err error
 
@@ -132,13 +135,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+
 	log.Info("Creating the Field Indexer")
 
-	ow := tenant.OwnerReference{}
+	indexers := []capsuleindexer.CustomIndexer{
+		&tenant.NamespacesReference{},
+		&tenant.OwnerReference{},
+		&indexer.ProxySetting{},
+	}
 
-	if err = mgr.GetFieldIndexer().IndexField(context.Background(), ow.Object(), ow.Field(), ow.Func()); err != nil {
-		log.Error(err, "cannot create new Field Indexer")
-		os.Exit(1)
+	for _, fieldIndex := range indexers {
+		if err = mgr.GetFieldIndexer().IndexField(ctx, fieldIndex.Object(), fieldIndex.Field(), fieldIndex.Func()); err != nil {
+			log.Error(err, "cannot create new Field Indexer")
+			os.Exit(1)
+		}
 	}
 
 	var r webserver.Filter
@@ -192,7 +203,7 @@ func main() {
 
 	log.Info("Starting the Manager")
 
-	if err = mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err = mgr.Start(ctx); err != nil {
 		log.Error(err, "cannot start the Manager")
 		os.Exit(1)
 	}

@@ -23,10 +23,10 @@ func defaultProxySettings() map[capsulev1beta1.ProxyServiceKind]*Operations {
 	}
 }
 
-func NewProxyTenant(ownerName string, ownerKind capsulev1beta1.OwnerKind, tenant capsulev1beta1.Tenant) *ProxyTenant {
+func NewProxyTenant(ownerName string, ownerKind capsulev1beta1.OwnerKind, tenant capsulev1beta1.Tenant, owners capsulev1beta1.OwnerListSpec) *ProxyTenant {
 	var tenantProxySettings []capsulev1beta1.ProxySettings
 
-	for _, owner := range tenant.Spec.Owners {
+	for _, owner := range owners {
 		if owner.Name == ownerName && owner.Kind == ownerKind {
 			tenantProxySettings = owner.ProxyOperations
 		}
