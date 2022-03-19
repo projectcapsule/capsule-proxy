@@ -1,0 +1,12 @@
+apiVersion: capsule.clastix.io/v1beta1
+kind: ProxySetting
+metadata:
+  name: nodes-tenant-reader
+spec:
+  subjects:
+    - kind: User
+      name: bob
+      proxySettings:
+        - kind: Nodes
+          operations:
+            - List
