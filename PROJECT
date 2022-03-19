@@ -1,0 +1,19 @@
+domain: clastix.io
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: capsule-proxy
+repo: github.com/clastix/capsule-proxy
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: clastix.io
+  group: capsule
+  kind: ProxySettings
+  path: github.com/clastix/capsule-proxy/api/v1beta1
+  version: v1beta1
+version: "3"
