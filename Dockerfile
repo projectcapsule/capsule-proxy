@@ -1,10 +1,11 @@
-FROM golang:1.16-alpine as builder
+FROM golang:1.17-alpine as builder
 WORKDIR /workspace
 COPY go.mod go.mod
 COPY go.sum go.sum
 RUN go mod download
 COPY main.go main.go
 COPY internal internal
+COPY api api
 ARG GCFLAGS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
