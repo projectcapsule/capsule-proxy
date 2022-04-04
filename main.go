@@ -28,7 +28,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/webserver"
 )
 
-// nolint:funlen
+// nolint:funlen,cyclop
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
