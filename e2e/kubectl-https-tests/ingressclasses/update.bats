@@ -5,17 +5,21 @@ load "$BATS_TEST_DIRNAME/../../libs/poll.bash"
 load "$BATS_TEST_DIRNAME/../../libs/namespaces_utils.bash"
 load "$BATS_TEST_DIRNAME/../../libs/ingressclass_utils.bash"
 load "$BATS_TEST_DIRNAME/../../libs/serviceaccount_utils.bash"
+load "$BATS_TEST_DIRNAME/../../libs/proxysetting_utils.bash"
 
 setup() {
   create_tenant ingressclassuser alice User
   kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/ingressOptions", "value": {"allowedClasses": {"allowed": ["custom"], "allowedRegex": "\\w+-lb"}}}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/1", "value": {"kind": "ServiceAccount", "name": "system:serviceaccount:ingressclassuser-namespace:sa"}}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/2", "value": {"kind": "Group", "name": "foo.clastix.io"}}]'
   create_namespace alice ingressclassuser-namespace
   create_serviceaccount sa ingressclassuser-namespace
+  create_proxysetting ingressclassuser ingressclassuser-namespace alice User
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/1","value":{"kind": "ServiceAccount", "name": "system:serviceaccount:ingressclassuser-namespace:sa"}}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/2","value":{"kind": "Group", "name": "foo.clastix.io"}}]'
 
   create_tenant ingressclassgroup foo.clastix.io Group
   kubectl patch tenants.capsule.clastix.io ingressclassgroup --type=json -p '[{"op": "add", "path": "/spec/ingressOptions", "value": {"allowedClasses": {"allowed": ["custom2"]}}}]'
+  create_namespace joe ingressclassgroup-namespace foo.clastix.io
+  create_proxysetting ingressclassgroup ingressclassgroup-namespace foo.clastix.io Group
 
   if [[ $(kubectl version -o json | jq -r .serverVersion.minor) -gt 17 ]]; then
     local version="v1"
@@ -56,10 +60,10 @@ teardown() {
   [ $status -eq 1 ]
 
   echo "Update ingressClass with only List operation" >&3
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/1/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/2/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassgroup --type=json -p '[{"op": "add", "path": "/spec/owners/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/1/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/2/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassgroup -n ingressclassgroup-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List"]}]}]'
 
   run kubectl --kubeconfig=${HACK_DIR}/alice.kubeconfig label ingressclasses.networking.k8s.io custom capsule.clastix.io/test=labeling
   [ $status -eq 1 ]
@@ -75,10 +79,10 @@ teardown() {
     skip "IngressClass resources is not supported on Kubernetes < 1.18"
   fi
 
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/1/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassuser --type=json -p '[{"op": "add", "path": "/spec/owners/2/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
-  kubectl patch tenants.capsule.clastix.io ingressclassgroup --type=json -p '[{"op": "add", "path": "/spec/owners/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/1/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassuser -n ingressclassuser-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/2/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
+  kubectl patch proxysettings.capsule.clastix.io ingressclassgroup -n ingressclassgroup-namespace --type=json -p '[{"op": "add", "path": "/spec/subjects/0/proxySettings","value":[{"kind": "IngressClasses", "operations": ["List", "Update"]}]}]'
 
   echo "Update allowed ingressClass" >&3
   poll_until_equals "User" "ingressclass.networking.k8s.io/custom labeled" "kubectl --kubeconfig=${HACK_DIR}/alice.kubeconfig label ingressclasses.networking.k8s.io custom capsule.clastix.io/test=labeling" 3 5
