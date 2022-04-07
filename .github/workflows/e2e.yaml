@@ -54,3 +54,9 @@ jobs:
         run: sudo apt-get install -y jq        
       - name: e2e testing
         run: CLIENT_TEST=${{ matrix.test-clients }} CAPSULE_PROXY_MODE=${{ matrix.capsule-proxy-mode }} KIND_K8S_VERSION=${{ matrix.k8s-version }} make e2e
+      - name: Dumping Capsule logs
+        if: failure()
+        run: kubectl -n capsule-system logs -l app.kubernetes.io/instance=capsule
+      - name: Dumping Capsule Proxy logs
+        if: failure()
+        run: kubectl -n capsule-system logs -l app.kubernetes.io/instance=capsule-proxy
