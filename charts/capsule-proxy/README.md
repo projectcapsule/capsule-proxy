@@ -56,7 +56,7 @@ If you only need to make minor customizations, you can specify them on the comma
 
         $ helm install capsule-proxy clastix/capsule-proxy --set "kind=DaemonSet" -n capsule-system
 
-### General Paremters
+### General Parameters
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -71,11 +71,11 @@ If you only need to make minor customizations, you can specify them on the comma
 | jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
 | jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
 | kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.  |
-| nodeSelector | object | `{}` |  |
-| podAnnotations | object | `{}` |  |
+| nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
+| podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
 | podSecurityContext | object | `{}` | Security context for the capsule-proxy pod. |
-| priorityClassName | string | `""` |  |
+| priorityClassName | string | `""` | Specifies PriorityClass of the capsule-proxy pod. |
 | replicaCount | int | `1` | Set the replica count for capsule-proxy pod.  |
 | resources.limits.cpu | string | `"200m"` | Set the CPU requests assigned to the controller. |
 | resources.limits.memory | string | `"128Mi"` | Set the memory requests assigned to the controller.  |
@@ -87,7 +87,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
 | serviceAccount.name | string | `capsule-proxy`` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template |
 | tolerations | list | `[]` | Set list of tolerations for the capsule-proxy pod. |
-| topologySpreadConstraints | string | `nil` | Topology Spread Constraints for the capsule-proxy pod. |
+| topologySpreadConstraints | list | `[]` | Topology Spread Constraints for the capsule-proxy pod. |
 
 ### Controller Options Parameters
 
@@ -98,7 +98,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.SSLKeyFileName | string | `"tls.key"` | Set the name of SSL key file |
 | options.capsuleConfigurationName | string | `"default"` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups |
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
-| options.generateCertificates | bool | `false` | Specify if capsule-proxy will generate self-signed SSL certificates |
+| options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
 | options.k8sControlPlaneUrl | string | `"https://kubernetes.default.svc"` | Set the URL of kubernetes control plane |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
@@ -111,7 +111,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | service.annotations | object | `{}` | Annotations to add to the service. |
-| service.labels | object | `{}` |  |
+| service.labels | object | `{}` | Labels to add to the service. |
 | service.nodePort | string | `nil` | Specifies the node port number (only for `NodePort` service type). |
 | service.port | int | `9001` | Specifies the service port number. |
 | service.portName | string | `"proxy"` | Specifies the service port name. |

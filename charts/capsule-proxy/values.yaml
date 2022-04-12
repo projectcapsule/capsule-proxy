@@ -46,7 +46,7 @@ options:
   # -- Set the name of SSL key file
   SSLKeyFileName: tls.key
   # -- Specify if capsule-proxy will generate self-signed SSL certificates
-  generateCertificates: false
+  generateCertificates: true
   # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/clastix/capsule-proxy/issues/174)
   rolebindingsResyncPeriod: 10h
 
