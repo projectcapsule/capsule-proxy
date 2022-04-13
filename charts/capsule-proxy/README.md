@@ -98,7 +98,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.SSLKeyFileName | string | `"tls.key"` | Set the name of SSL key file |
 | options.capsuleConfigurationName | string | `"default"` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups |
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
-| options.generateCertificates | bool | `false` | Specify if capsule-proxy will generate self-signed SSL certificates |
+| options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
 | options.k8sControlPlaneUrl | string | `"https://kubernetes.default.svc"` | Set the URL of kubernetes control plane |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
