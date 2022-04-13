@@ -141,7 +141,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | serviceMonitor.annotations | object | `{}` | Assign additional Annotations |
-| serviceMonitor.enabled | bool | `true` | Enable ServiceMonitor |
+| serviceMonitor.enabled | bool | `false` | Enable ServiceMonitor |
 | serviceMonitor.endpoint.interval | string | `"15s"` | Set the scrape interval for the endpoint of the serviceMonitor |
 | serviceMonitor.endpoint.metricRelabelings | list | `[]` | Set metricRelabelings for the endpoint of the serviceMonitor |
 | serviceMonitor.endpoint.relabelings | list | `[]` | Set relabelings for the endpoint of the serviceMonitor |
