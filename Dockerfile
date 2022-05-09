@@ -1,4 +1,4 @@
-FROM golang:1.16-alpine as builder
+FROM golang:1.18-alpine as builder
 WORKDIR /workspace
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -9,7 +9,7 @@ ARG GCFLAGS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
 
-FROM golang:1.16-alpine as dlv
+FROM golang:1.18-alpine as dlv
 RUN CGO_ENABLED=0 go install github.com/go-delve/delve/cmd/dlv@latest
 WORKDIR /
 COPY --from=builder /workspace/capsule-proxy .
