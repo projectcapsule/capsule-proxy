@@ -1,24 +1,37 @@
 linters-settings:
   govet:
     check-shadowing: true
-  golint:
-    min-confidence: 0
-  maligned:
-    suggest-new: true
-  goimports:
-    local-prefixes: github.com/clastix/capsule-proxy
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/clastix/capsule-proxy)
   dupl:
     threshold: 100
   goconst:
     min-len: 2
     min-occurrences: 2
+  cyclop:
+    max-complexity: 17
 linters:
   enable-all: true
   disable:
+    - errchkjson
+    - errname
+    - forcetypeassert
+    - ireturn
+    - varnamelen
+    - wrapcheck
+    - bodyclose # https://github.com/golangci/golangci-lint/issues/2649.
+    - contextcheck # https://github.com/golangci/golangci-lint/issues/2649.
+    - interfacer
+    - maligned
+    - golint
+    - scopelint
     - gomnd
     - goerr113
     - exhaustivestruct
     - lll
 
 service:
-  golangci-lint-version: 1.33.x
+  golangci-lint-version: 1.45.x
