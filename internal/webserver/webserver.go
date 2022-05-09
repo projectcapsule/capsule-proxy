@@ -196,6 +196,7 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	modList := []modules.Module{
 		namespace.List(n.roleBindingsReflector),
+		namespace.Get(n.roleBindingsReflector, n.client),
 		node.List(n.client),
 		node.Get(n.client),
 		ingressclass.List(n.client),
