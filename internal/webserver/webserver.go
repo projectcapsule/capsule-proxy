@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/http/httpguts"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -259,14 +260,17 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 func (n kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter().StrictSlash(true)
 	r.Use(handlers.RecoveryHandler())
+
 	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte("ok"))
 	})
+	r.Path("/_metrics").Subrouter().Handle("", promhttp.Handler())
 
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
 	root.Use(
+		middleware.MetricsMiddleware,
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
 		middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
