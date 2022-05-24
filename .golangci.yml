@@ -32,6 +32,5 @@ linters:
     - goerr113
     - exhaustivestruct
     - lll
-
 service:
   golangci-lint-version: 1.45.x
