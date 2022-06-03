@@ -3,7 +3,7 @@ appVersion: 0.2.1
 description: Helm Chart for Capsule Proxy, addon for Capsule, the multi-tenant Operator
 name: capsule-proxy
 type: application
-version: 0.2.3
+version: 0.2.4
 home: https://github.com/clastix/capsule-proxy
 icon: https://github.com/clastix/capsule/raw/master/assets/logo/capsule_small.png
 keywords:
