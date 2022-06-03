@@ -67,9 +67,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | image.repository | string | `"quay.io/clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
-| jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
-| jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
-| jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the certgen job |
+| jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the certgen job |
+| jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the certgen job |
 | kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.  |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
@@ -185,4 +185,4 @@ metadata:
   namespace: capsule-system
 type: Opaque
 ```
-Otherwise, you can set `options.generateCertificates` to `true` and self-signed certificates will be generated during deployment process by a post-install job.
+Otherwise, you can set `options.generateCertificates` to `true` and self-signed certificates will be generated during deployment process by a job.
