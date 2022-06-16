@@ -50,6 +50,15 @@ options:
   # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/clastix/capsule-proxy/issues/174)
   rolebindingsResyncPeriod: 10h
 
+certManager:
+  # -- Set if the cert manager will generate self-signed SSL certificates
+  generateCertificates: false
+  externalCA:
+    enabled: false
+    # secret containing the CA cert and private key of the external CA in the correct cert-manager format as per https://cert-manager.io/docs/configuration/ca/#deployment
+    secretName: ""
+
+
 # ServiceAccount
 serviceAccount:
   # -- Specifies whether a service account should be created.
