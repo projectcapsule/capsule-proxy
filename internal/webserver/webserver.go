@@ -143,6 +143,10 @@ func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 
 // nolint:interfacer
 func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
+	// Sanitizing the impersonation
+	request.Header.Del("Impersonate-User")
+	request.Header.Del("Impersonate-Group")
+
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
 		n.log.V(4).Info("handling current labelSelector", "selector", e)
