@@ -42,7 +42,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/options"
 	req "github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
-	serverr "github.com/clastix/capsule-proxy/internal/webserver/errors"
+	server "github.com/clastix/capsule-proxy/internal/webserver/errors"
 	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
 )
 
@@ -180,9 +180,9 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 	if username, groups, err = hr.GetUserAndGroups(); err != nil {
 		switch err.(type) {
 		default:
-			serverr.HandleError(writer, err, "cannot retrieve user and group")
+			server.HandleError(writer, err, "cannot retrieve user and group")
 		case *req.ErrUnauthorized:
-			serverr.HandleUnauthorized(writer, err, "cannot retrieve user and group")
+			server.HandleUnauthorized(writer, err, "cannot retrieve user and group")
 		}
 	}
 
@@ -240,7 +240,7 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			username, groups, _ := proxyRequest.GetUserAndGroups()
 			proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
 			if err != nil {
-				serverr.HandleError(writer, err, "cannot list Tenant resources")
+				server.HandleError(writer, err, "cannot list Tenant resources")
 			}
 
 			var selector labels.Selector
@@ -254,7 +254,7 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 					_, _ = writer.Write(b)
 					panic(err.Error())
 				}
-				serverr.HandleError(writer, err, err.Error())
+				server.HandleError(writer, err, err.Error())
 			case selector == nil:
 				// if there's no selector, let it pass to the
 				n.impersonateHandler(writer, request)
