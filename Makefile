@@ -28,6 +28,7 @@ kind:
 
 capsule:
 	@echo "Installing capsule..."
+	@sleep 5
 	@helm repo add clastix https://clastix.github.io/charts
 	@helm upgrade --install --create-namespace --namespace capsule-system capsule clastix/capsule \
 		--set "manager.resources=null" \
@@ -55,7 +56,8 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
-		--set "serviceMonitor.enabled=false"
+		--set "serviceMonitor.enabled=false" \
+		--set "options.generateCertificates=false"
 else
 	@echo "Running in HTTPS mode"
 	@echo "capsule proxy certificates..."
