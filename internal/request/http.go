@@ -11,6 +11,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	authenticationv1 "k8s.io/api/authentication/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -41,23 +42,51 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	case certificateBased:
 		pc := h.TLS.PeerCertificates
 		if len(pc) == 0 {
-			err = fmt.Errorf("no provided peer certificates")
-
-			return
+			return "", nil, fmt.Errorf("no provided peer certificates")
 		}
 
 		username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
 	case bearerBased:
 		if h.isJwtToken() {
-			return h.processJwtClaims()
+			username, groups, err = h.processJwtClaims()
+
+			break
 		}
 
-		return h.processBearerToken()
+		username, groups, err = h.processBearerToken()
 	case anonymousBased:
-		err = fmt.Errorf("capsule does not support unauthenticated users")
+		return "", nil, fmt.Errorf("capsule does not support unauthenticated users")
+	}
+	// In case of error, we're blocking the request flow here
+	if err != nil {
+		return "", nil, err
+	}
+	// In case the requester is asking for impersonation, we have to be sure that's allowed by creating a
+	// SubjectAccessReview with the requested data, before proceeding.
+	if impersonateUser := h.Request.Header.Get("Impersonate-User"); len(impersonateUser) > 0 {
+		ac := &authorizationv1.SubjectAccessReview{
+			Spec: authorizationv1.SubjectAccessReviewSpec{
+				ResourceAttributes: &authorizationv1.ResourceAttributes{
+					Verb:     "impersonate",
+					Resource: "users",
+					Name:     impersonateUser,
+				},
+				User:   username,
+				Groups: groups,
+			},
+		}
+		if err = h.client.Create(h.Request.Context(), ac); err != nil {
+			return "", nil, err
+		}
+
+		if !ac.Status.Allowed {
+			return "", nil, fmt.Errorf("the current user %s cannot impersonate the user %s", username, impersonateUser)
+		}
+		// The current user is allowed to perform authentication, allowing the override
+		username = impersonateUser
 	}
 
-	return
+	return username, groups, nil
 }
 
 func (h http) processJwtClaims() (username string, groups []string, err error) {
