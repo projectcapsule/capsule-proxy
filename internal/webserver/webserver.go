@@ -178,7 +178,12 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 	var err error
 
 	if username, groups, err = hr.GetUserAndGroups(); err != nil {
-		serverr.HandleError(writer, err, "cannot retrieve user and group")
+		switch err.(type) {
+		default:
+			serverr.HandleError(writer, err, "cannot retrieve user and group")
+		case *req.ErrUnauthorized:
+			serverr.HandleUnauthorized(writer, err, "cannot retrieve user and group")
+		}
 	}
 
 	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups)
