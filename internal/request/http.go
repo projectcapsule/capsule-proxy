@@ -80,7 +80,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 		}
 
 		if !ac.Status.Allowed {
-			return "", nil, fmt.Errorf("the current user %s cannot impersonate the user %s", username, impersonateUser)
+			return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the user %s", username, impersonateUser))
 		}
 		// The current user is allowed to perform authentication, allowing the override
 		username = impersonateUser
