@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -84,6 +85,34 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 		}
 		// The current user is allowed to perform authentication, allowing the override
 		username = impersonateUser
+	}
+
+	if impersonateGroups := h.Request.Header.Values("Impersonate-Group"); len(impersonateGroups) > 0 {
+		for _, impersonateGroup := range impersonateGroups {
+			ac := &authorizationv1.SubjectAccessReview{
+				Spec: authorizationv1.SubjectAccessReviewSpec{
+					ResourceAttributes: &authorizationv1.ResourceAttributes{
+						Verb:     "impersonate",
+						Resource: "groups",
+						Name:     impersonateGroup,
+					},
+					User:   username,
+					Groups: groups,
+				},
+			}
+			if err = h.client.Create(h.Request.Context(), ac); err != nil {
+				return "", nil, err
+			}
+
+			if !ac.Status.Allowed {
+				return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the group %s", username, impersonateGroup))
+			}
+
+			if !sets.NewString(groups...).Has(impersonateGroup) {
+				// The current user is allowed to perform authentication, allowing the override
+				groups = append(groups, impersonateGroup)
+			}
+		}
 	}
 
 	return username, groups, nil
