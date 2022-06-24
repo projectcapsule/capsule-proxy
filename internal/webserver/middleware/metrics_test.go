@@ -1,6 +1,7 @@
 // Copyright 2022 Clastix Labs
 // SPDX-License-Identifier: Apache-2.0
 
+// nolint:testpackage
 package middleware
 
 import (
@@ -20,10 +21,13 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 
 func newRequest(method, url string) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, nil)
+
 	return req, err
 }
 
 func Test_MetricsMiddleware_RequestCount(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name         string
 		requestCount int
@@ -31,7 +35,6 @@ func Test_MetricsMiddleware_RequestCount(t *testing.T) {
 		output       float64
 	}{
 		{
-
 			name:         "single request count",
 			requestCount: 1,
 			path:         "/test",
@@ -39,6 +42,7 @@ func Test_MetricsMiddleware_RequestCount(t *testing.T) {
 		},
 	}
 
+	// nolint:paralleltest
 	for _, test := range testCases {
 		router := mux.NewRouter()
 		router.HandleFunc(test.path, dummyHandler).Methods("GET")
@@ -51,6 +55,7 @@ func Test_MetricsMiddleware_RequestCount(t *testing.T) {
 			if err != nil {
 				t.Errorf("failed to create HTTP request object")
 			}
+
 			router.ServeHTTP(rw, req)
 		}
 
@@ -76,6 +81,7 @@ func labels2Map(labels []*model.LabelPair) map[string]string {
 	for _, l := range labels {
 		res[l.GetName()] = l.GetValue()
 	}
+
 	return res
 }
 

@@ -10,11 +10,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
+// nolint:gochecknoinits
 func init() {
-	_ = prometheus.Register(totalRequests)
-	_ = prometheus.Register(httpDuration)
+	metrics.Registry.MustRegister(totalRequests, httpDuration)
 }
 
 type httpResponseWriter struct {
@@ -34,6 +35,7 @@ func (h *httpResponseWriter) WriteHeader(statusCode int) {
 	h.ResponseWriter.WriteHeader(statusCode)
 }
 
+// nolint:gochecknoglobals
 var totalRequests = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "capsule_proxy_requests_total",
@@ -42,6 +44,7 @@ var totalRequests = prometheus.NewCounterVec(
 	[]string{"path", "status"},
 )
 
+// nolint:gochecknoglobals
 var httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "capsule_proxy_response_time_seconds",
 	Help: "Duration of capsule proxy requests.",
