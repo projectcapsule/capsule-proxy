@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/http/httpguts"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -265,7 +264,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 		writer.WriteHeader(200)
 		_, _ = writer.Write([]byte("ok"))
 	})
-	r.Path("/_metrics").Subrouter().Handle("", promhttp.Handler())
 
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
