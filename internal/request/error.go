@@ -9,6 +9,7 @@ func NewErrUnauthorized(message string) *ErrUnauthorized {
 		message: message,
 	}
 }
+
 func (e *ErrUnauthorized) Error() string {
 	return e.message
 }

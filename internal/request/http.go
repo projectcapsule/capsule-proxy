@@ -38,6 +38,7 @@ func (h http) GetHTTPRequest() *h.Request {
 	return h.Request
 }
 
+//nolint:funlen
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	switch h.getAuthType() {
 	case certificateBased:
