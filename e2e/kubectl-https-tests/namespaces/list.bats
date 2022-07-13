@@ -72,7 +72,7 @@ namespace/oil-staging"
   echo "User" >&3
   run kubectl --kubeconfig=${HACK_DIR}/alice.kubeconfig get namespace default
   [ $status -eq 1 ]
-  [ "${lines[0]}" = 'Error from server (Forbidden): namespaces "default" is forbidden: User "alice" cannot get resource "namespaces" in API group "" in the namespace "default"' ]
+  [ "${lines[0]}" = 'Error from server (NotFound): namespace "default" not found' ]
   run kubectl --kubeconfig=${HACK_DIR}/alice.kubeconfig --namespace default get pods
   [ $status -eq 1 ]
   [ "${lines[0]}" = 'Error from server (Forbidden): pods is forbidden: User "alice" cannot list resource "pods" in API group "" in the namespace "default"' ]

@@ -7,7 +7,7 @@ HACK_DIR="$(git rev-parse --show-toplevel)/hack"
 export HACK_DIR
 
 echo ">>> Waiting for capsule-proxy pod to be ready for accepting requests"
-kubectl --namespace capsule-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/instance=capsule-proxy
+kubectl --namespace capsule-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/name=capsule-proxy
 
 echo ">>> Waiting for capsule pod to be ready for accepting requests"
 kubectl --namespace capsule-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/instance=capsule

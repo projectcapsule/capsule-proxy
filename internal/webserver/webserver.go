@@ -42,7 +42,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/options"
 	req "github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/tenant"
-	serverr "github.com/clastix/capsule-proxy/internal/webserver/errors"
+	server "github.com/clastix/capsule-proxy/internal/webserver/errors"
 	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
 )
 
@@ -143,6 +143,10 @@ func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 
 // nolint:interfacer
 func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
+	// Sanitizing the impersonation
+	request.Header.Del("Impersonate-User")
+	request.Header.Del("Impersonate-Group")
+
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
 		n.log.V(4).Info("handling current labelSelector", "selector", e)
@@ -174,7 +178,14 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 	var err error
 
 	if username, groups, err = hr.GetUserAndGroups(); err != nil {
-		serverr.HandleError(writer, err, "cannot retrieve user and group")
+		msg := "cannot retrieve user and group"
+
+		var t *req.ErrUnauthorized
+		if errors.As(err, &t) {
+			server.HandleUnauthorized(writer, err, msg)
+		} else {
+			server.HandleError(writer, err, msg)
+		}
 	}
 
 	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups)
@@ -231,7 +242,7 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			username, groups, _ := proxyRequest.GetUserAndGroups()
 			proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
 			if err != nil {
-				serverr.HandleError(writer, err, "cannot list Tenant resources")
+				server.HandleError(writer, err, "cannot list Tenant resources")
 			}
 
 			var selector labels.Selector
@@ -245,7 +256,7 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 					_, _ = writer.Write(b)
 					panic(err.Error())
 				}
-				serverr.HandleError(writer, err, err.Error())
+				server.HandleError(writer, err, err.Error())
 			case selector == nil:
 				// if there's no selector, let it pass to the
 				n.impersonateHandler(writer, request)
