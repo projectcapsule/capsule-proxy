@@ -6,7 +6,7 @@
 kind: Deployment
 image:
   # -- Set the image repository of the capsule-proxy.
-  repository: quay.io/clastix/capsule-proxy
+  repository: clastix/capsule-proxy
   # -- Set the image pull policy.
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.
