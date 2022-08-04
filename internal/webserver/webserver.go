@@ -279,7 +279,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
 	root.Use(
-		middleware.MetricsMiddleware,
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
 		middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
