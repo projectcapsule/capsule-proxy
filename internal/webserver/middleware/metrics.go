@@ -4,6 +4,9 @@
 package middleware
 
 import (
+	"bufio"
+	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -21,6 +24,15 @@ func init() {
 type httpResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
+}
+
+func (h *httpResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := h.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("writer is not http.Hijacker")
+	}
+
+	return hijacker.Hijack()
 }
 
 func newHTTPResponseWriter(w http.ResponseWriter) *httpResponseWriter {
