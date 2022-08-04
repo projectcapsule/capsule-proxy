@@ -60,6 +60,8 @@ func main() {
 
 	var rolebindingsResyncPeriod time.Duration
 
+	var enableProxyMetrics bool
+
 	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
@@ -69,6 +71,7 @@ func main() {
 	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
 	flag.StringVar(&keyPath, "ssl-key-path", "", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
 	flag.DurationVar(&rolebindingsResyncPeriod, "rolebindings-resync-period", 10*time.Hour, "Resync period for rolebindings reflector")
+	flag.BoolVar(&enableProxyMetrics, "enable-proxy-metrics", false, "Enable proxy instrumentation for prometheus metrics (default: false)")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {

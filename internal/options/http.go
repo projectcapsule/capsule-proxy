@@ -13,11 +13,12 @@ import (
 )
 
 type httpOptions struct {
-	isTLS   bool
-	port    uint
-	crtPath string
-	keyPath string
-	caPool  *x509.CertPool
+	isTLS              bool
+	port               uint
+	crtPath            string
+	keyPath            string
+	caPool             *x509.CertPool
+	enableProxyMetrics bool
 }
 
 func NewServer(isTLS bool, port uint, crtPath string, keyPath string, config *rest.Config) (ServerOptions, error) {
@@ -62,4 +63,8 @@ func (h httpOptions) TLSCertificatePath() string {
 
 func (h httpOptions) TLSCertificateKeyPath() string {
 	return h.keyPath
+}
+
+func (h httpOptions) IsProxyMetricsEnabled() bool {
+	return h.enableProxyMetrics
 }

@@ -278,6 +278,12 @@ func (n kubeFilter) Start(ctx context.Context) error {
 
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
+
+	if n.serverOptions.IsProxyMetricsEnabled() {
+		root.Use(
+			middleware.MetricsMiddleware,
+		)
+	}
 	root.Use(
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
@@ -292,7 +298,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 
 	go func() {
 		var err error
-
 		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
 
 		if n.serverOptions.IsListeningTLS() {
@@ -321,7 +326,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	}()
 
 	<-ctx.Done()
-
 	return srv.Shutdown(ctx)
 }
 

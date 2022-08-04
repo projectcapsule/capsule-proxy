@@ -64,6 +64,9 @@ spec:
         - --ssl-cert-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLCertFileName }}
         - --ssl-key-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLKeyFileName }}
         {{- end }}
+        {{- if .Values.options.enableProxyMetrics }}
+        - --enable-proxy-metrics={{ .Values.options.enableProxyMetrics }}
+        {{- end }}
         ports:
         - name: proxy
           protocol: TCP

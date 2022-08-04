@@ -13,4 +13,5 @@ type ServerOptions interface {
 	TLSCertificatePath() string
 	TLSCertificateKeyPath() string
 	GetCertificateAuthorityPool() *x509.CertPool
+	IsProxyMetricsEnabled() bool
 }
