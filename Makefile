@@ -1,4 +1,5 @@
 OS := $(shell uname)
+SRC_ROOT = $(shell git rev-parse --show-toplevel)
 ifeq ($(OS),Darwin)
 	ROOTCA=~/Library/Application\ Support/mkcert/rootCA.pem
 else
@@ -103,6 +104,22 @@ rbac-fix:
 e2e: docker/build kind capsule capsule-proxy rbac-fix
 	@./e2e/run.bash $${CLIENT_TEST:-kubectl}-$${CAPSULE_PROXY_MODE:-https}
 
+# Helm
+SRC_ROOT = $(shell git rev-parse --show-toplevel)
+
+helm-docs: HELMDOCS_VERSION := v1.11.0
+helm-docs: docker
+	@docker run -v "$(SRC_ROOT):/helm-docs" jnorwood/helm-docs:$(HELMDOCS_VERSION) --chart-search-root /helm-docs
+
+helm-lint: docker
+	@docker run -v "$(SRC_ROOT):/workdir" --entrypoint /bin/sh quay.io/helmpack/chart-testing:v3.3.1 -c cd /workdir && ct lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug
+
+docker:
+	@hash docker 2>/dev/null || {\
+		echo "You need docker" &&\
+		exit 1;\
+	}
+	
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=charts/capsule-proxy/crds

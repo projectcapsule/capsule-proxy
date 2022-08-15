@@ -2,7 +2,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# -- Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. 
+# -- Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.
 kind: Deployment
 image:
   # -- Set the image repository of the capsule-proxy.
@@ -69,7 +69,7 @@ serviceAccount:
   # @default -- `capsule-proxy``
   name: ""
 
-# -- Set the replica count for capsule-proxy pod. 
+# -- Set the replica count for capsule-proxy pod.
 replicaCount: 1
 
 #  The following annotations guarantee scheduling for critical add-on pods
@@ -83,7 +83,7 @@ podLabels: {}
 
 # -- Topology Spread Constraints for the capsule-proxy pod.
 topologySpreadConstraints: []
-# Ensure Replicas are spreaded across different Nodes: 
+# Ensure Replicas are spreaded across different Nodes:
 # - maxSkew: 1
 #   topologyKey: kubernetes.io/hostname
 #   whenUnsatisfiable: ScheduleAnyway
@@ -102,11 +102,11 @@ podSecurityContext: {}
 # -- Security context for the capsule-proxy deployment.
 securityContext: {}
 
-resources: 
+resources:
   limits:
     # -- Set the CPU requests assigned to the controller.
     cpu: 200m
-    # -- Set the memory requests assigned to the controller. 
+    # -- Set the memory requests assigned to the controller.
     memory: 128Mi
   requests:
     # -- Set the CPU limits assigned to the controller.
@@ -150,7 +150,7 @@ daemonset:
   # -- Binding the capsule-proxy listening port to the host port.
   hostPort: false
 
-# Service  
+# Service
 service:
   # -- Specifies the service type should be created (`ClusterIP`, `NodePort`or `LoadBalancer`)
   type: ClusterIP
@@ -168,9 +168,9 @@ service:
   # -- Annotations to add to the service.
   annotations: {}
 
-# Ingress  
+# Ingress
 ingress:
-  # -- Specifies whether an ingress should be created. 
+  # -- Specifies whether an ingress should be created.
   enabled: false
   # -- Annotations to add to the capsule-proxy ingress.
   annotations: {}
@@ -178,7 +178,7 @@ ingress:
     # -- Set the host configuration for the capsule-proxy ingress.
   - host: "kube.clastix.io"
     # -- Set the path configuration for the capsule-proxy ingress.
-    paths: [ "/" ]
+    paths: ["/"]
   # -- Set the tls configuration for the capsule-proxy ingress.
   tls: []
 

@@ -61,24 +61,27 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
+| certManager.externalCA.enabled | bool | `false` |  |
+| certManager.externalCA.secretName | string | `""` |  |
+| certManager.generateCertificates | bool | `false` | Set if the cert manager will generate self-signed SSL certificates |
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
-| image.repository | string | `"quay.io/clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
+| image.repository | string | `"clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
-| jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the certgen job |
-| jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the certgen job |
-| jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the certgen job |
-| kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.  |
+| jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
+| jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
+| jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
 | podSecurityContext | object | `{}` | Security context for the capsule-proxy pod. |
 | priorityClassName | string | `""` | Specifies PriorityClass of the capsule-proxy pod. |
-| replicaCount | int | `1` | Set the replica count for capsule-proxy pod.  |
+| replicaCount | int | `1` | Set the replica count for capsule-proxy pod. |
 | resources.limits.cpu | string | `"200m"` | Set the CPU requests assigned to the controller. |
-| resources.limits.memory | string | `"128Mi"` | Set the memory requests assigned to the controller.  |
+| resources.limits.memory | string | `"128Mi"` | Set the memory requests assigned to the controller. |
 | resources.requests.cpu | string | `"200m"` | Set the CPU limits assigned to the controller. |
 | resources.requests.memory | string | `"128Mi"` | Set the memory limits assigned to the controller. |
 | restartPolicy | string | `"Always"` | Set the restartPolicy for the capsule-proxy pod. |
@@ -122,7 +125,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | ingress.annotations | object | `{}` | Annotations to add to the capsule-proxy ingress. |
-| ingress.enabled | bool | `false` | Specifies whether an ingress should be created.  |
+| ingress.enabled | bool | `false` | Specifies whether an ingress should be created. |
 | ingress.hosts[0] | object | `{"host":"kube.clastix.io","paths":["/"]}` | Set the host configuration for the capsule-proxy ingress. |
 | ingress.hosts[0].paths | list | `["/"]` | Set the path configuration for the capsule-proxy ingress. |
 | ingress.tls | list | `[]` | Set the tls configuration for the capsule-proxy ingress. |
@@ -185,4 +188,4 @@ metadata:
   namespace: capsule-system
 type: Opaque
 ```
-Otherwise, you can set `options.generateCertificates` to `true` and self-signed certificates will be generated during deployment process by a job.
+Otherwise, you can set `options.generateCertificates` to `true` and self-signed certificates will be generated during deployment process by a post-install job.
