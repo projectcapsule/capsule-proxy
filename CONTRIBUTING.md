@@ -2,18 +2,21 @@
 
 ## Chart Development
 
+### Chart Linting
+
+The chart is linted with [ct](https://github.com/helm/chart-testing). You can run the linter locally with this command:
+
+```
+make helm-lint
+```
 
 ### Documentation
 
-The documentation for each chart is done with [helm-docs](https://github.com/norwoodj/helm-docs). This way we can ensure that values are consistent with the chart documentation.
-
-We have a script on the repository which will execute the helm-docs docker container, so that you don't have to worry about downloading the binary etc. Simply execute the script (Bash compatible, might require sudo privileges):
+The documentation for each chart is done with [helm-docs](https://github.com/norwoodj/helm-docs). This way we can ensure that values are consistent with the chart documentation. Run this anytime you make changes to a `values.yaml` file:
 
 ```
-bash scripts/helm-docs.sh
+make helm-docs
 ```
-
-Run this script anytime you made changes to the values of the helm chart.
 
 ## Run locally for test and debug
 
