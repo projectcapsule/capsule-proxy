@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	regexPatternForAuthHeader = "^(Bearer ([\\w-]*\\.[\\w-]*\\.[\\w-]*|[\\w-]*))$"
+	regexPatternForAuthHeader = "^(Bearer ([\\w-]*\\.[\\w-]*\\.[\\w-]*|[\\w-]*|[\\w-]*\\.[\\w-]*))$"
 )
 
 func CheckAuthorization(client client.Client, log logr.Logger, tls bool) mux.MiddlewareFunc {
