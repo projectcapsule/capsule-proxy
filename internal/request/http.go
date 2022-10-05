@@ -9,7 +9,6 @@ import (
 	h "net/http"
 	"strings"
 
-	"github.com/golang-jwt/jwt"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -49,12 +48,6 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 
 		username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
 	case bearerBased:
-		if h.isJwtToken() {
-			username, groups, err = h.processJwtClaims()
-
-			break
-		}
-
 		username, groups, err = h.processBearerToken()
 	case anonymousBased:
 		return "", nil, fmt.Errorf("capsule does not support unauthenticated users")
@@ -119,35 +112,6 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	return username, groups, nil
 }
 
-func (h http) processJwtClaims() (username string, groups []string, err error) {
-	claims := h.getJwtClaims()
-
-	if claims["iss"] == "kubernetes/serviceaccount" {
-		username = claims["sub"].(string)
-		groups = append(groups, "system:serviceaccounts", fmt.Sprintf("system:serviceaccounts:%s", claims["kubernetes.io/serviceaccount/namespace"]))
-
-		return
-	}
-
-	u, ok := claims[h.usernameClaimField]
-	if !ok {
-		return "", nil, fmt.Errorf("missing users claim in JWT")
-	}
-
-	username = u.(string)
-
-	g, ok := claims["groups"]
-	if !ok {
-		return "", nil, fmt.Errorf("missing groups claim in JWT")
-	}
-
-	for _, v := range g.([]interface{}) {
-		groups = append(groups, v.(string))
-	}
-
-	return username, groups, nil
-}
-
 func (h http) processBearerToken() (username string, groups []string, err error) {
 	token := h.bearerToken()
 	tr := &authenticationv1.TokenReview{
@@ -180,29 +144,4 @@ func (h http) getAuthType() authType {
 	default:
 		return anonymousBased
 	}
-}
-
-func (h http) getJwtClaims() jwt.MapClaims {
-	parser := jwt.Parser{
-		SkipClaimsValidation: true,
-	}
-
-	var token *jwt.Token
-
-	var err error
-
-	if token, _, err = parser.ParseUnverified(h.bearerToken(), jwt.MapClaims{}); err != nil {
-		panic(err)
-	}
-
-	return token.Claims.(jwt.MapClaims)
-}
-
-func (h http) isJwtToken() bool {
-	parser := jwt.Parser{
-		SkipClaimsValidation: true,
-	}
-	_, _, err := parser.ParseUnverified(h.bearerToken(), jwt.MapClaims{})
-
-	return err == nil
 }
