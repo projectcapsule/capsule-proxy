@@ -64,7 +64,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
-| image.repository | string | `"quay.io/clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
+| image.repository | string | `"clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
 | jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the certgen job |
