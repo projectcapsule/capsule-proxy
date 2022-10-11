@@ -47,7 +47,7 @@ spec:
         name: certs
       containers:
       - name: proxy
-        image: quay.io/clastix/capsule-proxy
+        image: clastix/capsule-proxy
         imagePullPolicy: IfNotPresent
         args:
         - --capsule-user-group=capsule.clastix.io
