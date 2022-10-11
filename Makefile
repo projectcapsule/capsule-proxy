@@ -6,12 +6,12 @@ else
 endif
 
 dlv-build:
-	docker build . --build-arg "GCFLAGS=all=-N -l" --tag quay.io/clastix/capsule-proxy:dlv --target dlv
+	docker build . --build-arg "GCFLAGS=all=-N -l" --tag clastix/capsule-proxy:dlv --target dlv
 
 
 docker/build:
 	@echo "Building docker image..."
-	@docker build . -t quay.io/clastix/capsule-proxy:latest
+	@docker build . -t clastix/capsule-proxy:latest
 
 kind/clean:
 	@echo "Deleting cluser..."
@@ -39,7 +39,7 @@ capsule:
 capsule-proxy:
 	@echo "Installing Capsule-Proxy..."
 	@echo "Loading Docker image..."
-	@kind load docker-image --name capsule --nodes capsule-worker quay.io/clastix/capsule-proxy:latest
+	@kind load docker-image --name capsule --nodes capsule-worker clastix/capsule-proxy:latest
 ifeq ($(CAPSULE_PROXY_MODE),http)
 	@echo "Running in HTTP mode"
 	@echo "kubeconfig configurations..."
