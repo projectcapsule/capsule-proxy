@@ -172,6 +172,8 @@ service:
 ingress:
   # -- Specifies whether an ingress should be created.
   enabled: false
+  # -- Set the IngressClass to use for the capsule-proxy ingress (do not set via annotations if setting here).
+  className: ""
   # -- Annotations to add to the capsule-proxy ingress.
   annotations: {}
   hosts:
