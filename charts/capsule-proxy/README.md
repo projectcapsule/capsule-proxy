@@ -125,6 +125,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | ingress.annotations | object | `{}` | Annotations to add to the capsule-proxy ingress. |
+| ingress.className | string | `""` | Set the IngressClass to use for the capsule-proxy ingress (do not set via annotations if setting here). |
 | ingress.enabled | bool | `false` | Specifies whether an ingress should be created. |
 | ingress.hosts[0] | object | `{"host":"kube.clastix.io","paths":["/"]}` | Set the host configuration for the capsule-proxy ingress. |
 | ingress.hosts[0].paths | list | `["/"]` | Set the path configuration for the capsule-proxy ingress. |
