@@ -29,7 +29,7 @@ func List(roleBindingsReflector *controllers.RoleBindingReflector) modules.Modul
 }
 
 func (l list) Path() string {
-	return "/api/v1/namespaces"
+	return "/api/v1/{namespaces:[^/]+/?}"
 }
 
 func (l list) Methods() []string {

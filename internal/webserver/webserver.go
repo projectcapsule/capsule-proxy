@@ -268,7 +268,7 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 }
 
 func (n kubeFilter) Start(ctx context.Context) error {
-	r := mux.NewRouter().StrictSlash(true)
+	r := mux.NewRouter()
 	r.Use(handlers.RecoveryHandler())
 
 	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {

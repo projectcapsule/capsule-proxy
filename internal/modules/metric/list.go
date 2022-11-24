@@ -31,7 +31,7 @@ func List(client client.Client) modules.Module {
 }
 
 func (l list) Path() string {
-	return "/apis/metrics.k8s.io/{version}/nodes"
+	return "/apis/metrics.k8s.io/{version}/{nodes:[^/]+/?}"
 }
 
 func (l list) Methods() []string {
