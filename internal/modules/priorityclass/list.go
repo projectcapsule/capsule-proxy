@@ -30,7 +30,7 @@ func List(client client.Client) modules.Module {
 }
 
 func (l list) Path() string {
-	return "/apis/scheduling.k8s.io/v1/priorityclasses"
+	return "/apis/scheduling.k8s.io/v1/{priorityclasses:[^/]+/?}"
 }
 
 func (l list) Methods() []string {
