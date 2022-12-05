@@ -40,7 +40,7 @@ func (g get) Methods() []string {
 
 func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
-	exactMatch, regexMatch := getIngressClasses(httpRequest, proxyTenants)
+	_, exactMatch, regexMatch := getIngressClasses(httpRequest, proxyTenants)
 
 	name := mux.Vars(httpRequest)["name"]
 

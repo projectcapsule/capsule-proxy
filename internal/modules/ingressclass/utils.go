@@ -20,10 +20,12 @@ import (
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
-func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {
+func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp) {
 	for _, pt := range proxyTenants {
 		if ok := pt.RequestAllowed(request, capsulev1beta1.IngressClassesProxy); ok {
+			allowed = true
 			ic := pt.Tenant.Spec.IngressOptions.AllowedClasses
+
 			if ic == nil {
 				continue
 			}
@@ -42,7 +44,7 @@ func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant
 		return exact[i] < exact[0]
 	})
 
-	return exact, regex
+	return allowed, exact, regex
 }
 
 func getIngressClassFromRequest(request *http.Request) (ic client.ObjectList, err error) {

@@ -17,10 +17,12 @@ import (
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
-func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {
+func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp) {
 	for _, pt := range proxyTenants {
 		if ok := pt.RequestAllowed(req, capsulev1beta1.PriorityClassesProxy); ok {
+			allowed = true
 			pc := pt.Tenant.Spec.PriorityClasses
+
 			if pc == nil {
 				continue
 			}
@@ -39,7 +41,7 @@ func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (ex
 		return exact[i] < exact[0]
 	})
 
-	return exact, regex
+	return allowed, exact, regex
 }
 
 func getPriorityClassSelector(classes *schedulingv1.PriorityClassList, exact []string, regex []*regexp.Regexp) (*labels.Requirement, error) {
