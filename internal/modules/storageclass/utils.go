@@ -17,10 +17,12 @@ import (
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
-func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (exact []string, regex []*regexp.Regexp) {
+func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp) {
 	for _, pt := range proxyTenants {
 		if ok := pt.RequestAllowed(req, capsulev1beta1.StorageClassesProxy); ok {
+			allowed = true
 			sc := pt.Tenant.Spec.StorageClasses
+
 			if sc == nil {
 				continue
 			}
@@ -39,7 +41,7 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (e
 		return exact[i] < exact[0]
 	})
 
-	return exact, regex
+	return allowed, exact, regex
 }
 
 func getStorageClassSelector(classes *storagev1.StorageClassList, exact []string, regex []*regexp.Regexp) (*labels.Requirement, error) {

@@ -5,6 +5,7 @@ package priorityclass
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	schedulingv1 "k8s.io/api/scheduling/v1"
@@ -40,7 +41,7 @@ func (l list) Methods() []string {
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
 
-	exactMatch, regexMatch := getPriorityClass(httpRequest, proxyTenants)
+	allowed, exactMatch, regexMatch := getPriorityClass(httpRequest, proxyTenants)
 
 	sc := &schedulingv1.PriorityClassList{}
 	if err = l.client.List(context.Background(), sc); err != nil {
@@ -48,7 +49,12 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	}
 
 	var r *labels.Requirement
+
 	if r, err = getPriorityClassSelector(sc, exactMatch, regexMatch); err != nil {
+		if !allowed {
+			return nil, errors.NewBadRequest(fmt.Errorf("not allowed"), &metav1.StatusDetails{Group: "scheduling.k8s.io", Kind: "priorityclasses"})
+		}
+
 		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 	}
 

@@ -5,6 +5,7 @@ package ingressclass
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
@@ -43,7 +44,7 @@ func (l list) Subrouter(router *mux.Router) *mux.Router {
 
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
-	exactMatch, regexMatch := getIngressClasses(httpRequest, proxyTenants)
+	allowed, exactMatch, regexMatch := getIngressClasses(httpRequest, proxyTenants)
 
 	var ic client.ObjectList
 
@@ -56,7 +57,12 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	}
 
 	var r *labels.Requirement
+
 	if r, err = getIngressClassSelector(ic, exactMatch, regexMatch); err != nil {
+		if !allowed {
+			return nil, errors.NewBadRequest(fmt.Errorf("not allowed"), &metav1.StatusDetails{Group: "networking.k8s.io", Kind: "ingressclasses"})
+		}
+
 		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 	}
 
