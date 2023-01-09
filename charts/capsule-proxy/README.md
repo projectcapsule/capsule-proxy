@@ -75,11 +75,13 @@ If you only need to make minor customizations, you can specify them on the comma
 | jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
 | jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
 | jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| jobs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
+| jobs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
 | kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
-| podSecurityContext | object | `{}` | Security context for the capsule-proxy pod. |
+| podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the capsule-proxy pod. |
 | priorityClassName | string | `""` | Specifies PriorityClass of the capsule-proxy pod. |
 | replicaCount | int | `1` | Set the replica count for capsule-proxy pod. |
 | resources.limits.cpu | string | `"200m"` | Set the CPU requests assigned to the controller. |
@@ -87,7 +89,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | resources.requests.cpu | string | `"200m"` | Set the CPU limits assigned to the controller. |
 | resources.requests.memory | string | `"128Mi"` | Set the memory limits assigned to the controller. |
 | restartPolicy | string | `"Always"` | Set the restartPolicy for the capsule-proxy pod. |
-| securityContext | object | `{}` | Security context for the capsule-proxy deployment. |
+| securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the capsule-proxy container. |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
 | serviceAccount.name | string | `capsule-proxy`` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template |

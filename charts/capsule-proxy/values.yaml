@@ -20,6 +20,22 @@ jobs:
     # -- Set the image tag of the post install certgen job
     tag: "v1.3.0"
 
+  # -- Security context for the job pods.
+  podSecurityContext:
+    seccompProfile:
+      type: "RuntimeDefault"
+
+  # -- Security context for the job containers.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsGroup: 1002
+    runAsNonRoot: true
+    runAsUser: 1002
+
 # -- Configuration for `imagePullSecrets` so that you can use a private images registry.
 imagePullSecrets: []
 
@@ -102,10 +118,21 @@ topologySpreadConstraints: []
 priorityClassName: ""
 
 # -- Security context for the capsule-proxy pod.
-podSecurityContext: {}
+podSecurityContext:
+  seccompProfile:
+    type: "RuntimeDefault"
 
-# -- Security context for the capsule-proxy deployment.
-securityContext: {}
+# -- Security context for the capsule-proxy container.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsGroup: 1002
+  runAsNonRoot: true
+  runAsUser: 1002
+
 
 resources:
   limits:
