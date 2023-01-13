@@ -9,6 +9,9 @@ certManager:
     enabled: false
     # secret containing the CA cert and private key of the external CA in the correct cert-manager format as per https://cert-manager.io/docs/configuration/ca/#deployment
     secretName: ""
+  issuer:
+    kind: Issuer # Issuer or ClusterIssuer
+    name: "" #  Name of the ClusterIssuer
 replicaCount: 1
 podAnnotations:
   scheduler.alpha.kubernetes.io/critical-pod: ''

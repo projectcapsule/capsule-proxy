@@ -85,3 +85,14 @@ Create CA secret name for the capsule proxy
 {{- printf "%s-root-secret" (include "capsule-proxy.fullname" .) -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Create Cert Manager issuer name for the capsule proxy
+*/}}
+{{- define "capsule-proxy.certManager.issuerName" -}}
+{{- if eq .Values.certManager.issuer.kind "ClusterIssuer" -}}
+{{- printf "%s" .Values.certManager.issuer.name -}}
+{{- else -}}
+{{- printf "%s-ca-issuer" (include "capsule-proxy.fullname" .) -}}
+{{- end -}}
+{{- end -}}
