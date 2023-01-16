@@ -1,5 +1,5 @@
 {{- if and .Values.certManager.generateCertificates .Values.options.enableSSL -}}
-  {{- if not .Values.certManager.externalCA.enabled  -}}
+  {{- if and (not .Values.certManager.externalCA.enabled) (eq .Values.certManager.issuer.kind "Issuer")  -}}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
@@ -24,6 +24,7 @@ spec:
     group: cert-manager.io
   {{- end }}
 ---
+  {{- if eq .Values.certManager.issuer.kind "Issuer" }}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
@@ -31,6 +32,7 @@ metadata:
 spec:
   ca:
     secretName: {{ include "capsule-proxy.caSecretName" . }}
+  {{- end }}    
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -42,8 +44,8 @@ spec:
   - {{ $hosts.host }}
   {{- end }}
   issuerRef:
-    kind: Issuer
-    name: {{ include "capsule-proxy.fullname" . }}-ca-issuer
+    kind: {{ .Values.certManager.issuer.kind }}
+    name: {{ include "capsule-proxy.certManager.issuerName" . }}
   secretName: {{ include "capsule-proxy.fullname" . }}
   subject:
     organizations:
