@@ -25,7 +25,7 @@ kind:
 		&& kubectl taint nodes capsule-worker2 key1=value1:NoSchedule
 	@helm repo add bitnami https://charts.bitnami.com/bitnami
 	@helm upgrade --install --namespace metrics-system --create-namespace metrics-server bitnami/metrics-server \
-		--set apiService.create=true --set extraArgs.kubelet-insecure-tls=true --version 5.11.7
+		--set apiService.create=true --set extraArgs={--kubelet-insecure-tls=true} --version 6.2.6
 
 capsule:
 	@echo "Installing capsule..."
