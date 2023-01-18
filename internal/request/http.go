@@ -77,8 +77,10 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 		if !ac.Status.Allowed {
 			return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the user %s", username, impersonateUser))
 		}
-		// The current user is allowed to perform authentication, allowing the override
-		username = impersonateUser
+		// Assign impersonate user after group impersonation with current user
+		defer func() {
+			username = impersonateUser
+		}()
 	}
 
 	if impersonateGroups := h.Request.Header.Values("Impersonate-Group"); len(impersonateGroups) > 0 {
