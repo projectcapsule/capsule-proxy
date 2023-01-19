@@ -42,12 +42,6 @@ jobs:
       - uses: azure/setup-helm@v1
         with:
           version: 3.3.4
-      - name: Installing mkcert
-        run: |
-          wget https://github.com/FiloSottile/mkcert/releases/download/v1.1.2/mkcert-v1.1.2-linux-amd64
-          mv mkcert-v1.1.2-linux-amd64 mkcert
-          chmod +x mkcert
-          sudo cp mkcert /usr/local/bin/
       - name: Installing BATS
         run: sudo apt-get install -y bats
       - name: Installing jq

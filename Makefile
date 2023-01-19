@@ -6,6 +6,13 @@ else
 	ROOTCA=~/.local/share/mkcert/rootCA.pem
 endif
 
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
 dlv-build:
 	docker build . --build-arg "GCFLAGS=all=-N -l" --tag clastix/capsule-proxy:dlv --target dlv
 
@@ -26,18 +33,18 @@ kind:
 	@helm repo add bitnami https://charts.bitnami.com/bitnami
 	@helm upgrade --install --namespace metrics-system --create-namespace metrics-server bitnami/metrics-server \
 		--set apiService.create=true --set extraArgs={--kubelet-insecure-tls=true} --version 6.2.6
+    # Wait until the metrics-server is ready
+	@kubectl wait --for=condition=available --timeout=120s deployment/metrics-server -n metrics-system
 
 capsule:
 	@echo "Installing capsule..."
-	@sleep 5
 	@helm repo add clastix https://clastix.github.io/charts
 	@helm upgrade --install --create-namespace --namespace capsule-system capsule clastix/capsule \
 		--set "manager.resources=null" \
 		--set "manager.options.forceTenantPrefix=true" \
 		--set "options.logLevel=8"
 
-
-capsule-proxy:
+capsule-proxy: mkcert
 	@echo "Installing Capsule-Proxy..."
 	@echo "Loading Docker image..."
 	@kind load docker-image --name capsule --nodes capsule-worker clastix/capsule-proxy:latest
@@ -62,7 +69,7 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 else
 	@echo "Running in HTTPS mode"
 	@echo "capsule proxy certificates..."
-	cd hack && mkcert -install && mkcert 127.0.0.1 \
+	cd hack && $(MKCERT) -install && $(MKCERT) 127.0.0.1  \
 		&& kubectl --namespace capsule-system create secret tls capsule-proxy --key=./127.0.0.1-key.pem --cert ./127.0.0.1.pem
 	@echo "kubeconfig configurations..."
 	@cd hack \
@@ -112,7 +119,7 @@ helm-docs: docker
 	@docker run -v "$(SRC_ROOT):/helm-docs" jnorwood/helm-docs:$(HELMDOCS_VERSION) --chart-search-root /helm-docs
 
 helm-lint: docker
-	@docker run -v "$(SRC_ROOT):/workdir" --entrypoint /bin/sh quay.io/helmpack/chart-testing:v3.3.1 -c cd /workdir && ct lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug
+	@docker run -v "$(SRC_ROOT):/workdir" --entrypoint /bin/sh quay.io/helmpack/chart-testing:v3.3.1 -c "cd /workdir; ct lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug"
 
 docker:
 	@hash docker 2>/dev/null || {\
@@ -137,20 +144,19 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube
 	kubectl delete -f charts/capsule-proxy/crds
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-.PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.8.0)
 
-# go-get-tool will 'go get' any package $2 and install it to $1.
+MKCERT = $(shell pwd)/bin/mkcert
+mkcert: ## Download mkcert locally if necessary.
+	$(call go-install-tool,$(MKCERT),filippo.io/mkcert@v1.4.4)
+
+# go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
+define go-install-tool
 @[ -f $(1) ] || { \
 set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
-rm -rf $$TMP_DIR ;\
+echo "Installing $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 }
 endef
