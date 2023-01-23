@@ -234,14 +234,16 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr := rp.Subrouter()
 		sr.Use(
 			middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
-			middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
 			middleware.CheckJWTMiddleware(n.client, n.log),
 			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.ignoredUserGroups, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 			proxyRequest := req.NewHTTP(request, n.usernameClaimField, n.client)
-			username, groups, _ := proxyRequest.GetUserAndGroups()
+			username, groups, err := proxyRequest.GetUserAndGroups()
+			if err != nil {
+				server.HandleError(writer, err, "cannot retrieve user and group from the request")
+			}
 			proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
 			if err != nil {
 				server.HandleError(writer, err, "cannot list Tenant resources")
@@ -283,7 +285,6 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	root.Use(
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckAuthorization(n.client, n.log, n.serverOptions.IsListeningTLS()),
 		middleware.CheckJWTMiddleware(n.client, n.log),
 	)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
