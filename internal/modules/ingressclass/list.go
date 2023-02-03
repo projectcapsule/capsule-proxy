@@ -31,7 +31,7 @@ func List(client client.Client) modules.Module {
 }
 
 func (l list) Path() string {
-	return "/apis/networking.k8s.io/{version}/{ingressclasses:[^/]+/?}"
+	return "/apis/networking.k8s.io/{version}/{endpoint:ingressclasses/?}"
 }
 
 func (l list) Methods() []string {
@@ -39,7 +39,7 @@ func (l list) Methods() []string {
 }
 
 func (l list) Subrouter(router *mux.Router) *mux.Router {
-	return router.Path("/apis/networking.k8s.io/{version}/{ingressclasses:[^/]+/?}").Subrouter()
+	return router.Path("/apis/networking.k8s.io/{version}/{endpoint:ingressclasses/?}").Subrouter()
 }
 
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {

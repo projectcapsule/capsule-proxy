@@ -4,5 +4,5 @@
 package namespace
 
 const (
-	basePath = "/api/v1/{namespaces:[^/]+/?}"
+	basePath = "/api/v1/{endpoint:namespaces/?}"
 )

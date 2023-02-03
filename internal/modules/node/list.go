@@ -31,7 +31,7 @@ func List(client client.Client) modules.Module {
 }
 
 func (l list) Path() string {
-	return "/api/v1/{nodes:[^/]+/?}"
+	return "/api/v1/{endpoint:nodes/?}"
 }
 
 func (l list) Methods() []string {

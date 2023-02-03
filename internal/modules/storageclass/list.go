@@ -31,7 +31,7 @@ func List(client client.Client) modules.Module {
 }
 
 func (l list) Path() string {
-	return "/apis/storage.k8s.io/v1/{storageclasses:[^/]+/?}"
+	return "/apis/storage.k8s.io/v1/{endpoint:storageclasses/?}"
 }
 
 func (l list) Methods() []string {
