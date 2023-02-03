@@ -33,8 +33,8 @@ kind:
 	@helm repo add bitnami https://charts.bitnami.com/bitnami
 	@helm upgrade --install --namespace metrics-system --create-namespace metrics-server bitnami/metrics-server \
 		--set apiService.create=true --set "extraArgs[0]=--kubelet-insecure-tls=true" --version 6.2.9
-    # Wait until the metrics-server is ready
-	@kubectl wait --for=condition=available --timeout=120s deployment/metrics-server -n metrics-system
+	@echo "Waiting for metrics-server pod to be ready for listing metrics"
+	@kubectl --namespace metrics-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/instance=metrics-server
 
 capsule:
 	@echo "Installing capsule..."
