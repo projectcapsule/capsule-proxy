@@ -14,6 +14,7 @@ import (
 	capsuleindexer "github.com/clastix/capsule/pkg/indexer"
 	"github.com/clastix/capsule/pkg/indexer/tenant"
 	flag "github.com/spf13/pflag"
+	"github.com/thediveo/enumflag"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -25,6 +26,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/controllers"
 	"github.com/clastix/capsule-proxy/internal/indexer"
 	"github.com/clastix/capsule-proxy/internal/options"
+	"github.com/clastix/capsule-proxy/internal/request"
 	"github.com/clastix/capsule-proxy/internal/webserver"
 )
 
@@ -60,6 +62,16 @@ func main() {
 
 	var rolebindingsResyncPeriod time.Duration
 
+	authTypes := []request.AuthType{
+		request.TLSCertificate,
+		request.BearerToken,
+	}
+
+	authTypesMap := map[request.AuthType][]string{
+		request.BearerToken:    {request.BearerToken.String()},
+		request.TLSCertificate: {request.TLSCertificate.String()},
+	}
+
 	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
@@ -69,6 +81,9 @@ func main() {
 	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
 	flag.StringVar(&keyPath, "ssl-key-path", "", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
 	flag.DurationVar(&rolebindingsResyncPeriod, "rolebindings-resync-period", 10*time.Hour, "Resync period for rolebindings reflector")
+	flag.Var(enumflag.NewSlice(&authTypes, "string", authTypesMap, enumflag.EnumCaseSensitive), "auth-preferred-types",
+		`Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
+First match is used and can be specified multiple times as comma separated values or by using the flag multiple times.`)
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
@@ -158,7 +173,7 @@ func main() {
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(ignoredUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
+	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}

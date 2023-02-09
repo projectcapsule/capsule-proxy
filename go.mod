@@ -11,6 +11,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/spf13/pflag v1.0.5
+	github.com/thediveo/enumflag v0.10.1
 	go.uber.org/zap v1.19.1
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
 	k8s.io/api v0.23.0
