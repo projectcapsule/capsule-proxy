@@ -59,6 +59,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 
 	return &kubeFilter{
 		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
+		authTypes:             opts.AuthTypes(),
 		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
 		reverseProxy:          reverseProxy,
 		bearerToken:           opts.BearerToken(),
@@ -71,6 +72,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 
 type kubeFilter struct {
 	allowedPaths          sets.String
+	authTypes             []req.AuthType
 	ignoredUserGroups     sets.String
 	reverseProxy          *httputil.ReverseProxy
 	client                client.Client
@@ -169,7 +171,7 @@ func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selecto
 }
 
 func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	hr := req.NewHTTP(request, n.usernameClaimField, n.client)
+	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.client)
 
 	var username string
 
@@ -235,11 +237,11 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr.Use(
 			middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
 			middleware.CheckJWTMiddleware(n.client, n.log),
-			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.ignoredUserGroups, n.impersonateHandler),
-			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.impersonateHandler),
+			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.impersonateHandler),
+			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.authTypes, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			proxyRequest := req.NewHTTP(request, n.usernameClaimField, n.client)
+			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.client)
 			username, groups, err := proxyRequest.GetUserAndGroups()
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")

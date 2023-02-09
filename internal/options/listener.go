@@ -6,9 +6,12 @@ package options
 import (
 	"net/http"
 	"net/url"
+
+	"github.com/clastix/capsule-proxy/internal/request"
 )
 
 type ListenerOpts interface {
+	AuthTypes() []request.AuthType
 	KubernetesControlPlaneURL() *url.URL
 	IgnoredGroupNames() []string
 	PreferredUsernameClaim() string

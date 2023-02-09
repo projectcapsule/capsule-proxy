@@ -12,25 +12,17 @@ import (
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-type authType int
-
-const (
-	bearerBased authType = iota
-	certificateBased
-	anonymousBased
 )
 
 type http struct {
 	*h.Request
+	authTypes          []AuthType
 	usernameClaimField string
-	client             client.Client
+	client             Client
 }
 
-func NewHTTP(request *h.Request, usernameClaimField string, client client.Client) Request {
-	return &http{Request: request, usernameClaimField: usernameClaimField, client: client}
+func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client Client) Request {
+	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client}
 }
 
 func (h http) GetHTTPRequest() *h.Request {
@@ -40,16 +32,16 @@ func (h http) GetHTTPRequest() *h.Request {
 //nolint:funlen
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	switch h.getAuthType() {
-	case certificateBased:
+	case TLSCertificate:
 		pc := h.TLS.PeerCertificates
 		if len(pc) == 0 {
 			return "", nil, fmt.Errorf("no provided peer certificates")
 		}
 
 		username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
-	case bearerBased:
+	case BearerToken:
 		username, groups, err = h.processBearerToken()
-	case anonymousBased:
+	case Anonymous:
 		return "", nil, fmt.Errorf("capsule does not support unauthenticated users")
 	}
 	// In case of error, we're blocking the request flow here
@@ -137,13 +129,20 @@ func (h http) bearerToken() string {
 	return strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
 }
 
-func (h http) getAuthType() authType {
-	switch {
-	case (h.TLS != nil) && len(h.TLS.PeerCertificates) > 0:
-		return certificateBased
-	case len(h.bearerToken()) > 0:
-		return bearerBased
-	default:
-		return anonymousBased
+func (h http) getAuthType() AuthType {
+	for _, authType := range h.authTypes {
+		// nolint:exhaustive
+		switch authType {
+		case BearerToken:
+			if len(h.bearerToken()) > 0 {
+				return BearerToken
+			}
+		case TLSCertificate:
+			if (h.TLS != nil) && len(h.TLS.PeerCertificates) > 0 {
+				return TLSCertificate
+			}
+		}
 	}
+
+	return Anonymous
 }
