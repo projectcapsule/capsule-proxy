@@ -61,9 +61,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
-| certManager.externalCA.enabled | bool | `false` |  |
+| certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
 | certManager.externalCA.secretName | string | `""` |  |
-| certManager.generateCertificates | bool | `false` | Set if the cert manager will generate self-signed SSL certificates |
+| certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
 | certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
 | certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
