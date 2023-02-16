@@ -79,7 +79,7 @@ certManager:
     # -- Its value will be either Issuer or ClusterIssuer
     kind: Issuer # Issuer or ClusterIssuer
     # -- Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates
-    clusterIssuerName: "" #  Name of the ClusterIssuer
+    name: "" #  Name of the ClusterIssuer
 
 
 # ServiceAccount
