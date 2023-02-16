@@ -40,9 +40,13 @@ metadata:
   name: {{ include "capsule-proxy.fullname" . }}-serving-cert
 spec:
   dnsNames:
-  {{- range $hosts := .Values.ingress.hosts }}
+  {{- if .Values.ingress.enabled -}}
+    {{- range $hosts := .Values.ingress.hosts }}
   - {{ $hosts.host }}
+    {{- end }}
   {{- end }}
+  - {{ include "capsule-proxy.fullname" . }}
+  - {{ include "capsule-proxy.fullname" . }}.{{ .Release.Namespace }}.svc
   issuerRef:
     kind: {{ .Values.certManager.issuer.kind }}
     name: {{ include "capsule-proxy.certManager.issuerName" . }}
