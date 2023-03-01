@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/net/http/httpguts"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
@@ -145,9 +146,7 @@ func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 
 // nolint:interfacer
 func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
-	// Sanitizing the impersonation
-	request.Header.Del("Impersonate-User")
-	request.Header.Del("Impersonate-Group")
+	req.SanitizeImpersonationHeaders(request)
 
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
@@ -190,7 +189,7 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 		}
 	}
 
-	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups)
+	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups, "uri", request.URL.Path)
 
 	if len(n.bearerToken) > 0 {
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
@@ -199,10 +198,10 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 	// https://github.com/clastix/capsule-proxy/issues/188
 	n.removingHopByHopHeaders(request)
 
-	request.Header.Add("Impersonate-User", username)
+	request.Header.Add(authenticationv1.ImpersonateUserHeader, username)
 
 	for _, group := range groups {
-		request.Header.Add("Impersonate-Group", group)
+		request.Header.Add(authenticationv1.ImpersonateGroupHeader, group)
 	}
 }
 

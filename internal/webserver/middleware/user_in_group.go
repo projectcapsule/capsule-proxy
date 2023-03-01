@@ -47,7 +47,7 @@ func CheckUserInCapsuleGroupMiddleware(client client.Client, log logr.Logger, cl
 				log.Error(err, "Cannot retrieve username and group from request")
 			}
 			for _, group := range groups {
-				if controllers.CapsuleUserGroups.Has(group) || group == "system:serviceaccounts" {
+				if controllers.CapsuleUserGroups.Has(group) {
 					next.ServeHTTP(writer, request)
 
 					return
