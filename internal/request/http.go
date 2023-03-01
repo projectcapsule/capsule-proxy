@@ -50,7 +50,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	}
 	// In case the requester is asking for impersonation, we have to be sure that's allowed by creating a
 	// SubjectAccessReview with the requested data, before proceeding.
-	if impersonateUser := h.Request.Header.Get("Impersonate-User"); len(impersonateUser) > 0 {
+	if impersonateUser := GetImpersonatingUser(h.Request); len(impersonateUser) > 0 {
 		ac := &authorizationv1.SubjectAccessReview{
 			Spec: authorizationv1.SubjectAccessReviewSpec{
 				ResourceAttributes: &authorizationv1.ResourceAttributes{
@@ -75,7 +75,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 		}()
 	}
 
-	if impersonateGroups := h.Request.Header.Values("Impersonate-Group"); len(impersonateGroups) > 0 {
+	if impersonateGroups := GetImpersonatingGroups(h.Request); len(impersonateGroups) > 0 {
 		for _, impersonateGroup := range impersonateGroups {
 			ac := &authorizationv1.SubjectAccessReview{
 				Spec: authorizationv1.SubjectAccessReviewSpec{

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"testing"
 
+	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -50,8 +51,8 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 			fields: fields{
 				Request: &http.Request{
 					Header: map[string][]string{
-						"Impersonate-Group": {"ImpersonatedGroup"},
-						"Impersonate-User":  {"ImpersonatedUser"},
+						authenticationv1.ImpersonateGroupHeader: {"ImpersonatedGroup"},
+						authenticationv1.ImpersonateUserHeader:  {"ImpersonatedUser"},
 					},
 					TLS: &tls.ConnectionState{
 						PeerCertificates: []*x509.Certificate{
