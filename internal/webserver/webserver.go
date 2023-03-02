@@ -84,11 +84,11 @@ type kubeFilter struct {
 	roleBindingsReflector *controllers.RoleBindingReflector
 }
 
-func (n *kubeFilter) LivenessProbe(req *http.Request) error {
+func (n *kubeFilter) LivenessProbe(*http.Request) error {
 	return nil
 }
 
-func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
+func (n *kubeFilter) ReadinessProbe(*http.Request) (err error) {
 	scheme := "http"
 	clt := &http.Client{}
 
@@ -135,7 +135,7 @@ func (n *kubeFilter) InjectClient(client client.Client) error {
 	return nil
 }
 
-func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
+func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		next.ServeHTTP(writer, request)
 
@@ -145,7 +145,7 @@ func (n kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 }
 
 // nolint:interfacer
-func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
+func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
 	req.SanitizeImpersonationHeaders(request)
 
 	q := request.URL.Query()
@@ -169,16 +169,11 @@ func (n kubeFilter) handleRequest(request *http.Request, selector labels.Selecto
 	}
 }
 
-func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
+func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
 	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.client)
 
-	var username string
-
-	var groups []string
-
-	var err error
-
-	if username, groups, err = hr.GetUserAndGroups(); err != nil {
+	username, groups, err := hr.GetUserAndGroups()
+	if err != nil {
 		msg := "cannot retrieve user and group"
 
 		var t *req.ErrUnauthorized
@@ -206,7 +201,7 @@ func (n kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http
 }
 
 // nolint:funlen
-func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
+func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	modList := []modules.Module{
 		namespace.Post(),
 		namespace.List(n.roleBindingsReflector),
@@ -234,7 +229,7 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 		sr := rp.Subrouter()
 		sr.Use(
-			middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
+			middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 			middleware.CheckJWTMiddleware(n.client, n.log),
 			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.authTypes, n.impersonateHandler),
@@ -272,7 +267,7 @@ func (n kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	}
 }
 
-func (n kubeFilter) Start(ctx context.Context) error {
+func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.Use(handlers.RecoveryHandler())
 
@@ -285,7 +280,7 @@ func (n kubeFilter) Start(ctx context.Context) error {
 	n.registerModules(ctx, root)
 	root.Use(
 		n.reverseProxyMiddleware,
-		middleware.CheckPaths(n.client, n.log, n.allowedPaths, n.impersonateHandler),
+		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 		middleware.CheckJWTMiddleware(n.client, n.log),
 	)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -355,7 +350,7 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 	return
 }
 
-func (n kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulev1beta1.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
+func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulev1beta1.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	// nolint:prealloc
 	var tenants []string
 

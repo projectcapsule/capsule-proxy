@@ -9,10 +9,9 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CheckPaths(client client.Client, log logr.Logger, allowedPaths sets.String, skipTo func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+func CheckPaths(log logr.Logger, allowedPaths sets.String, skipTo func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if allowedPaths.Has(request.URL.Path) {
