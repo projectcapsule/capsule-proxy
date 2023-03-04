@@ -6,7 +6,7 @@ package tenant
 import (
 	"net/http"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 )
 
 type Operations struct {
@@ -23,13 +23,13 @@ func defaultOperations() *Operations {
 	}
 }
 
-func (o *Operations) Allow(operation capsulev1beta1.ProxyOperation) {
+func (o *Operations) Allow(operation capsulev1beta2.ProxyOperation) {
 	switch operation {
-	case capsulev1beta1.ListOperation:
+	case capsulev1beta2.ListOperation:
 		o.List = true
-	case capsulev1beta1.UpdateOperation:
+	case capsulev1beta2.UpdateOperation:
 		o.Update = true
-	case capsulev1beta1.DeleteOperation:
+	case capsulev1beta2.DeleteOperation:
 		o.Delete = true
 	}
 }

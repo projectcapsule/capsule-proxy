@@ -11,6 +11,7 @@ import (
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	capsuleindexer "github.com/clastix/capsule/pkg/indexer"
 	"github.com/clastix/capsule/pkg/indexer/tenant"
 	flag "github.com/spf13/pflag"
@@ -36,8 +37,9 @@ func main() {
 	log := ctrl.Log.WithName("main")
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(capsulev1beta1.AddToScheme(scheme))
 	utilruntime.Must(capsulev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(capsulev1beta1.AddToScheme(scheme))
+	utilruntime.Must(capsulev1beta2.AddToScheme(scheme))
 	utilruntime.Must(capsuleproxyv1beta1.AddToScheme(scheme))
 
 	var err error
@@ -155,7 +157,7 @@ First match is used and can be specified multiple times as comma separated value
 	log.Info("Creating the Field Indexer")
 
 	indexers := []capsuleindexer.CustomIndexer{
-		&tenant.NamespacesReference{},
+		&tenant.NamespacesReference{Obj: &capsulev1beta2.Tenant{}},
 		&tenant.OwnerReference{},
 		&indexer.ProxySetting{},
 	}
