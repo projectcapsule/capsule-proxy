@@ -4,7 +4,6 @@
 package metric
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -48,7 +47,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	name := mux.Vars(httpRequest)["name"]
 
 	nl := &corev1.NodeList{}
-	if err = g.client.List(context.Background(), nl, client.MatchingLabels{"kubernetes.io/hostname": name}); err != nil {
+	if err = g.client.List(httpRequest.Context(), nl, client.MatchingLabels{"kubernetes.io/hostname": name}); err != nil {
 		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "nodes"})
 	}
 

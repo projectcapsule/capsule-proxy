@@ -37,8 +37,10 @@ import (
 	"github.com/clastix/capsule-proxy/internal/modules/metric"
 	"github.com/clastix/capsule-proxy/internal/modules/namespace"
 	"github.com/clastix/capsule-proxy/internal/modules/node"
+	"github.com/clastix/capsule-proxy/internal/modules/persistentvolume"
 	"github.com/clastix/capsule-proxy/internal/modules/pod"
 	"github.com/clastix/capsule-proxy/internal/modules/priorityclass"
+	"github.com/clastix/capsule-proxy/internal/modules/runtimeclass"
 	"github.com/clastix/capsule-proxy/internal/modules/storageclass"
 	"github.com/clastix/capsule-proxy/internal/options"
 	req "github.com/clastix/capsule-proxy/internal/request"
@@ -216,6 +218,10 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		storageclass.List(n.client),
 		priorityclass.List(n.client),
 		priorityclass.Get(n.client),
+		runtimeclass.Get(n.client),
+		runtimeclass.List(n.client),
+		persistentvolume.Get(n.client),
+		persistentvolume.List(n.client),
 		lease.Get(n.client),
 		metric.Get(n.client),
 		metric.List(n.client),

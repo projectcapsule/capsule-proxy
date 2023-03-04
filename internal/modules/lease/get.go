@@ -4,9 +4,7 @@
 package lease
 
 import (
-	"context"
-
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
@@ -43,7 +41,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	httpRequest := proxyRequest.GetHTTPRequest()
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(httpRequest, capsulev1beta1.NodesProxy); ok {
+		if ok := pt.RequestAllowed(httpRequest, capsulev1beta2.NodesProxy); ok {
 			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 		}
 	}
@@ -51,7 +49,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	name := mux.Vars(httpRequest)["name"]
 
 	node := &corev1.Node{}
-	if err = g.client.Get(context.Background(), types.NamespacedName{Name: name}, node); err != nil {
+	if err = g.client.Get(httpRequest.Context(), types.NamespacedName{Name: name}, node); err != nil {
 		// offload failure to Kubernetes API due to missing RBAC
 		return nil, nil
 	}

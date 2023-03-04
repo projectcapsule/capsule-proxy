@@ -1,17 +1,17 @@
 // Copyright 2020-2021 Clastix Labs
 // SPDX-License-Identifier: Apache-2.0
 
-package node
+package runtimeclass
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
-	corev1 "k8s.io/api/core/v1"
+	nodev1 "k8s.io/api/node/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,11 +28,11 @@ type get struct {
 }
 
 func Get(client client.Client) modules.Module {
-	return &get{client: client, log: ctrl.Log.WithName("node_get")}
+	return &get{client: client, log: ctrl.Log.WithName("runtimeclass_get")}
 }
 
 func (g get) Path() string {
-	return "/api/v1/nodes/{name}"
+	return "/apis/node.k8s.io/v1/{endpoint:runtimeclasses}/{name}"
 }
 
 func (g get) Methods() []string {
@@ -41,32 +41,27 @@ func (g get) Methods() []string {
 
 func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
-	selectors := utils.GetNodeSelectors(httpRequest, proxyTenants)
 
-	name := mux.Vars(httpRequest)["name"]
+	name, kind := mux.Vars(httpRequest)["name"], mux.Vars(httpRequest)["endpoint"]
 
-	nl := &corev1.NodeList{}
-	if err = g.client.List(httpRequest.Context(), nl, client.MatchingLabels{"kubernetes.io/hostname": name}); err != nil {
-		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "nodes"})
-	}
-
-	var r *labels.Requirement
-
-	if r, err = utils.GetNodeSelector(nl, selectors); err == nil {
-		return labels.NewSelector().Add(*r), nil
-	}
-
-	if httpRequest.Method == http.MethodGet {
-		nf := errors.NewNotFoundError(
-			fmt.Sprintf("nodes %q not found", name),
+	_, requirements := getRuntimeClass(httpRequest, proxyTenants)
+	if len(requirements) == 0 {
+		return nil, errors.NewNotFoundError(
+			fmt.Sprintf("%s.%s %q not found", kind, nodev1.GroupName, name),
 			&metav1.StatusDetails{
-				Name: name,
-				Kind: "nodes",
+				Name:  name,
+				Group: nodev1.GroupName,
+				Kind:  kind,
 			},
 		)
-		// nolint:wrapcheck
-		return nil, nf
 	}
 
-	return nil, nil
+	rc := &nodev1.RuntimeClass{}
+	rc.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   nodev1.GroupName,
+		Version: nodev1.SchemeGroupVersion.Version,
+		Kind:    kind,
+	})
+
+	return utils.HandleGetSelector(httpRequest.Context(), rc, g.client, requirements, name, kind)
 }

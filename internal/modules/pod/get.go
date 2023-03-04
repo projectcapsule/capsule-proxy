@@ -4,9 +4,7 @@
 package pod
 
 import (
-	"context"
-
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,13 +74,13 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	var selectors []map[string]string
 	// Ensuring the Tenant Owner can deal with the node listing
 	for _, pt := range proxyTenants {
-		if ok = pt.RequestAllowed(httpRequest, capsulev1beta1.NodesProxy); ok {
+		if ok = pt.RequestAllowed(httpRequest, capsulev1beta2.NodesProxy); ok {
 			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 		}
 	}
 
 	node := &corev1.Node{}
-	if err = g.client.Get(context.Background(), types.NamespacedName{Name: name}, node); err != nil {
+	if err = g.client.Get(httpRequest.Context(), types.NamespacedName{Name: name}, node); err != nil {
 		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "nodes"})
 	}
 
