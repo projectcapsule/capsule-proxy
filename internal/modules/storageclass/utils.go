@@ -9,39 +9,60 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	storagev1 "k8s.io/api/storage/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
-func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp) {
+func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp, requirements []labels.Requirement) {
+	requirements = []labels.Requirement{}
+
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsulev1beta1.StorageClassesProxy); ok {
-			allowed = true
-			sc := pt.Tenant.Spec.StorageClasses
-
-			if sc == nil {
-				continue
-			}
-
-			if len(sc.Exact) > 0 {
-				exact = append(exact, sc.Exact...)
-			}
-
-			if r := sc.Regex; len(r) > 0 {
-				regex = append(regex, regexp.MustCompile(r))
-			}
+		if ok := pt.RequestAllowed(req, capsulev1beta2.StorageClassesProxy); !ok {
+			continue
 		}
+
+		allowed = true
+
+		sc := pt.Tenant.Spec.StorageClasses
+		if sc == nil {
+			continue
+		}
+
+		if len(sc.SelectorAllowedListSpec.Exact) > 0 {
+			exact = append(exact, sc.SelectorAllowedListSpec.Exact...)
+		}
+
+		if len(sc.Default) > 0 {
+			exact = append(exact, sc.Default)
+		}
+
+		if r := sc.SelectorAllowedListSpec.Regex; len(r) > 0 {
+			regex = append(regex, regexp.MustCompile(r))
+		}
+
+		selector, err := metav1.LabelSelectorAsSelector(&sc.SelectorAllowedListSpec.LabelSelector)
+		if err != nil {
+			continue
+		}
+
+		reqs, selectable := selector.Requirements()
+		if !selectable {
+			continue
+		}
+
+		requirements = append(requirements, reqs...)
 	}
 
 	sort.SliceStable(exact, func(i, j int) bool {
 		return exact[i] < exact[0]
 	})
 
-	return allowed, exact, regex
+	return allowed, exact, regex, requirements
 }
 
 func getStorageClassSelector(classes *storagev1.StorageClassList, exact []string, regex []*regexp.Regexp) (*labels.Requirement, error) {

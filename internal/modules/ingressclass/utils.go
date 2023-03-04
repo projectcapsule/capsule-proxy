@@ -9,10 +9,11 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/gorilla/mux"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,40 +21,74 @@ import (
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
-func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp) {
+func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp, requirements []labels.Requirement) {
+	requirements = []labels.Requirement{}
+
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(request, capsulev1beta1.IngressClassesProxy); ok {
-			allowed = true
-			ic := pt.Tenant.Spec.IngressOptions.AllowedClasses
-
-			if ic == nil {
-				continue
-			}
-
-			if len(ic.Exact) > 0 {
-				exact = append(exact, ic.Exact...)
-			}
-
-			if r := ic.Regex; len(r) > 0 {
-				regex = append(regex, regexp.MustCompile(r))
-			}
+		if ok := pt.RequestAllowed(request, capsulev1beta2.IngressClassesProxy); !ok {
+			continue
 		}
+
+		allowed = true
+
+		ic := pt.Tenant.Spec.IngressOptions.AllowedClasses
+		if ic == nil {
+			continue
+		}
+
+		if len(ic.SelectorAllowedListSpec.Exact) > 0 {
+			exact = append(exact, ic.SelectorAllowedListSpec.Exact...)
+		}
+
+		if len(ic.Default) > 0 {
+			exact = append(exact, ic.Default)
+		}
+
+		if r := ic.SelectorAllowedListSpec.Regex; len(r) > 0 {
+			regex = append(regex, regexp.MustCompile(r))
+		}
+
+		selector, err := metav1.LabelSelectorAsSelector(&ic.SelectorAllowedListSpec.LabelSelector)
+		if err != nil {
+			continue
+		}
+
+		reqs, selectable := selector.Requirements()
+		if !selectable {
+			continue
+		}
+
+		requirements = append(requirements, reqs...)
 	}
 
 	sort.SliceStable(exact, func(i, j int) bool {
 		return exact[i] < exact[0]
 	})
 
-	return allowed, exact, regex
+	return allowed, exact, regex, requirements
 }
 
-func getIngressClassFromRequest(request *http.Request) (ic client.ObjectList, err error) {
+func getIngressClassListFromRequest(request *http.Request) (ic client.ObjectList, err error) {
+	v := mux.Vars(request)["version"]
+	switch v {
+	case networkingv1.SchemeGroupVersion.Version:
+		ic = &networkingv1.IngressClassList{}
+	case networkingv1beta1.SchemeGroupVersion.Version:
+		ic = &networkingv1beta1.IngressClassList{}
+	default:
+		return nil, fmt.Errorf("ingressClass %s is not supported", v)
+	}
+
+	return
+}
+
+func getIngressClassFromRequest(request *http.Request) (ic client.Object, err error) {
 	v := mux.Vars(request)["version"]
 	switch v {
 	case "v1":
-		ic = &networkingv1.IngressClassList{}
+		ic = &networkingv1.IngressClass{}
 	case "v1beta1":
-		ic = &networkingv1beta1.IngressClassList{}
+		ic = &networkingv1beta1.IngressClass{}
 	default:
 		return nil, fmt.Errorf("ingressClass %s is not supported", v)
 	}

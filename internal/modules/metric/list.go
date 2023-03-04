@@ -4,8 +4,6 @@
 package metric
 
 import (
-	"context"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +42,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	selectors := utils.GetNodeSelectors(httpRequest, proxyTenants)
 
 	nl := &corev1.NodeList{}
-	if err = l.client.List(context.Background(), nl); err != nil {
+	if err = l.client.List(httpRequest.Context(), nl); err != nil {
 		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "nodes"})
 	}
 

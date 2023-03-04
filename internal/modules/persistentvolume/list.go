@@ -1,14 +1,16 @@
 // Copyright 2020-2021 Clastix Labs
 // SPDX-License-Identifier: Apache-2.0
 
-package node
+package persistentvolume
 
 import (
+	"fmt"
+
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/gorilla/mux"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -20,16 +22,19 @@ import (
 )
 
 type list struct {
-	client client.Client
-	log    logr.Logger
+	client   client.Client
+	log      logr.Logger
+	labelKey string
 }
 
 func List(client client.Client) modules.Module {
-	return &list{client: client, log: ctrl.Log.WithName("node_list")}
+	label, _ := capsulev1beta2.GetTypeLabel(&capsulev1beta2.Tenant{})
+
+	return &list{client: client, log: ctrl.Log.WithName("persistentvolume_list"), labelKey: label}
 }
 
 func (l list) Path() string {
-	return "/api/v1/{endpoint:nodes/?}"
+	return "/api/v1/{endpoint:persistentvolumes/?}"
 }
 
 func (l list) Methods() []string {
@@ -38,17 +43,13 @@ func (l list) Methods() []string {
 
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
-	selectors := utils.GetNodeSelectors(httpRequest, proxyTenants)
 
-	nl := &corev1.NodeList{}
-	if err = l.client.List(httpRequest.Context(), nl); err != nil {
-		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "nodes"})
+	kind := mux.Vars(httpRequest)["endpoint"]
+
+	allowed, requirement := getPersistentVolume(httpRequest, proxyTenants, l.labelKey)
+	if !allowed {
+		return nil, errors.NewBadRequest(fmt.Errorf("not allowed"), &metav1.StatusDetails{Group: "", Kind: kind})
 	}
 
-	var r *labels.Requirement
-	if r, err = utils.GetNodeSelector(nl, selectors); err != nil {
-		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
-	}
-
-	return labels.NewSelector().Add(*r), nil
+	return utils.HandleListSelector([]labels.Requirement{requirement})
 }

@@ -9,39 +9,60 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	schedulingv1 "k8s.io/api/scheduling/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/clastix/capsule-proxy/internal/tenant"
 )
 
-func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp) {
+func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, exact []string, regex []*regexp.Regexp, requirements []labels.Requirement) {
+	requirements = []labels.Requirement{}
+
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsulev1beta1.PriorityClassesProxy); ok {
-			allowed = true
-			pc := pt.Tenant.Spec.PriorityClasses
-
-			if pc == nil {
-				continue
-			}
-
-			if len(pc.Exact) > 0 {
-				exact = append(exact, pc.Exact...)
-			}
-
-			if r := pc.Regex; len(r) > 0 {
-				regex = append(regex, regexp.MustCompile(r))
-			}
+		if ok := pt.RequestAllowed(req, capsulev1beta2.PriorityClassesProxy); !ok {
+			continue
 		}
+
+		allowed = true
+
+		pc := pt.Tenant.Spec.PriorityClasses
+		if pc == nil {
+			continue
+		}
+
+		if len(pc.SelectorAllowedListSpec.Exact) > 0 {
+			exact = append(exact, pc.SelectorAllowedListSpec.Exact...)
+		}
+
+		if len(pc.Default) > 0 {
+			exact = append(exact, pc.Default)
+		}
+
+		if r := pc.SelectorAllowedListSpec.Regex; len(r) > 0 {
+			regex = append(regex, regexp.MustCompile(r))
+		}
+
+		selector, err := metav1.LabelSelectorAsSelector(&pc.SelectorAllowedListSpec.LabelSelector)
+		if err != nil {
+			continue
+		}
+
+		reqs, selectable := selector.Requirements()
+		if !selectable {
+			continue
+		}
+
+		requirements = append(requirements, reqs...)
 	}
 
 	sort.SliceStable(exact, func(i, j int) bool {
 		return exact[i] < exact[0]
 	})
 
-	return allowed, exact, regex
+	return allowed, exact, regex, requirements
 }
 
 func getPriorityClassSelector(classes *schedulingv1.PriorityClassList, exact []string, regex []*regexp.Regexp) (*labels.Requirement, error) {
