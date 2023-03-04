@@ -26,12 +26,12 @@ import (
 )
 
 type get struct {
-	client                client.Client
 	roleBindingsReflector *controllers.RoleBindingReflector
 	log                   logr.Logger
+	client                client.Reader
 }
 
-func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.Client) modules.Module {
+func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.Reader) modules.Module {
 	return &get{roleBindingsReflector: roleBindingsReflector, log: ctrl.Log.WithName("namespace_get"), client: client}
 }
 

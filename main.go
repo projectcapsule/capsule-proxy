@@ -187,7 +187,7 @@ First match is used and can be specified multiple times as comma separated value
 		os.Exit(1)
 	}
 
-	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector)
+	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector, mgr.GetAPIReader())
 	if err != nil {
 		log.Error(err, "cannot create NamespaceFilter runner")
 		os.Exit(1)
