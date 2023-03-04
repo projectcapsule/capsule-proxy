@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -47,7 +47,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
 )
 
-func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector) (Filter, error) {
+func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, apiReader client.Reader) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
@@ -59,6 +59,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
+		apiReader:             apiReader,
 		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
 		authTypes:             opts.AuthTypes(),
 		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
@@ -82,13 +83,14 @@ type kubeFilter struct {
 	serverOptions         options.ServerOptions
 	log                   logr.Logger
 	roleBindingsReflector *controllers.RoleBindingReflector
+	apiReader             client.Reader
 }
 
 func (n *kubeFilter) LivenessProbe(*http.Request) error {
 	return nil
 }
 
-func (n *kubeFilter) ReadinessProbe(*http.Request) (err error) {
+func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 	scheme := "http"
 	clt := &http.Client{}
 
@@ -108,7 +110,7 @@ func (n *kubeFilter) ReadinessProbe(*http.Request) (err error) {
 
 	var r *http.Request
 
-	if r, err = http.NewRequestWithContext(context.Background(), "GET", url, nil); err != nil {
+	if r, err = http.NewRequestWithContext(req.Context(), "GET", url, nil); err != nil {
 		return errors.Wrap(err, "cannot create request")
 	}
 
@@ -205,7 +207,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	modList := []modules.Module{
 		namespace.Post(),
 		namespace.List(n.roleBindingsReflector),
-		namespace.Get(n.roleBindingsReflector, n.client),
+		namespace.Get(n.roleBindingsReflector, n.apiReader),
 		node.List(n.client),
 		node.Get(n.client),
 		ingressclass.List(n.client),
@@ -326,12 +328,12 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 
 func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulev1beta1.ServiceAccountOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulev1beta2.ServiceAccountOwner, username)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 	} else {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulev1beta1.UserOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulev1beta2.UserOwner, username)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -339,7 +341,7 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 
 	// Find tenants belonging to a group
 	for _, group := range groups {
-		pt, err := n.getProxyTenantsForOwnerKind(ctx, capsulev1beta1.GroupOwner, group)
+		pt, err := n.getProxyTenantsForOwnerKind(ctx, capsulev1beta2.GroupOwner, group)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -350,11 +352,25 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 	return
 }
 
-func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulev1beta1.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
+func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulev1beta2.OwnerListSpec) []v1beta1.OwnerSpec {
+	out := make([]v1beta1.OwnerSpec, 0, len(owners))
+
+	for _, owner := range owners {
+		out = append(out, v1beta1.OwnerSpec{
+			Kind:            owner.Kind,
+			Name:            owner.Name,
+			ProxyOperations: owner.ProxyOperations,
+		})
+	}
+
+	return out
+}
+
+func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulev1beta2.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	// nolint:prealloc
 	var tenants []string
 
-	tl := &capsulev1beta1.TenantList{}
+	tl := &capsulev1beta2.TenantList{}
 
 	f := client.MatchingFields{
 		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind.String(), ownerName),
@@ -371,7 +387,7 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 	}
 
 	for _, proxySetting := range proxySettings.Items {
-		tntList := &capsulev1beta1.TenantList{}
+		tntList := &capsulev1beta2.TenantList{}
 		if err = n.client.List(ctx, tntList, client.MatchingFields{".status.namespaces": proxySetting.GetNamespace()}); err != nil {
 			n.log.Error(err, "cannot retrieve Tenant list for ProxySetting", "owner", ownerKind, "name", ownerName)
 
@@ -386,7 +402,7 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 	}
 
 	for _, t := range tl.Items {
-		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, t, t.Spec.Owners))
+		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, t, n.ownerFromCapsuleToProxySetting(t.Spec.Owners)))
 		tenants = append(tenants, t.GetName())
 	}
 

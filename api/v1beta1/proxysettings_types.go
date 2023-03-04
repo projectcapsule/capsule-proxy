@@ -4,16 +4,25 @@
 package v1beta1
 
 import (
-	"github.com/clastix/capsule/api/v1beta1"
+	"github.com/clastix/capsule/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type OwnerSpec struct {
+	// Kind of tenant owner. Possible values are "User", "Group", and "ServiceAccount"
+	Kind v1beta2.OwnerKind `json:"kind"`
+	// Name of tenant owner.
+	Name string `json:"name"`
+	// Proxy settings for tenant owner.
+	ProxyOperations []v1beta2.ProxySettings `json:"proxySettings,omitempty"`
+}
 
 // ProxySettingSpec defines the additional Capsule Proxy settings for additional users of the Tenant.
 // Resource is Namespace-scoped and applies the settings to the belonged Tenant.
 type ProxySettingSpec struct {
 	// Subjects that should receive additional permissions.
 	// +kubebuilder:validation:MinItems=1
-	Subjects []v1beta1.OwnerSpec `json:"subjects"`
+	Subjects []OwnerSpec `json:"subjects"`
 }
 
 //+kubebuilder:object:root=true
