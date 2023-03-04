@@ -18,7 +18,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ProxySetting is the Schema for the proxysettings API
+        description: ProxySetting is the Schema for the proxysettings API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -62,6 +62,8 @@ spec:
                             - StorageClasses
                             - IngressClasses
                             - PriorityClasses
+                            - RuntimeClasses
+                            - PersistentVolumes
                             type: string
                           operations:
                             items:
