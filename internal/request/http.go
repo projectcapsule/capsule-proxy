@@ -4,7 +4,6 @@
 package request
 
 import (
-	"context"
 	"fmt"
 	h "net/http"
 	"strings"
@@ -114,7 +113,7 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 		},
 	}
 
-	if err = h.client.Create(context.Background(), tr); err != nil {
+	if err = h.client.Create(h.Request.Context(), tr); err != nil {
 		return "", nil, fmt.Errorf("cannot create TokenReview")
 	}
 

@@ -4,7 +4,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -35,7 +34,7 @@ func CheckJWTMiddleware(client client.Client, log logr.Logger) mux.MiddlewareFun
 						Token: token,
 					},
 				}
-				if err = client.Create(context.Background(), &tr); err != nil {
+				if err = client.Create(request.Context(), &tr); err != nil {
 					errors.HandleError(writer, err, "cannot create TokenReview")
 				}
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
