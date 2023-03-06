@@ -11,16 +11,17 @@ import (
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type http struct {
 	*h.Request
 	authTypes          []AuthType
 	usernameClaimField string
-	client             Client
+	client             client.Writer
 }
 
-func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client Client) Request {
+func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client client.Writer) Request {
 	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client}
 }
 

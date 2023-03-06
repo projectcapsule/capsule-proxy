@@ -23,11 +23,11 @@ import (
 )
 
 type get struct {
-	client client.Client
+	client client.Reader
 	log    logr.Logger
 }
 
-func Get(client client.Client) modules.Module {
+func Get(client client.Reader) modules.Module {
 	return &get{client: client, log: ctrl.Log.WithName("node_get")}
 }
 

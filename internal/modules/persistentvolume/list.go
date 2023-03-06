@@ -22,12 +22,12 @@ import (
 )
 
 type list struct {
-	client   client.Client
+	client   client.Reader
 	log      logr.Logger
 	labelKey string
 }
 
-func List(client client.Client) modules.Module {
+func List(client client.Reader) modules.Module {
 	label, _ := capsulev1beta2.GetTypeLabel(&capsulev1beta2.Tenant{})
 
 	return &list{client: client, log: ctrl.Log.WithName("persistentvolume_list"), labelKey: label}

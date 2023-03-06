@@ -49,7 +49,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
 )
 
-func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, apiReader client.Reader) (Filter, error) {
+func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
@@ -61,7 +61,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
-		apiReader:             apiReader,
+		reader:                clientOverride,
 		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
 		authTypes:             opts.AuthTypes(),
 		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
@@ -79,13 +79,14 @@ type kubeFilter struct {
 	authTypes             []req.AuthType
 	ignoredUserGroups     sets.String
 	reverseProxy          *httputil.ReverseProxy
-	client                client.Client
 	bearerToken           string
 	usernameClaimField    string
 	serverOptions         options.ServerOptions
 	log                   logr.Logger
 	roleBindingsReflector *controllers.RoleBindingReflector
-	apiReader             client.Reader
+
+	managerReader, reader client.Reader
+	writer                client.Writer
 }
 
 func (n *kubeFilter) LivenessProbe(*http.Request) error {
@@ -134,7 +135,15 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 }
 
 func (n *kubeFilter) InjectClient(client client.Client) error {
-	n.client = client
+	n.managerReader = client
+
+	if n.reader == nil {
+		n.reader = client
+	}
+
+	if n.writer == nil {
+		n.writer = client
+	}
 
 	return nil
 }
@@ -174,7 +183,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 }
 
 func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.client)
+	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer)
 
 	username, groups, err := hr.GetUserAndGroups()
 	if err != nil {
@@ -209,23 +218,23 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	modList := []modules.Module{
 		namespace.Post(),
 		namespace.List(n.roleBindingsReflector),
-		namespace.Get(n.roleBindingsReflector, n.apiReader),
-		node.List(n.client),
-		node.Get(n.client),
-		ingressclass.List(n.client),
-		ingressclass.Get(n.client),
-		storageclass.Get(n.client),
-		storageclass.List(n.client),
-		priorityclass.List(n.client),
-		priorityclass.Get(n.client),
-		runtimeclass.Get(n.client),
-		runtimeclass.List(n.client),
-		persistentvolume.Get(n.client),
-		persistentvolume.List(n.client),
-		lease.Get(n.client),
-		metric.Get(n.client),
-		metric.List(n.client),
-		pod.Get(n.client),
+		namespace.Get(n.roleBindingsReflector, n.reader),
+		node.List(n.reader),
+		node.Get(n.reader),
+		ingressclass.List(n.reader),
+		ingressclass.Get(n.reader),
+		storageclass.Get(n.reader),
+		storageclass.List(n.reader),
+		priorityclass.List(n.reader),
+		priorityclass.Get(n.reader),
+		runtimeclass.Get(n.reader),
+		runtimeclass.List(n.reader),
+		persistentvolume.Get(n.reader),
+		persistentvolume.List(n.reader),
+		lease.Get(n.reader),
+		metric.Get(n.reader),
+		metric.List(n.reader),
+		pod.Get(n.reader),
 	}
 	for _, i := range modList {
 		mod := i
@@ -238,12 +247,12 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr := rp.Subrouter()
 		sr.Use(
 			middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
-			middleware.CheckJWTMiddleware(n.client, n.log),
-			middleware.CheckUserInIgnoredGroupMiddleware(n.client, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.impersonateHandler),
-			middleware.CheckUserInCapsuleGroupMiddleware(n.client, n.log, n.usernameClaimField, n.authTypes, n.impersonateHandler),
+			middleware.CheckJWTMiddleware(n.writer),
+			middleware.CheckUserInIgnoredGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.impersonateHandler),
+			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.client)
+			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer)
 			username, groups, err := proxyRequest.GetUserAndGroups()
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")
@@ -290,7 +299,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	root.Use(
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckJWTMiddleware(n.client, n.log),
+		middleware.CheckJWTMiddleware(n.writer),
 	)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
@@ -390,20 +399,20 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 	f := client.MatchingFields{
 		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind.String(), ownerName),
 	}
-	if err = n.client.List(ctx, tl, f); err != nil {
+	if err = n.managerReader.List(ctx, tl, f); err != nil {
 		return nil, fmt.Errorf("cannot retrieve Tenants list: %w", err)
 	}
 
 	n.log.V(8).Info("Tenant", "owner", ownerKind, "name", ownerName, "tenantList items", tl.Items, "number of tenants", len(tl.Items))
 
 	proxySettings := &v1beta1.ProxySettingList{}
-	if err = n.client.List(ctx, proxySettings, client.MatchingFields{indexer.SubjectKindField: fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)}); err != nil {
+	if err = n.managerReader.List(ctx, proxySettings, client.MatchingFields{indexer.SubjectKindField: fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)}); err != nil {
 		n.log.Error(err, "cannot retrieve ProxySetting", "owner", ownerKind, "name", ownerName)
 	}
 
 	for _, proxySetting := range proxySettings.Items {
 		tntList := &capsulev1beta2.TenantList{}
-		if err = n.client.List(ctx, tntList, client.MatchingFields{".status.namespaces": proxySetting.GetNamespace()}); err != nil {
+		if err = n.managerReader.List(ctx, tntList, client.MatchingFields{".status.namespaces": proxySetting.GetNamespace()}); err != nil {
 			n.log.Error(err, "cannot retrieve Tenant list for ProxySetting", "owner", ownerKind, "name", ownerName)
 
 			continue

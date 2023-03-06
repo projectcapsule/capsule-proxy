@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +16,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/webserver/errors"
 )
 
-func CheckJWTMiddleware(client client.Client, log logr.Logger) mux.MiddlewareFunc {
+func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			var err error

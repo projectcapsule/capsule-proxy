@@ -20,12 +20,12 @@ import (
 )
 
 type get struct {
-	client   client.Client
+	client   client.Reader
 	log      logr.Logger
 	labelKey string
 }
 
-func Get(client client.Client) modules.Module {
+func Get(client client.Reader) modules.Module {
 	label, _ := capsulev1beta2.GetTypeLabel(&capsulev1beta2.Tenant{})
 
 	return &get{client: client, log: ctrl.Log.WithName("persistentvolumes_get"), labelKey: label}

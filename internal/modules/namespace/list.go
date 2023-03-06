@@ -37,9 +37,17 @@ func (l list) Methods() []string {
 }
 
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
-	userNamespaces, err := l.roleBindingsReflector.GetUserNamespacesFromRequest(proxyRequest)
-	if err != nil {
-		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "namespaces"})
+	var userNamespaces []string
+
+	if l.roleBindingsReflector != nil {
+		userNamespaces, err = l.roleBindingsReflector.GetUserNamespacesFromRequest(proxyRequest)
+		if err != nil {
+			return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "namespaces"})
+		}
+	} else {
+		for _, tnt := range proxyTenants {
+			userNamespaces = append(userNamespaces, tnt.Tenant.Status.Namespaces...)
+		}
 	}
 
 	var r *labels.Requirement

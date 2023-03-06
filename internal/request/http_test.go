@@ -18,10 +18,26 @@ import (
 	"github.com/clastix/capsule-proxy/internal/request"
 )
 
-type testClient func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error
+type testClient func(ctx context.Context, obj client.Object) error
+
+func (t testClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	return t(ctx, obj)
+}
+
+func (t testClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	return t(ctx, obj)
+}
+
+func (t testClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	return t(ctx, obj)
+}
+
+func (t testClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
+	return t(ctx, obj)
+}
 
 func (t testClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	return t(ctx, obj, opts...)
+	return t(ctx, obj)
 }
 
 // nolint:funlen
@@ -32,7 +48,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 		Request            *http.Request
 		authTypes          []request.AuthType
 		usernameClaimField string
-		client             request.Client
+		client             client.Writer
 	}
 
 	tests := []struct {
@@ -71,7 +87,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 					request.BearerToken,
 					request.TLSCertificate,
 				},
-				client: testClient(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+				client: testClient(func(ctx context.Context, obj client.Object) error {
 					ac := obj.(*authorizationv1.SubjectAccessReview)
 					ac.Status.Allowed = true
 
@@ -95,7 +111,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 					request.TLSCertificate,
 				},
 				usernameClaimField: "",
-				client: testClient(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+				client: testClient(func(ctx context.Context, obj client.Object) error {
 					return nil
 				}),
 			},

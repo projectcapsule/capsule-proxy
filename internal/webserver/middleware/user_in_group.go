@@ -15,7 +15,7 @@ import (
 	req "github.com/clastix/capsule-proxy/internal/request"
 )
 
-func CheckUserInIgnoredGroupMiddleware(client client.Client, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.String, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.String, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if ignoredUserGroups.Len() > 0 {
@@ -39,7 +39,7 @@ func CheckUserInIgnoredGroupMiddleware(client client.Client, log logr.Logger, cl
 	}
 }
 
-func CheckUserInCapsuleGroupMiddleware(client client.Client, log logr.Logger, claim string, authTypes []req.AuthType, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
+func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			_, groups, err := req.NewHTTP(request, authTypes, claim, client).GetUserAndGroups()

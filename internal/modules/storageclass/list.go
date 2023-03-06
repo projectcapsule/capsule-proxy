@@ -23,11 +23,11 @@ import (
 )
 
 type list struct {
-	client client.Client
+	client client.Reader
 	log    logr.Logger
 }
 
-func List(client client.Client) modules.Module {
+func List(client client.Reader) modules.Module {
 	return &list{client: client, log: ctrl.Log.WithName("storageclass_list")}
 }
 

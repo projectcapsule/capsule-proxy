@@ -16,7 +16,7 @@ import (
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
 )
 
-func HandleGetSelector(ctx context.Context, obj client.Object, client client.Client, requirements []labels.Requirement, name, kind string) (labels.Selector, error) {
+func HandleGetSelector(ctx context.Context, obj client.Object, client client.Reader, requirements []labels.Requirement, name, kind string) (labels.Selector, error) {
 	nf := func() error {
 		group := obj.GetObjectKind().GroupVersionKind().Group
 		if len(group) > 0 {

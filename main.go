@@ -21,6 +21,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	capsuleproxyv1beta1 "github.com/clastix/capsule-proxy/api/v1beta1"
@@ -46,21 +47,13 @@ func main() {
 
 	var mgr ctrl.Manager
 
-	var capsuleConfigurationName string
+	var certPath, keyPath, usernameClaimField, capsuleConfigurationName string
 
-	var capsuleUserGroups []string
-
-	var ignoredUserGroups []string
+	var capsuleUserGroups, ignoredUserGroups []string
 
 	var listeningPort uint
 
-	var usernameClaimField string
-
-	var bindSsl bool
-
-	var certPath string
-
-	var keyPath string
+	var bindSsl, disableCaching bool
 
 	var rolebindingsResyncPeriod time.Duration
 
@@ -86,6 +79,7 @@ func main() {
 	flag.Var(enumflag.NewSlice(&authTypes, "string", authTypesMap, enumflag.EnumCaseSensitive), "auth-preferred-types",
 		`Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
 First match is used and can be specified multiple times as comma separated values or by using the flag multiple times.`)
+	flag.BoolVar(&disableCaching, "disable-caching", false, "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
@@ -137,19 +131,24 @@ First match is used and can be specified multiple times as comma separated value
 		os.Exit(1)
 	}
 
-	log.Info("Creating the Rolebindings reflector")
+	var rbReflector *controllers.RoleBindingReflector
 
-	rbReflector, err := controllers.NewRoleBindingReflector(ctrl.GetConfigOrDie(), rolebindingsResyncPeriod)
-	if err != nil {
-		log.Error(err, "cannot create Rolebindings reflector")
-		os.Exit(1)
-	}
+	if !disableCaching {
+		log.Info("Creating the Rolebindings reflector")
 
-	log.Info("Adding the Rolebindings reflector to the Manager")
+		if rbReflector, err = controllers.NewRoleBindingReflector(ctrl.GetConfigOrDie(), rolebindingsResyncPeriod); err != nil {
+			log.Error(err, "cannot create Rolebindings reflector")
+			os.Exit(1)
+		}
 
-	if err = mgr.Add(rbReflector); err != nil {
-		log.Error(err, "cannot add Rolebindings reflector as Runnable")
-		os.Exit(1)
+		log.Info("Adding the Rolebindings reflector to the Manager")
+
+		if err = mgr.Add(rbReflector); err != nil {
+			log.Error(err, "cannot add Rolebindings reflector as Runnable")
+			os.Exit(1)
+		}
+	} else {
+		log.Info("Cache is disabled, cannot create Rolebindings reflector")
 	}
 
 	ctx := ctrl.SetupSignalHandler()
@@ -187,7 +186,13 @@ First match is used and can be specified multiple times as comma separated value
 		os.Exit(1)
 	}
 
-	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector, mgr.GetAPIReader())
+	var clientOverride client.Reader
+
+	if !disableCaching {
+		clientOverride = mgr.GetAPIReader()
+	}
+
+	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector, clientOverride)
 	if err != nil {
 		log.Error(err, "cannot create NamespaceFilter runner")
 		os.Exit(1)
