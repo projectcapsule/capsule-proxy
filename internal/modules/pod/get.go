@@ -22,11 +22,11 @@ import (
 // get is the module that is going to be used when a `kubectl describe node` is issued by a Tenant owner.
 // No other verbs are considered here, just the listing of Pods for the given node.
 type get struct {
-	client client.Client
+	client client.Reader
 	log    logr.Logger
 }
 
-func Get(client client.Client) modules.Module {
+func Get(client client.Reader) modules.Module {
 	return &get{client: client, log: ctrl.Log.WithName("node_get")}
 }
 
