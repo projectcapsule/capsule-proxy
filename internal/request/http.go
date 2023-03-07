@@ -128,7 +128,7 @@ func (h http) authenticationFns() []authenticationFn {
 	fns := make([]authenticationFn, 0, len(h.authTypes)+1)
 
 	for _, authType := range h.authTypes {
-		// nolint:exhaustive
+		//nolint:exhaustive
 		switch authType {
 		case BearerToken:
 			fns = append(fns, func() (username string, groups []string, err error) {

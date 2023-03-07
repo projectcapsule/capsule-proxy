@@ -54,13 +54,13 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	if ic, err = getIngressClassListFromRequest(httpRequest); err != nil {
 		br := errors.NewBadRequest(err, &metav1.StatusDetails{Group: networkingv1.GroupName, Kind: kind})
-		// nolint:wrapcheck
+		//nolint:wrapcheck
 		return nil, br
 	}
 
 	if err = g.client.List(httpRequest.Context(), ic, client.MatchingLabels{"name": name}); err != nil {
 		br := errors.NewBadRequest(err, &metav1.StatusDetails{Group: networkingv1.GroupName, Kind: kind})
-		// nolint:wrapcheck
+		//nolint:wrapcheck
 		return nil, br
 	}
 
@@ -80,7 +80,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 				Kind:  kind,
 			},
 		)
-		// nolint:wrapcheck
+		//nolint:wrapcheck
 		return nil, nf
 	default:
 		return nil, nil
@@ -91,7 +91,7 @@ func (g get) handleSelector(request *http.Request, requirements []labels.Require
 	ic, err := getIngressClassFromRequest(request)
 	if err != nil {
 		br := errors.NewBadRequest(err, &metav1.StatusDetails{Group: networkingv1.GroupName, Kind: kind})
-		// nolint:wrapcheck
+		//nolint:wrapcheck
 		return nil, br
 	}
 

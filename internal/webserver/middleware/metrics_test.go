@@ -1,7 +1,7 @@
 // Copyright 2022 Clastix Labs
 // SPDX-License-Identifier: Apache-2.0
 
-// nolint:testpackage
+//nolint:testpackage
 package middleware
 
 import (
@@ -20,7 +20,7 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func newRequest(method, url string) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, nil) //nolint:noctx
 
 	return req, err
 }
@@ -42,7 +42,7 @@ func Test_MetricsMiddleware_RequestCount(t *testing.T) {
 		},
 	}
 
-	// nolint:paralleltest
+	//nolint:paralleltest
 	for _, test := range testCases {
 		router := mux.NewRouter()
 		router.HandleFunc(test.path, dummyHandler).Methods("GET")

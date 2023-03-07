@@ -40,7 +40,7 @@ func (t testClient) Create(ctx context.Context, obj client.Object, opts ...clien
 	return t(ctx, obj)
 }
 
-// nolint:funlen
+//nolint:funlen
 func Test_http_GetUserAndGroups(t *testing.T) {
 	t.Parallel()
 

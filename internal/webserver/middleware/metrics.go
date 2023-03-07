@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-// nolint:gochecknoinits
+//nolint:gochecknoinits
 func init() {
 	metrics.Registry.MustRegister(totalRequests, httpDuration)
 }
@@ -47,7 +47,7 @@ func (h *httpResponseWriter) WriteHeader(statusCode int) {
 	h.ResponseWriter.WriteHeader(statusCode)
 }
 
-// nolint:gochecknoglobals
+//nolint:gochecknoglobals
 var totalRequests = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "capsule_proxy_requests_total",
@@ -56,7 +56,7 @@ var totalRequests = prometheus.NewCounterVec(
 	[]string{"path", "status"},
 )
 
-// nolint:gochecknoglobals
+//nolint:gochecknoglobals
 var httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "capsule_proxy_response_time_seconds",
 	Help: "Duration of capsule proxy requests.",

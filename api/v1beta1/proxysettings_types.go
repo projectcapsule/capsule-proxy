@@ -44,7 +44,7 @@ type ProxySettingList struct {
 	Items           []ProxySetting `json:"items"`
 }
 
-// nolint:gochecknoinits
+//nolint:gochecknoinits
 func init() {
 	SchemeBuilder.Register(&ProxySetting{}, &ProxySettingList{})
 }
