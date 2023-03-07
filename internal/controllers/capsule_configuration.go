@@ -22,7 +22,7 @@ type CapsuleConfiguration struct {
 	DeprecatedCapsuleUserGroups []string
 }
 
-// nolint
+//nolint
 var CapsuleUserGroups sets.String
 
 func (c *CapsuleConfiguration) SetupWithManager(mgr ctrl.Manager) error {

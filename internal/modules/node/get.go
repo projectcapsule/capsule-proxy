@@ -64,7 +64,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 				Kind: "nodes",
 			},
 		)
-		// nolint:wrapcheck
+		//nolint:wrapcheck
 		return nil, nf
 	}
 

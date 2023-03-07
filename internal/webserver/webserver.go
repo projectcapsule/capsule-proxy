@@ -113,7 +113,7 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 
 	var r *http.Request
 
-	if r, err = http.NewRequestWithContext(req.Context(), "GET", url, nil); err != nil {
+	if r, err = http.NewRequestWithContext(req.Context(), http.MethodGet, url, nil); err != nil {
 		return errors.Wrap(err, "cannot create request")
 	}
 
@@ -157,7 +157,7 @@ func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// nolint:interfacer
+//nolint:interfacer
 func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
 	req.SanitizeImpersonationHeaders(request)
 
@@ -213,7 +213,7 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 	}
 }
 
-// nolint:funlen
+//nolint:funlen
 func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	modList := []modules.Module{
 		namespace.Post(),
@@ -290,7 +290,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	r.Use(handlers.RecoveryHandler())
 
 	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
+		writer.WriteHeader(http.StatusOK)
 		_, _ = writer.Write([]byte("ok"))
 	})
 
@@ -327,15 +327,17 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 			}
 
 			srv = &http.Server{
-				Handler:   r,
-				Addr:      addr,
-				TLSConfig: tlsConfig,
+				Handler:           r,
+				Addr:              addr,
+				TLSConfig:         tlsConfig,
+				ReadHeaderTimeout: 5 * time.Second,
 			}
 			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
 		} else {
 			srv = &http.Server{
-				Handler: r,
-				Addr:    addr,
+				Handler:           r,
+				Addr:              addr,
+				ReadHeaderTimeout: 5 * time.Second,
 			}
 			err = srv.ListenAndServe()
 		}
@@ -391,7 +393,7 @@ func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulev1beta2.OwnerL
 }
 
 func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulev1beta2.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
-	// nolint:prealloc
+	//nolint:prealloc
 	var tenants []string
 
 	tl := &capsulev1beta2.TenantList{}

@@ -13,14 +13,14 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	// nolint:gochecknoglobals
+	//nolint:gochecknoglobals
 	GroupVersion = schema.GroupVersion{Group: "capsule.clastix.io", Version: "v1beta1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	// nolint:gochecknoglobals
+	//nolint:gochecknoglobals
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.
-	// nolint:gochecknoglobals
+	//nolint:gochecknoglobals
 	AddToScheme = SchemeBuilder.AddToScheme
 )
