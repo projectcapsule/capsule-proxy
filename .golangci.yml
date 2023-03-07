@@ -22,8 +22,6 @@ linters:
     - ireturn
     - varnamelen
     - wrapcheck
-    - bodyclose # https://github.com/golangci/golangci-lint/issues/2649.
-    - contextcheck # https://github.com/golangci/golangci-lint/issues/2649.
     - interfacer
     - maligned
     - golint
@@ -32,5 +30,14 @@ linters:
     - goerr113
     - exhaustivestruct
     - lll
+    - ifshort
+    - deadcode
+    - structcheck
+    - varcheck
+    - nosnakecase
+    - nonamedreturns
+    - tparallel
+    - nilerr
+    - exhaustruct
 service:
   golangci-lint-version: 1.45.x
