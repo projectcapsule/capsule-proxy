@@ -6,9 +6,10 @@ RUN go mod download
 COPY main.go main.go
 COPY internal internal
 COPY api api
-ARG GCFLAGS
+ARG GCFLAGS=""
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
+ARG LDFLAGS=""
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -trimpath -ldflags="${LDFLAGS}" -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
 
 FROM golang:1.18-alpine as dlv
 RUN CGO_ENABLED=0 go install github.com/go-delve/delve/cmd/dlv@latest
