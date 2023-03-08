@@ -41,7 +41,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	case BearerToken:
 		username, groups, err = h.processBearerToken()
 	case Anonymous:
-		return "", nil, fmt.Errorf("capsule does not support unauthenticated users")
+		return "", nil, fmt.Errorf("unauthenticated users not supported")
 	}
 	// In case of error, we're blocking the request flow here
 	if err != nil {
