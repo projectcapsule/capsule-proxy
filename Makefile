@@ -19,7 +19,7 @@ dlv-build:
 
 docker/build:
 	@echo "Building docker image..."
-	@docker build . -t clastix/capsule-proxy:latest
+	@docker build . --build-arg "LDFLAGS=-s -w" -t clastix/capsule-proxy:latest
 
 kind/clean:
 	@echo "Deleting cluser..."
