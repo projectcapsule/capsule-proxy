@@ -275,6 +275,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	}
 }
 
+//nolint:funlen
 func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.Use(handlers.RecoveryHandler())
@@ -306,8 +307,16 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 			tlsConfig := &tls.Config{
 				MinVersion: tls.VersionTLS12,
 				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
-				ClientAuth: tls.VerifyClientCertIfGiven,
 			}
+
+			for _, authType := range n.authTypes {
+				if authType == req.TLSCertificate {
+					tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
+
+					break
+				}
+			}
+
 			srv = &http.Server{
 				Handler:   r,
 				Addr:      addr,
