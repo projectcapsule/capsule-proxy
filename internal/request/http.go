@@ -30,18 +30,12 @@ func (h http) GetHTTPRequest() *h.Request {
 
 //nolint:funlen
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
-	switch h.getAuthType() {
-	case TLSCertificate:
-		pc := h.TLS.PeerCertificates
-		if len(pc) == 0 {
-			return "", nil, fmt.Errorf("no provided peer certificates")
+	for _, fn := range h.authenticationFns() {
+		// User authentication data is extracted according to the preferred order:
+		// in case of first match blocking the iteration
+		if username, groups, err = fn(); err == nil {
+			break
 		}
-
-		username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
-	case BearerToken:
-		username, groups, err = h.processBearerToken()
-	case Anonymous:
-		return "", nil, fmt.Errorf("unauthenticated users not supported")
 	}
 	// In case of error, we're blocking the request flow here
 	if err != nil {
@@ -106,10 +100,9 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 }
 
 func (h http) processBearerToken() (username string, groups []string, err error) {
-	token := h.bearerToken()
 	tr := &authenticationv1.TokenReview{
 		Spec: authenticationv1.TokenReviewSpec{
-			Token: token,
+			Token: h.bearerToken(),
 		},
 	}
 
@@ -128,20 +121,38 @@ func (h http) bearerToken() string {
 	return strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
 }
 
-func (h http) getAuthType() AuthType {
+type authenticationFn func() (username string, groups []string, err error)
+
+func (h http) authenticationFns() []authenticationFn {
+	fns := make([]authenticationFn, 0, len(h.authTypes)+1)
+
 	for _, authType := range h.authTypes {
 		// nolint:exhaustive
 		switch authType {
 		case BearerToken:
-			if len(h.bearerToken()) > 0 {
-				return BearerToken
-			}
+			fns = append(fns, func() (username string, groups []string, err error) {
+				if len(h.bearerToken()) == 0 {
+					return "", nil, NewErrUnauthorized("unauthenticated users not supported")
+				}
+
+				return h.processBearerToken()
+			})
 		case TLSCertificate:
-			if (h.TLS != nil) && len(h.TLS.PeerCertificates) > 0 {
-				return TLSCertificate
-			}
+			fns = append(fns, func() (username string, groups []string, err error) {
+				if pc := h.TLS.PeerCertificates; len(pc) == 0 {
+					err = NewErrUnauthorized("no provided peer certificates")
+				} else {
+					username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
+				}
+
+				return
+			})
 		}
 	}
+	// Dead man switch, if no strategy worked, the proxy cannot work
+	fns = append(fns, func() (string, []string, error) {
+		return "", nil, NewErrUnauthorized("unauthenticated users not supported")
+	})
 
-	return Anonymous
+	return fns
 }
