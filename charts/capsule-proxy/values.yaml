@@ -63,6 +63,8 @@ options:
   SSLKeyFileName: tls.key
   # -- Specify if capsule-proxy will generate self-signed SSL certificates
   generateCertificates: true
+  # -- Specify additional subject alternative names for the self-signed SSL
+  additionalSANs: []
   # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/clastix/capsule-proxy/issues/174)
   rolebindingsResyncPeriod: 10h
   # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector
