@@ -29,7 +29,7 @@ spec:
         imagePullPolicy: {{ .Values.jobs.certs.pullPolicy }}
         args:
             - create
-            - --host={{ include "capsule-proxy.fullname" . }}.{{.Release.Namespace}}.svc,{{ include "capsule-proxy.fullname" . }}
+            - --host={{ include "capsule-proxy.certJob.SAN" . }}
             - --namespace=$(NAMESPACE)
             - --secret-name={{ include "capsule-proxy.fullname" . }}
             - --cert-name={{ .Values.options.SSLCertFileName }}

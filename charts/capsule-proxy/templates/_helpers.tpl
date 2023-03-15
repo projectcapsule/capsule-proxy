@@ -96,3 +96,14 @@ Create Cert Manager issuer name for the capsule proxy
 {{- printf "%s-ca-issuer" (include "capsule-proxy.fullname" .) -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Render the CLI flag --host values for the self-signed certificate generator
+*/}}
+{{- define "capsule-proxy.certJob.SAN" -}}
+{{- $name := ( include "capsule-proxy.fullname" . ) -}}
+{{- $fullname := printf "%s.%s.svc" ( include "capsule-proxy.fullname" . ) ( .Release.Namespace ) -}}
+{{- $values := append .Values.options.additionalSANs $name -}}
+{{- $values = append $values $fullname -}}
+{{ join "," $values }}
+{{- end -}}
