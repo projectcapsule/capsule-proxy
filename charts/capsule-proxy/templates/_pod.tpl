@@ -28,7 +28,7 @@ spec:
   volumes:
   - name: certs
     secret:
-      secretName: {{ include "capsule-proxy.fullname" . }}
+      secretName: {{ .Values.options.certificateVolumeName | default  (include "capsule-proxy.fullname" .) }}
       defaultMode: 420
   {{- end }}
   {{- with .Values.topologySpreadConstraints }}
