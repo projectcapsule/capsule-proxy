@@ -139,6 +139,12 @@ func (h http) authenticationFns() []authenticationFn {
 				return h.processBearerToken()
 			})
 		case TLSCertificate:
+			// If the proxy is handling a non TLS connection, we have to skip the authentication strategy,
+			// since the TLS section of the request would be nil.
+			if h.TLS == nil {
+				break
+			}
+
 			fns = append(fns, func() (username string, groups []string, err error) {
 				if pc := h.TLS.PeerCertificates; len(pc) == 0 {
 					err = NewErrUnauthorized("no provided peer certificates")
