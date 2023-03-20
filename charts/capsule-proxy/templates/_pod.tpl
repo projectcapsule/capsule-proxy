@@ -51,6 +51,7 @@ spec:
     - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
     - --rolebindings-resync-period={{ .Values.options.rolebindingsResyncPeriod }}
     - --disable-caching={{ .Values.options.disableCaching }}
+    - --auth-preferred-types={{ .Values.options.authPreferredTypes }}
     {{- if .Values.options.enableSSL }}
     - --ssl-cert-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLCertFileName }}
     - --ssl-key-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLKeyFileName }}

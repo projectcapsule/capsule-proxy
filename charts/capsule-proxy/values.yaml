@@ -71,6 +71,8 @@ options:
   rolebindingsResyncPeriod: 10h
   # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector
   disableCaching: false
+  # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
+  authPreferredTypes: "BearerToken,TLSCertificate"
 
 certManager:
   # -- Set if the cert manager will generate SSL certificates (self-signed or CA-signed)
