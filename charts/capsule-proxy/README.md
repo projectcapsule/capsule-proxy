@@ -104,10 +104,10 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.SSLDirectory | string | `"/opt/capsule-proxy"` | Set the directory, where SSL certificate and keyfile will be located |
 | options.SSLKeyFileName | string | `"tls.key"` | Set the name of SSL key file |
 | options.additionalSANs | list | `[]` | Specify additional subject alternative names for the self-signed SSL |
+| options.authPreferredTypes | string | `"BearerToken,TLSCertificate"` | Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate] |
 | options.capsuleConfigurationName | string | `"default"` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups |
 | options.certificateVolumeName | string | `""` | Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate. |
 | options.disableCaching | bool | `false` | Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector |
-| options.authPreferredTypes | string | `BearerToken,TLSCertificate` | Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate] |
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
 | options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
