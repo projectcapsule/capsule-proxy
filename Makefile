@@ -70,7 +70,7 @@ else
 	@echo "Running in HTTPS mode"
 	@echo "capsule proxy certificates..."
 	cd hack && $(MKCERT) -install && $(MKCERT) 127.0.0.1  \
-		&& kubectl --namespace capsule-system create secret tls capsule-proxy --key=./127.0.0.1-key.pem --cert ./127.0.0.1.pem
+		&& kubectl --namespace capsule-system create secret generic capsule-proxy --from-file=tls.key=./127.0.0.1-key.pem --from-file=tls.crt=./127.0.0.1.pem --from-literal=ca=$$(cat $(ROOTCA) | base64 |tr -d '\n')
 	@echo "kubeconfig configurations..."
 	@cd hack \
 		&& curl -s https://raw.githubusercontent.com/clastix/capsule/master/hack/create-user.sh | bash -s -- alice oil capsule.clastix.io \
