@@ -32,7 +32,7 @@ metadata:
 spec:
   ca:
     secretName: {{ include "capsule-proxy.caSecretName" . }}
-  {{- end }}    
+  {{- end }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -45,6 +45,7 @@ spec:
   - {{ $hosts.host }}
     {{- end }}
   {{- end }}
+  uris:
   - {{ include "capsule-proxy.fullname" . }}
   - {{ include "capsule-proxy.fullname" . }}.{{ .Release.Namespace }}.svc
   issuerRef:
