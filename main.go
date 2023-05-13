@@ -203,7 +203,7 @@ First match is used and can be specified multiple times as comma separated value
 	if err = (&controllers.CapsuleConfiguration{
 		CapsuleConfigurationName:    capsuleConfigurationName,
 		DeprecatedCapsuleUserGroups: capsuleUserGroups,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(ctx, mgr); err != nil {
 		log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
 		os.Exit(1)
 	}

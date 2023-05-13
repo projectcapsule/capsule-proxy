@@ -5,8 +5,11 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
+	"github.com/pkg/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,11 +28,19 @@ type CapsuleConfiguration struct {
 //nolint
 var CapsuleUserGroups sets.String
 
-func (c *CapsuleConfiguration) SetupWithManager(mgr ctrl.Manager) error {
+func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	if len(c.DeprecatedCapsuleUserGroups) > 0 {
 		CapsuleUserGroups = sets.NewString(c.DeprecatedCapsuleUserGroups...)
 
 		return nil
+	}
+
+	if err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Name: c.CapsuleConfigurationName}, &capsulev1beta2.CapsuleConfiguration{}); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return fmt.Errorf("CapsuleConfiguration %s does not exist", c.CapsuleConfigurationName)
+		}
+
+		return errors.Wrap(err, "unable to retrieve CapsuleConfiguration")
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
