@@ -1,6 +1,6 @@
 module github.com/clastix/capsule-proxy
 
-go 1.18
+go 1.19
 
 require (
 	github.com/clastix/capsule v0.3.0
