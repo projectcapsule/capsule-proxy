@@ -20,4 +20,4 @@ jobs:
         with:
           version: v1.51.2
           only-new-issues: false
-          args: --timeout 2m --config .golangci.yml
+          args: --timeout 5m --config .golangci.yml
