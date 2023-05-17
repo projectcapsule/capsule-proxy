@@ -2,23 +2,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "{{ .Release.Name }}-certgen"
   name: {{ include "capsule-proxy.fullname" . }}-certgen
   labels:
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion }}
-    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
   ttlSecondsAfterFinished: 60
   template:
     metadata:
-      name: "{{ .Release.Name }}-certgen"
       name: {{ include "capsule-proxy.fullname" . }}-certgen
       labels:
-        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
-        app.kubernetes.io/instance: {{ .Release.Name | quote }}
-        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
     spec:
       restartPolicy: Never
       {{- with $.Values.jobs.podSecurityContext }}
