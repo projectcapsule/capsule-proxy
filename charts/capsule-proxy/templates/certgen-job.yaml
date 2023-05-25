@@ -22,10 +22,6 @@ spec:
       - name: post-install-job
         image: {{ include "capsule.jobs.certsFullyQualifiedDockerImage" $ }}
         imagePullPolicy: {{ .Values.jobs.certs.pullPolicy }}
-        {{- with $.Values.imagePullSecrets }}
-        imagePullSecrets:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
         args:
             - create
             - --host={{ include "capsule-proxy.certJob.SAN" . }}
@@ -42,5 +38,9 @@ spec:
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}        
       serviceAccountName: {{ include "capsule-proxy.serviceAccountName" . }}
 {{- end }}
