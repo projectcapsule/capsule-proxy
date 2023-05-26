@@ -4,13 +4,10 @@
 package priorityclass
 
 import (
-	"fmt"
-
 	"github.com/go-logr/logr"
-	"github.com/gorilla/mux"
 	schedulingv1 "k8s.io/api/scheduling/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,10 +22,18 @@ import (
 type list struct {
 	client client.Reader
 	log    logr.Logger
+	gk     schema.GroupKind
 }
 
 func List(client client.Reader) modules.Module {
-	return &list{client: client, log: ctrl.Log.WithName("priorityclass_list")}
+	return &list{
+		client: client,
+		log:    ctrl.Log.WithName("priorityclass_list"),
+		gk: schema.GroupKind{
+			Group: schedulingv1.GroupName,
+			Kind:  "priorityclasses",
+		},
+	}
 }
 
 func (l list) Path() string {
@@ -47,18 +52,16 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 		return utils.HandleListSelector(selectorsMatch)
 	}
 
-	kind := mux.Vars(httpRequest)["endpoint"]
-
 	sc := &schedulingv1.PriorityClassList{}
 	if err = l.client.List(httpRequest.Context(), sc); err != nil {
-		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Group: schedulingv1.GroupName, Kind: kind})
+		return nil, errors.NewBadRequest(err, l.gk)
 	}
 
 	var r *labels.Requirement
 
 	if r, err = getPriorityClassSelector(sc, exactMatch, regexMatch); err != nil {
 		if !allowed {
-			return nil, errors.NewBadRequest(fmt.Errorf("not allowed"), &metav1.StatusDetails{Group: schedulingv1.GroupName, Kind: kind})
+			return nil, errors.NewNotAllowed(l.gk)
 		}
 
 		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})

@@ -4,9 +4,11 @@
 package errors
 
 import (
+	"fmt"
 	"net/http"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type notFoundError struct {
@@ -14,8 +16,17 @@ type notFoundError struct {
 	details *metav1.StatusDetails
 }
 
-func NewNotFoundError(message string, details *metav1.StatusDetails) error {
-	return &notFoundError{message: message, details: details}
+func NewNotFoundError(name string, gk schema.GroupKind) error {
+	message := fmt.Sprintf("%s.%s %q not found", gk.Kind, gk.Group, name)
+
+	return &notFoundError{
+		message: message,
+		details: &metav1.StatusDetails{
+			Name:  name,
+			Group: gk.Group,
+			Kind:  gk.Kind,
+		},
+	}
 }
 
 func (e notFoundError) Error() string {
