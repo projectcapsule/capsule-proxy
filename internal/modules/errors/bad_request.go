@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type badRequest struct {
@@ -14,8 +15,14 @@ type badRequest struct {
 	details *metav1.StatusDetails
 }
 
-func NewBadRequest(message error, details *metav1.StatusDetails) error {
-	return &badRequest{message: message.Error(), details: details}
+func NewBadRequest(message error, gk schema.GroupKind) error {
+	return &badRequest{
+		message: message.Error(),
+		details: &metav1.StatusDetails{
+			Group: gk.Group,
+			Kind:  gk.Kind,
+		},
+	}
 }
 
 func (b badRequest) Error() string {

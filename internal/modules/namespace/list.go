@@ -7,8 +7,9 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -22,10 +23,18 @@ import (
 type list struct {
 	roleBindingsReflector *controllers.RoleBindingReflector
 	log                   logr.Logger
+	gk                    schema.GroupKind
 }
 
 func List(roleBindingsReflector *controllers.RoleBindingReflector) modules.Module {
-	return &list{roleBindingsReflector: roleBindingsReflector, log: ctrl.Log.WithName("namespace_list")}
+	return &list{
+		roleBindingsReflector: roleBindingsReflector,
+		log:                   ctrl.Log.WithName("namespace_list"),
+		gk: schema.GroupKind{
+			Group: corev1.GroupName,
+			Kind:  "namespaces",
+		},
+	}
 }
 
 func (l list) Path() string {
@@ -42,7 +51,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	if l.roleBindingsReflector != nil {
 		userNamespaces, err = l.roleBindingsReflector.GetUserNamespacesFromRequest(proxyRequest)
 		if err != nil {
-			return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "namespaces"})
+			return nil, errors.NewBadRequest(err, l.gk)
 		}
 	} else {
 		for _, tnt := range proxyTenants {
@@ -60,7 +69,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	}
 
 	if err != nil {
-		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "namespaces"})
+		return nil, errors.NewBadRequest(err, l.gk)
 	}
 
 	return labels.NewSelector().Add(*r), nil

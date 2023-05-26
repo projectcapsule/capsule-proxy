@@ -4,13 +4,11 @@
 package priorityclass
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	schedulingv1 "k8s.io/api/scheduling/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,10 +24,18 @@ import (
 type get struct {
 	client client.Reader
 	log    logr.Logger
+	gk     schema.GroupKind
 }
 
 func Get(client client.Reader) modules.Module {
-	return &get{client: client, log: ctrl.Log.WithName("priorityclass_get")}
+	return &get{
+		client: client,
+		log:    ctrl.Log.WithName("priorityclass_get"),
+		gk: schema.GroupKind{
+			Group: schedulingv1.GroupName,
+			Kind:  "priorityclasses",
+		},
+	}
 }
 
 func (g get) Path() string {
@@ -43,29 +49,18 @@ func (g get) Methods() []string {
 func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
 
-	name, kind := mux.Vars(httpRequest)["name"], mux.Vars(httpRequest)["endpoint"]
+	name := mux.Vars(httpRequest)["name"]
 
 	_, exactMatch, regexMatch, requirements := getPriorityClass(httpRequest, proxyTenants)
 	if len(requirements) > 0 {
 		pc := &schedulingv1.PriorityClass{}
-		pc.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   schedulingv1.GroupName,
-			Version: schedulingv1.SchemeGroupVersion.Version,
-			Kind:    kind,
-		})
 
-		return utils.HandleGetSelector(httpRequest.Context(), pc, g.client, requirements, name, kind)
+		return utils.HandleGetSelector(httpRequest.Context(), pc, g.client, requirements, name, g.gk)
 	}
 
 	sc := &schedulingv1.PriorityClassList{}
 	if err = g.client.List(httpRequest.Context(), sc, client.MatchingLabels{"name": name}); err != nil {
-		return nil, errors.NewBadRequest(
-			err,
-			&metav1.StatusDetails{
-				Group: schedulingv1.GroupName,
-				Kind:  kind,
-			},
-		)
+		return nil, errors.NewBadRequest(err, g.gk)
 	}
 
 	var r *labels.Requirement
@@ -75,19 +70,8 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	case err == nil:
 		return labels.NewSelector().Add(*r), nil
 	case httpRequest.Method == http.MethodGet:
-		return nil, g.notFound(name, kind)
+		return nil, errors.NewNotFoundError(name, g.gk)
 	default:
 		return nil, nil
 	}
-}
-
-func (g get) notFound(name, kind string) error {
-	return errors.NewNotFoundError(
-		fmt.Sprintf("%s.%s %q not found", kind, schedulingv1.GroupName, name),
-		&metav1.StatusDetails{
-			Name:  name,
-			Group: schedulingv1.GroupName,
-			Kind:  kind,
-		},
-	)
 }

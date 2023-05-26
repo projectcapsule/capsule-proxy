@@ -23,12 +23,21 @@ type get struct {
 	client   client.Reader
 	log      logr.Logger
 	labelKey string
+	gk       schema.GroupKind
 }
 
 func Get(client client.Reader) modules.Module {
 	label, _ := capsulev1beta2.GetTypeLabel(&capsulev1beta2.Tenant{})
 
-	return &get{client: client, log: ctrl.Log.WithName("persistentvolumes_get"), labelKey: label}
+	return &get{
+		client:   client,
+		log:      ctrl.Log.WithName("persistentvolume_get"),
+		labelKey: label,
+		gk: schema.GroupKind{
+			Group: corev1.GroupName,
+			Kind:  "persistentvolumes",
+		},
+	}
 }
 
 func (g get) Path() string {
@@ -42,16 +51,11 @@ func (g get) Methods() []string {
 func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
 
-	name, kind := mux.Vars(httpRequest)["name"], mux.Vars(httpRequest)["endpoint"]
+	name := mux.Vars(httpRequest)["name"]
 
 	_, requirement := getPersistentVolume(httpRequest, proxyTenants, g.labelKey)
 
 	rc := &corev1.PersistentVolume{}
-	rc.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "",
-		Version: corev1.SchemeGroupVersion.Version,
-		Kind:    kind,
-	})
 
-	return utils.HandleGetSelector(httpRequest.Context(), rc, g.client, []labels.Requirement{requirement}, name, kind)
+	return utils.HandleGetSelector(httpRequest.Context(), rc, g.client, []labels.Requirement{requirement}, name, g.gk)
 }

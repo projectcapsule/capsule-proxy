@@ -7,8 +7,8 @@ import (
 	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,10 +24,18 @@ import (
 type get struct {
 	client client.Reader
 	log    logr.Logger
+	gk     schema.GroupKind
 }
 
 func Get(client client.Reader) modules.Module {
-	return &get{client: client, log: ctrl.Log.WithName("node_get")}
+	return &get{
+		client: client,
+		log:    ctrl.Log.WithName("node_get"),
+		gk: schema.GroupKind{
+			Group: corev1.GroupName,
+			Kind:  "nodes",
+		},
+	}
 }
 
 func (g get) Path() string {
@@ -81,7 +89,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	node := &corev1.Node{}
 	if err = g.client.Get(httpRequest.Context(), types.NamespacedName{Name: name}, node); err != nil {
-		return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "nodes"})
+		return nil, errors.NewBadRequest(err, g.gk)
 	}
 
 	for _, sel := range selectors {

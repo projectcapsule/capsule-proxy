@@ -5,37 +5,20 @@ package utils
 
 import (
 	"context"
-	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/clastix/capsule-proxy/internal/modules/errors"
 )
 
-func HandleGetSelector(ctx context.Context, obj client.Object, client client.Reader, requirements []labels.Requirement, name, kind string) (labels.Selector, error) {
-	nf := func() error {
-		group := obj.GetObjectKind().GroupVersionKind().Group
-		if len(group) > 0 {
-			group = fmt.Sprintf(".%s", group)
-		}
-
-		return errors.NewNotFoundError(
-			fmt.Sprintf("%s%s %q not found", kind, group, name),
-			&metav1.StatusDetails{
-				Name:  name,
-				Group: obj.GetObjectKind().GroupVersionKind().Group,
-				Kind:  kind,
-			},
-		)
-	}
-
+func HandleGetSelector(ctx context.Context, obj client.Object, client client.Reader, requirements []labels.Requirement, name string, gv schema.GroupKind) (labels.Selector, error) {
 	if err := client.Get(ctx, types.NamespacedName{Name: name}, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nf()
+			return nil, errors.NewNotFoundError(name, gv)
 		}
 
 		return nil, err
@@ -48,7 +31,7 @@ func HandleGetSelector(ctx context.Context, obj client.Object, client client.Rea
 	}
 
 	if !selector.Matches(labels.Set(obj.GetLabels())) {
-		return nil, nf()
+		return nil, errors.NewNotFoundError(name, gv)
 	}
 
 	return selector, nil

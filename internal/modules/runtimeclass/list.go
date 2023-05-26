@@ -4,13 +4,10 @@
 package runtimeclass
 
 import (
-	"fmt"
-
 	"github.com/go-logr/logr"
-	"github.com/gorilla/mux"
 	nodev1 "k8s.io/api/node/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,10 +22,18 @@ import (
 type list struct {
 	client client.Reader
 	log    logr.Logger
+	gk     schema.GroupKind
 }
 
 func List(client client.Reader) modules.Module {
-	return &list{client: client, log: ctrl.Log.WithName("runtimeclass_list")}
+	return &list{
+		client: client,
+		log:    ctrl.Log.WithName("runtimeclass_list"),
+		gk: schema.GroupKind{
+			Group: nodev1.GroupName,
+			Kind:  "runtimeclasses",
+		},
+	}
 }
 
 func (l list) Path() string {
@@ -42,11 +47,9 @@ func (l list) Methods() []string {
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	httpRequest := proxyRequest.GetHTTPRequest()
 
-	kind := mux.Vars(httpRequest)["endpoint"]
-
 	allowed, selectorsMatch := getRuntimeClass(httpRequest, proxyTenants)
 	if !allowed {
-		return nil, errors.NewBadRequest(fmt.Errorf("not allowed"), &metav1.StatusDetails{Group: nodev1.GroupName, Kind: kind})
+		return nil, errors.NewNotAllowed(l.gk)
 	}
 
 	if len(selectorsMatch) == 0 {

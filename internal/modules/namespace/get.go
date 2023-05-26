@@ -4,7 +4,6 @@
 package namespace
 
 import (
-	"fmt"
 	"net/http"
 
 	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
@@ -12,8 +11,8 @@ import (
 	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,6 +30,7 @@ type get struct {
 	client       client.Reader
 	log          logr.Logger
 	rbReflector  *controllers.RoleBindingReflector
+	gk           schema.GroupKind
 }
 
 func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.Reader) modules.Module {
@@ -41,6 +41,10 @@ func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.
 		client:       client,
 		log:          ctrl.Log.WithName("namespace_get"),
 		rbReflector:  roleBindingsReflector,
+		gk: schema.GroupKind{
+			Group: corev1.GroupName,
+			Kind:  "namespaces",
+		},
 	}
 }
 
@@ -62,7 +66,7 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	}
 	// Returning a not found if the Namespace is not owned by a Tenant resource.
 	if len(ns.GetOwnerReferences()) == 0 || ns.GetOwnerReferences()[0].Kind != "Tenant" {
-		return nil, l.notFound(name)
+		return nil, errors.NewNotFoundError(name, l.gk)
 	}
 	// Extracting the Tenant name from the owner reference:
 	// in some scenarios Capsule could lag in reconciling the Tenant resources as performing the Namespace metadata
@@ -80,23 +84,15 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	// in case of rolebinding reflector, using the local cache.
 	if l.rbReflector != nil {
 		if userNamespaces, err = l.rbReflector.GetUserNamespacesFromRequest(proxyRequest); err != nil {
-			return nil, errors.NewBadRequest(err, &metav1.StatusDetails{Kind: "namespaces"})
+			return nil, errors.NewBadRequest(err, l.gk)
 		}
 
 		if !sets.NewString(userNamespaces...).Has(name) {
-			return nil, l.notFound(name)
+			return nil, errors.NewNotFoundError(name, l.gk)
 		}
 	} else if !tenants.Has(tntName) {
-		return nil, l.notFound(name)
+		return nil, errors.NewNotFoundError(name, l.gk)
 	}
 
 	return labels.NewSelector(), nil
-}
-
-func (l get) notFound(name string) error {
-	return errors.NewNotFoundError(fmt.Sprintf("namespace %q not found", name), &metav1.StatusDetails{
-		Name:  name,
-		Group: "v1",
-		Kind:  "namespaces",
-	})
 }
