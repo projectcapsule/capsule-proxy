@@ -52,19 +52,18 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 		return utils.HandleListSelector(selectorsMatch)
 	}
 
-	var ic client.ObjectList
-
-	if ic, err = getIngressClassListFromRequest(httpRequest); err != nil {
+	icl, err := getIngressClassListFromRequest(httpRequest)
+	if err != nil {
 		return nil, errors.NewBadRequest(err, l.gk)
 	}
 
-	if err = l.client.List(httpRequest.Context(), ic); err != nil {
+	if err = l.client.List(httpRequest.Context(), icl); err != nil {
 		return nil, errors.NewBadRequest(err, l.gk)
 	}
 
 	var r *labels.Requirement
 
-	if r, err = getIngressClassSelector(ic, exactMatch, regexMatch); err != nil {
+	if r, err = getIngressClassSelector(icl, exactMatch, regexMatch); err != nil {
 		if !allowed {
 			return nil, errors.NewNotAllowed(l.gk)
 		}
