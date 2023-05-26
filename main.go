@@ -57,6 +57,10 @@ func main() {
 
 	var rolebindingsResyncPeriod time.Duration
 
+	var clientConnectionQPS float32
+
+	var clientConnectionBurst int32
+
 	authTypes := []request.AuthType{
 		request.TLSCertificate,
 		request.BearerToken,
@@ -80,6 +84,8 @@ func main() {
 		`Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
 First match is used and can be specified multiple times as comma separated values or by using the flag multiple times.`)
 	flag.BoolVar(&disableCaching, "disable-caching", false, "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)")
+	flag.Float32Var(&clientConnectionQPS, "client-connection-qps", 20.0, "QPS to use for interacting with kubernetes apiserver.")
+	flag.Int32Var(&clientConnectionBurst, "client-connection-burst", 30, "Burst to use for interacting with kubernetes apiserver.")
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
@@ -122,7 +128,11 @@ First match is used and can be specified multiple times as comma separated value
 	log.Info("---")
 	log.Info("Creating the manager")
 
-	mgr, err = ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	config := ctrl.GetConfigOrDie()
+	config.QPS = clientConnectionQPS
+	config.Burst = int(clientConnectionBurst)
+
+	mgr, err = ctrl.NewManager(config, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: ":8081",
 	})
@@ -136,7 +146,7 @@ First match is used and can be specified multiple times as comma separated value
 	if !disableCaching {
 		log.Info("Creating the Rolebindings reflector")
 
-		if rbReflector, err = controllers.NewRoleBindingReflector(ctrl.GetConfigOrDie(), rolebindingsResyncPeriod); err != nil {
+		if rbReflector, err = controllers.NewRoleBindingReflector(config, rolebindingsResyncPeriod); err != nil {
 			log.Error(err, "cannot create Rolebindings reflector")
 			os.Exit(1)
 		}
@@ -174,14 +184,14 @@ First match is used and can be specified multiple times as comma separated value
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, ctrl.GetConfigOrDie()); err != nil {
+	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, config); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
 
 	var serverOpts options.ServerOptions
 
-	if serverOpts, err = options.NewServer(bindSsl, listeningPort, certPath, keyPath, ctrl.GetConfigOrDie()); err != nil {
+	if serverOpts, err = options.NewServer(bindSsl, listeningPort, certPath, keyPath, config); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
