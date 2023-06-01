@@ -73,6 +73,10 @@ options:
   disableCaching: false
   # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
   authPreferredTypes: "BearerToken,TLSCertificate"
+  # -- QPS to use for interacting with Kubernetes API Server.
+  clientConnectionQPS: 20
+  # -- Burst to use for interacting with kubernetes API Server.
+  clientConnectionBurst: 30
 
 certManager:
   # -- Set if the cert manager will generate SSL certificates (self-signed or CA-signed)
