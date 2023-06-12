@@ -56,6 +56,8 @@ spec:
     - --ssl-cert-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLCertFileName }}
     - --ssl-key-path={{ .Values.options.SSLDirectory }}/{{ .Values.options.SSLKeyFileName }}
     {{- end }}
+    - --client-connection-qps={{ .Values.options.clientConnectionQPS }}
+    - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
     ports:
     - name: proxy
       protocol: TCP
