@@ -26,9 +26,5 @@ func GetImpersonatingUser(request *nethttp.Request) string {
 }
 
 func GetImpersonatingGroups(request *nethttp.Request) []string {
-	if groups := request.Header.Get(authenticationv1.ImpersonateGroupHeader); len(groups) > 0 {
-		return strings.Split(groups, ",")
-	}
-
-	return nil
+	return request.Header.Values(authenticationv1.ImpersonateGroupHeader)
 }
