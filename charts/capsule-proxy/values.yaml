@@ -45,8 +45,6 @@ options:
   listeningPort: 9001
   # -- Set the log verbosity of the capsule-proxy with a value from 1 to 10
   logLevel: '4'
-  # -- Set the URL of kubernetes control plane
-  k8sControlPlaneUrl: https://kubernetes.default.svc
   # -- Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups
   capsuleConfigurationName: default
   # -- Define which groups must be ignored while proxying requests
