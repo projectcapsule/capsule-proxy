@@ -20,6 +20,12 @@ jobs:
     # -- Set the image tag of the post install certgen job
     tag: "v1.3.0"
 
+  # -- Annotations to add to the certgen job.
+  annotations: {}
+
+  # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
+  ttlSecondsAfterFinished: 60
+
   # -- Security context for the job pods.
   podSecurityContext:
     seccompProfile:

@@ -5,8 +5,14 @@ metadata:
   name: {{ include "capsule-proxy.fullname" . }}-certgen
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
+  {{- with .Values.jobs.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
-  ttlSecondsAfterFinished: 60
+  {{- if ge .Values.jobs.ttlSecondsAfterFinished 0.0 }}
+  ttlSecondsAfterFinished: {{ .Values.jobs.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       name: {{ include "capsule-proxy.fullname" . }}-certgen
