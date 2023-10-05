@@ -72,11 +72,13 @@ If you only need to make minor customizations, you can specify them on the comma
 | image.repository | string | `"clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
+| jobs.annotations | object | `{}` | Annotations to add to the certgen job. |
 | jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
 | jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
 | jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
 | jobs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | jobs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
+| jobs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
 | kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
