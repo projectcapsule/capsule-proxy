@@ -8,6 +8,10 @@ This project is an add-on for [Capsule](https://github.com/projectcapsule/capsul
 
 You can find more detailed documentation [here](https://capsule.clastix.io/docs/general/proxy).
 
+## Maintainers
+
+Please, refer to the maintainers file available [here](.github/maintainers.yaml).
+
 ## Contributions
 
 This is an open-source software released with Apache2 [license](./LICENSE). Feel free to open issues and pull requests. You're welcome!
