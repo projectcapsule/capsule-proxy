@@ -1,6 +1,6 @@
 # Capsule Proxy
 
-This project is an add-on for [Capsule](https://github.com/clastix/capsule), the operator providing multi-tenancy in Kubernetes.
+This project is an add-on for [Capsule](https://github.com/projectcapsule/capsule), the operator providing multi-tenancy in Kubernetes.
 
 `capsule-proxy` allows to overcome the limitations of Kubernetes API Server on listing owned cluster-scoped resources, like Namespace, Ingress and Storage Classes, Nodes, and others covered by Capsule.
 
