@@ -14,11 +14,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-proxy/internal/modules"
-	"github.com/clastix/capsule-proxy/internal/modules/errors"
-	"github.com/clastix/capsule-proxy/internal/modules/utils"
-	"github.com/clastix/capsule-proxy/internal/request"
-	"github.com/clastix/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/modules"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
 type get struct {

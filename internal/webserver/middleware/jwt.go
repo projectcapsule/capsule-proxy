@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-proxy/internal/webserver/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 )
 
 func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {

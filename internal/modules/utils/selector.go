@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-proxy/internal/modules/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 )
 
 func HandleGetSelector(ctx context.Context, obj client.Object, client client.Reader, requirements []labels.Requirement, name string, gv schema.GroupKind) (labels.Selector, error) {

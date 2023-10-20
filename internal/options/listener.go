@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/clastix/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
 type ListenerOpts interface {

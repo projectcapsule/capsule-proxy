@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
 func getPersistentVolume(req *http.Request, proxyTenants []*tenant.ProxyTenant, label string) (allowed bool, requirements labels.Requirement) {

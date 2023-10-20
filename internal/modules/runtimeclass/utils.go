@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/clastix/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
 func getRuntimeClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (allowed bool, requirements []labels.Requirement) {

@@ -8,9 +8,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/clastix/capsule-proxy/internal/modules"
-	"github.com/clastix/capsule-proxy/internal/request"
-	"github.com/clastix/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/modules"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
 type post struct{}

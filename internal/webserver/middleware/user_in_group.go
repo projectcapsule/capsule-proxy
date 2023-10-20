@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-proxy/internal/controllers"
-	req "github.com/clastix/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	req "github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
 func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.String, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
