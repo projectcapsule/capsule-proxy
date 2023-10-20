@@ -5,7 +5,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: capsule-proxy
-repo: github.com/clastix/capsule-proxy
+repo: github.com/projectcapsule/capsule-proxy
 resources:
 - api:
     crdVersion: v1
@@ -14,6 +14,6 @@ resources:
   domain: clastix.io
   group: capsule
   kind: ProxySettings
-  path: github.com/clastix/capsule-proxy/api/v1beta1
+  path: github.com/projectcapsule/capsule-proxy/api/v1beta1
   version: v1beta1
 version: "3"
