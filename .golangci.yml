@@ -5,7 +5,7 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/clastix/capsule-proxy)
+      - prefix(github.com/projectcapsule/capsule-proxy)
   dupl:
     threshold: 100
   goconst:
