@@ -71,7 +71,7 @@ options:
   additionalSANs: []
   # -- Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate.
   certificateVolumeName: ""
-  # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/clastix/capsule-proxy/issues/174)
+  # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174)
   rolebindingsResyncPeriod: 10h
   # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector
   disableCaching: false
