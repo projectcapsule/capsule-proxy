@@ -5,7 +5,7 @@ name: capsule-proxy
 type: application
 version: 0.5.0
 home: https://github.com/projectcapsule/capsule-proxy
-icon: https://github.com/clastix/capsule/raw/master/assets/logo/capsule_small.png
+icon: https://github.com/projectcapsule/capsule/raw/master/assets/logo/capsule_small.png
 keywords:
 - kubernetes
 - operator
