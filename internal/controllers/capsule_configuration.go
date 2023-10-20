@@ -25,7 +25,7 @@ type CapsuleConfiguration struct {
 	DeprecatedCapsuleUserGroups []string
 }
 
-// nolint
+//nolint:gochecknoglobals
 var CapsuleUserGroups sets.String
 
 func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
