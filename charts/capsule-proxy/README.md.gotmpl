@@ -1,12 +1,12 @@
 # Deploying the Capsule-proxy
 
-This project is an add-on for [Capsule](https://github.com/clastix/capsule), the operator providing multi-tenancy in Kubernetes.
+This project is an add-on for [Capsule](https://github.com/projectcapsule/capsule), the operator providing multi-tenancy in Kubernetes.
 
 ## Requirements
 
 * [Helm 3](https://github.com/helm/helm/releases) is required when installing the Capsule-proxy chart. Follow Helm’s official [steps](https://helm.sh/docs/intro/install/) for installing helm on your particular operating system.
 
-* A Kubernetes cluster 1.16+ with [Capsule](https://github.com/clastix/capsule) installed and following [Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/) enabled:
+* A Kubernetes cluster 1.16+ with [Capsule](https://github.com/projectcapsule/capsule) installed and following [Admission Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/) enabled:
 
     * PodNodeSelector
     * LimitRanger
