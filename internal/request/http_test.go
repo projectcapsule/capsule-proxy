@@ -15,7 +15,7 @@ import (
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
 type testClient func(ctx context.Context, obj client.Object) error

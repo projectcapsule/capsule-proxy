@@ -8,7 +8,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-proxy/api/v1beta1"
+	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 )
 
 const (

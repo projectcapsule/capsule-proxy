@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 
-	"github.com/clastix/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
 type kubeOpts struct {

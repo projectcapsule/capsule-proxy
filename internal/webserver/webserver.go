@@ -27,26 +27,26 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/clastix/capsule-proxy/api/v1beta1"
-	"github.com/clastix/capsule-proxy/internal/controllers"
-	"github.com/clastix/capsule-proxy/internal/indexer"
-	"github.com/clastix/capsule-proxy/internal/modules"
-	moderrors "github.com/clastix/capsule-proxy/internal/modules/errors"
-	"github.com/clastix/capsule-proxy/internal/modules/ingressclass"
-	"github.com/clastix/capsule-proxy/internal/modules/lease"
-	"github.com/clastix/capsule-proxy/internal/modules/metric"
-	"github.com/clastix/capsule-proxy/internal/modules/namespace"
-	"github.com/clastix/capsule-proxy/internal/modules/node"
-	"github.com/clastix/capsule-proxy/internal/modules/persistentvolume"
-	"github.com/clastix/capsule-proxy/internal/modules/pod"
-	"github.com/clastix/capsule-proxy/internal/modules/priorityclass"
-	"github.com/clastix/capsule-proxy/internal/modules/runtimeclass"
-	"github.com/clastix/capsule-proxy/internal/modules/storageclass"
-	"github.com/clastix/capsule-proxy/internal/options"
-	req "github.com/clastix/capsule-proxy/internal/request"
-	"github.com/clastix/capsule-proxy/internal/tenant"
-	server "github.com/clastix/capsule-proxy/internal/webserver/errors"
-	"github.com/clastix/capsule-proxy/internal/webserver/middleware"
+	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	"github.com/projectcapsule/capsule-proxy/internal/indexer"
+	"github.com/projectcapsule/capsule-proxy/internal/modules"
+	moderrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/ingressclass"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/lease"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/metric"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/namespace"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/node"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/persistentvolume"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/pod"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/priorityclass"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/runtimeclass"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/storageclass"
+	"github.com/projectcapsule/capsule-proxy/internal/options"
+	req "github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	server "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
 )
 
 func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader) (Filter, error) {
@@ -203,7 +203,7 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
 	}
 	// Dropping malicious header connection
-	// https://github.com/clastix/capsule-proxy/issues/188
+	// https://github.com/projectcapsule/capsule-proxy/issues/188
 	n.removingHopByHopHeaders(request)
 
 	request.Header.Add(authenticationv1.ImpersonateUserHeader, username)

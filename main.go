@@ -24,12 +24,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	capsuleproxyv1beta1 "github.com/clastix/capsule-proxy/api/v1beta1"
-	"github.com/clastix/capsule-proxy/internal/controllers"
-	"github.com/clastix/capsule-proxy/internal/indexer"
-	"github.com/clastix/capsule-proxy/internal/options"
-	"github.com/clastix/capsule-proxy/internal/request"
-	"github.com/clastix/capsule-proxy/internal/webserver"
+	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	"github.com/projectcapsule/capsule-proxy/internal/indexer"
+	"github.com/projectcapsule/capsule-proxy/internal/options"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/webserver"
 )
 
 //nolint:funlen,cyclop

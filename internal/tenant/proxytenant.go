@@ -8,7 +8,7 @@ import (
 
 	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 
-	"github.com/clastix/capsule-proxy/api/v1beta1"
+	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 )
 
 type ProxyTenant struct {

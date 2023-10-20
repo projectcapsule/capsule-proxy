@@ -13,11 +13,11 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/clastix/capsule-proxy/internal/controllers"
-	"github.com/clastix/capsule-proxy/internal/modules"
-	"github.com/clastix/capsule-proxy/internal/modules/errors"
-	"github.com/clastix/capsule-proxy/internal/request"
-	"github.com/clastix/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	"github.com/projectcapsule/capsule-proxy/internal/modules"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
 type list struct {

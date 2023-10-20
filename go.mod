@@ -1,4 +1,4 @@
-module github.com/clastix/capsule-proxy
+module github.com/projectcapsule/capsule-proxy
 
 go 1.19
 

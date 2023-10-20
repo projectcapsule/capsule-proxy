@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/clastix/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
 const subjectIndex = "subjectIndex"
