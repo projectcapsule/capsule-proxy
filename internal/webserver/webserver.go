@@ -62,7 +62,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 
 	return &kubeFilter{
 		reader:                clientOverride,
-		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
+		allowedPaths:          sets.NewString("/api", "/apis"),
 		authTypes:             opts.AuthTypes(),
 		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
 		reverseProxy:          reverseProxy,
