@@ -1,5 +1,9 @@
 {{- if .Values.autoscaling.enabled }}
+  {{- if semverCompare "<1.23-0" $.Capabilities.KubeVersion.Version }}
 apiVersion: autoscaling/v2beta1
+  {{- else }}
+apiVersion: autoscaling/v2
+  {{- end }}
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}
@@ -17,12 +21,24 @@ spec:
     - type: Resource
       resource:
         name: cpu
+        {{- if semverCompare "<1.23-0" $.Capabilities.KubeVersion.Version }}
         targetAverageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+        {{- else }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+        {{- end }}
     {{- end }}
     {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
+        {{- if semverCompare "<1.23-0" $.Capabilities.KubeVersion.Version }}
         targetAverageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+        {{- else }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+        {{- end }}
     {{- end }}
 {{- end }}
