@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/clastix/capsule v0.3.0
-	github.com/go-logr/logr v1.2.0
+	github.com/go-logr/logr v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/pkg/errors v0.9.1
