@@ -296,6 +296,36 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
+	// Allowing a non-authenticated proxy pass for the /version endpoint in case of anonymous auth.
+	// This is required since most of the Kubernetes distributions are exposing the version endpoint with not auth.
+	// If the proxy is used by an application, such as the Kubernetes dashboard, which is not adding an authentication
+	// strategy, this would fail since unable to extract the cluster version.
+	root.Path("/version").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer)
+
+		username, groups, err := hr.GetUserAndGroups()
+		if err != nil {
+			var t *req.ErrUnauthorized
+			if !errors.As(err, &t) {
+				server.HandleError(writer, err, "")
+			}
+		}
+		// Dropping malicious header connection
+		// https://github.com/projectcapsule/capsule-proxy/issues/188
+		n.removingHopByHopHeaders(request)
+
+		if len(username) > 0 {
+			if len(n.bearerToken) > 0 {
+				request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+			}
+
+			request.Header.Add(authenticationv1.ImpersonateUserHeader, username)
+
+			for _, group := range groups {
+				request.Header.Add(authenticationv1.ImpersonateGroupHeader, group)
+			}
+		}
+	})
 	root.Use(
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
