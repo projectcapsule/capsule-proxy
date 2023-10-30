@@ -61,10 +61,12 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
 		userOwnerKind = capsulev1beta2.ServiceAccountOwner
 
-		_, username, err = serviceaccount.SplitUsername(username)
-		if err != nil {
-			return nil, errors.Wrap(err, "Unable to parse serviceAccount name")
+		namespace, name, splitErr := serviceaccount.SplitUsername(username)
+		if splitErr != nil {
+			return nil, errors.Wrap(splitErr, "Unable to parse serviceAccount name")
 		}
+
+		username = fmt.Sprintf("%s-%s", namespace, name)
 	}
 
 	userRoleBindings, err = r.store.ByIndex(subjectIndex, fmt.Sprintf("%s-%s", userOwnerKind, username))
@@ -102,7 +104,15 @@ func OwnerRoleBindingsIndexFunc(obj interface{}) (result []string, err error) {
 	rb := obj.(*rbacv1.RoleBinding)
 
 	for _, subject := range rb.Subjects {
-		result = append(result, fmt.Sprintf("%s-%s", subject.Kind, subject.Name))
+		parts := []string{subject.Kind}
+
+		if len(subject.Namespace) > 0 {
+			parts = append(parts, subject.Namespace)
+		}
+
+		parts = append(parts, subject.Name)
+
+		result = append(result, strings.Join(parts, "-"))
 	}
 
 	return result, nil
