@@ -10,7 +10,6 @@ import (
 
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -42,33 +41,9 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 	if err != nil {
 		return "", nil, err
 	}
+
 	// In case the requester is asking for impersonation, we have to be sure that's allowed by creating a
 	// SubjectAccessReview with the requested data, before proceeding.
-	if impersonateUser := GetImpersonatingUser(h.Request); len(impersonateUser) > 0 {
-		ac := &authorizationv1.SubjectAccessReview{
-			Spec: authorizationv1.SubjectAccessReviewSpec{
-				ResourceAttributes: &authorizationv1.ResourceAttributes{
-					Verb:     "impersonate",
-					Resource: "users",
-					Name:     impersonateUser,
-				},
-				User:   username,
-				Groups: groups,
-			},
-		}
-		if err = h.client.Create(h.Request.Context(), ac); err != nil {
-			return "", nil, err
-		}
-
-		if !ac.Status.Allowed {
-			return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the user %s", username, impersonateUser))
-		}
-		// Assign impersonate user after group impersonation with current user
-		defer func() {
-			username = impersonateUser
-		}()
-	}
-
 	if impersonateGroups := GetImpersonatingGroups(h.Request); len(impersonateGroups) > 0 {
 		for _, impersonateGroup := range impersonateGroups {
 			ac := &authorizationv1.SubjectAccessReview{
@@ -89,12 +64,40 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 			if !ac.Status.Allowed {
 				return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the group %s", username, impersonateGroup))
 			}
-
-			if !sets.NewString(groups...).Has(impersonateGroup) {
-				// The current user is allowed to perform authentication, allowing the override
-				groups = append(groups, impersonateGroup)
-			}
 		}
+
+		defer func() {
+			groups = impersonateGroups
+		}()
+	}
+
+	if impersonateUser := GetImpersonatingUser(h.Request); len(impersonateUser) > 0 {
+		ac := &authorizationv1.SubjectAccessReview{
+			Spec: authorizationv1.SubjectAccessReviewSpec{
+				ResourceAttributes: &authorizationv1.ResourceAttributes{
+					Verb:     "impersonate",
+					Resource: "users",
+					Name:     impersonateUser,
+				},
+				User:   username,
+				Groups: groups,
+			},
+		}
+		if err = h.client.Create(h.Request.Context(), ac); err != nil {
+			return "", nil, err
+		}
+
+		if !ac.Status.Allowed {
+			return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the user %s", username, impersonateUser))
+		}
+
+		// Assign impersonate user after group impersonation with current user
+		// As defer func works in LIFO, if user is also impersonating groups, they will be set to correct value in the previous defer func.
+		// Otherwise, groups will be set to nil, meaning we are checking just user permissions.
+		defer func() {
+			username = impersonateUser
+			groups = nil
+		}()
 	}
 
 	return username, groups, nil
