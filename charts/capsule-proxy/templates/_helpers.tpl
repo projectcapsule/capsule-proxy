@@ -65,14 +65,14 @@ Create the name of the service account to use
 Create the fully-qualified Docker image to use
 */}}
 {{- define "capsule-proxy.fullyQualifiedDockerImage" -}}
-{{- printf "%s:%s" .Values.image.repository ( .Values.image.tag | default (printf "v%s" .Chart.AppVersion) ) -}}
+{{- printf "%s/%s:%s" .Values.image.registry .Values.image.repository ( .Values.image.tag | default (printf "v%s" .Chart.AppVersion) ) -}}
 {{- end }}
 
 {{/*
 Create the certs jobs fully-qualified Docker image to use
 */}}
 {{- define "capsule.jobs.certsFullyQualifiedDockerImage" -}}
-{{- printf "%s:%s" .Values.jobs.certs.repository .Values.jobs.certs.tag -}}
+{{- printf "%s/%s:%s" .Values.jobs.certs.registry .Values.jobs.certs.repository .Values.jobs.certs.tag -}}
 {{- end -}}
 
 {{/*
