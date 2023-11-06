@@ -69,12 +69,14 @@ If you only need to make minor customizations, you can specify them on the comma
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
-| image.repository | string | `"clastix/capsule-proxy"` | Set the image repository of the capsule-proxy. |
+| image.registry | string | `"ghcr.io"` | Set the image registry for capsule-proxy |
+| image.repository | string | `"projectcapsule/capsule-proxy"` | Set the image repository for capsule-proxy. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
 | jobs.annotations | object | `{}` | Annotations to add to the certgen job. |
 | jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
-| jobs.certs.repository | string | `"docker.io/jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
+| jobs.certs.registry | string | `"docker.io"` | Set the image repository of the post install certgen job |
+| jobs.certs.repository | string | `"jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
 | jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
 | jobs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | jobs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
@@ -138,7 +140,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | ingress.annotations | object | `{}` | Annotations to add to the capsule-proxy ingress. |
 | ingress.className | string | `""` | Set the IngressClass to use for the capsule-proxy ingress (do not set via annotations if setting here). |
 | ingress.enabled | bool | `false` | Specifies whether an ingress should be created. |
-| ingress.hosts[0] | object | `{"host":"kube.clastix.io","paths":["/"]}` | Set the host configuration for the capsule-proxy ingress. |
+| ingress.hosts[0] | object | `{"host":"kube.capsule.io","paths":["/"]}` | Set the host configuration for the capsule-proxy ingress. |
 | ingress.hosts[0].paths | list | `["/"]` | Set the path configuration for the capsule-proxy ingress. |
 | ingress.tls | list | `[]` | Set the tls configuration for the capsule-proxy ingress. |
 

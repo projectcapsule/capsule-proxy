@@ -1,11 +1,11 @@
 apiVersion: v2
-appVersion: 0.4.4
+appVersion: 0.4.5
 description: Helm Chart for Capsule Proxy, addon for Capsule, the multi-tenant Operator
 name: capsule-proxy
 type: application
 version: 0.5.0
 home: https://github.com/projectcapsule/capsule-proxy
-icon: https://github.com/projectcapsule/capsule/raw/master/assets/logo/capsule_small.png
+icon: https://github.com/projectcapsule/capsule/raw/main/assets/logo/capsule_small.png
 keywords:
 - kubernetes
 - operator
@@ -18,5 +18,22 @@ keywords:
 sources:
   - https://capsule.clastix.io/docs/general/proxy
 maintainers:
-- email: hello@clastix.io
-  name: Clastix Labs Team
+  - name: capsule-maintainers
+    email: cncf-capsule-maintainers@lists.cncf.io
+annotations:
+  artifacthub.io/containsSecurityUpdates: "true"
+  artifacthub.io/operator: "true"
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/category: security
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/maintainers: |
+    - name: capsule-maintainers
+      email: cncf-capsule-maintainers@lists.cncf.io
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://capsule.clastix.io/
+  artifacthub.io/changes: |
+    - kind: added
+      description: artifacthub annotations
+    - kind: changed
+      description: maintainers contact

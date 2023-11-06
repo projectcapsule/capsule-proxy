@@ -5,8 +5,10 @@
 # -- Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.
 kind: Deployment
 image:
-  # -- Set the image repository of the capsule-proxy.
-  repository: clastix/capsule-proxy
+  # -- Set the image registry for capsule-proxy
+  registry: ghcr.io
+  # -- Set the image repository for capsule-proxy.
+  repository: projectcapsule/capsule-proxy
   # -- Set the image pull policy.
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.
@@ -14,7 +16,9 @@ image:
 jobs:
   certs:
     # -- Set the image repository of the post install certgen job
-    repository: docker.io/jettech/kube-webhook-certgen
+    registry: docker.io
+    # -- Set the image repository of the post install certgen job
+    repository: jettech/kube-webhook-certgen
     # -- Set the image pull policy of the post install certgen job
     pullPolicy: IfNotPresent
     # -- Set the image tag of the post install certgen job
@@ -227,7 +231,7 @@ ingress:
   annotations: {}
   hosts:
     # -- Set the host configuration for the capsule-proxy ingress.
-  - host: "kube.clastix.io"
+  - host: "kube.capsule.io"
     # -- Set the path configuration for the capsule-proxy ingress.
     paths: ["/"]
   # -- Set the tls configuration for the capsule-proxy ingress.
