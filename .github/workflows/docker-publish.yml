@@ -41,14 +41,14 @@ jobs:
         id: publish-capsule
         uses: peak-scale/github-actions/make-ko-publish@38322faabccd75abfa581c435e367d446b6d2c3b # v0.1.0
         with:
-          makefile-target: ko-publish-capsule
+          makefile-target: ko-publish-capsule-proxy
           registry: ghcr.io
           registry-username: ${{ github.actor }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository_owner }}
           version: ${{ github.ref_name }}
           sign-image: true
-          sbom-name: capsule
+          sbom-name: capsule-proxy
           sbom-repository: ghcr.io/${{ github.repository_owner }}/sbom
           signature-repository: ghcr.io/${{ github.repository_owner }}/signatures
           main-path: ./
@@ -62,7 +62,7 @@ jobs:
       actions: read     # To read the workflow path.
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
     with:
-      image: ghcr.io/${{ github.repository_owner }}/capsule
+      image: ghcr.io/${{ github.repository_owner }}/capsule-proxy
       digest: "${{ needs.publish-images.outputs.capsule-digest }}"
       registry-username: ${{ github.actor }}
     secrets:
