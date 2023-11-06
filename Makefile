@@ -78,7 +78,7 @@ ko-login: ko
 	@$(KO) login $(REGISTRY) --username $(REGISTRY_USERNAME) --password $(REGISTRY_PASSWORD)
 
 .PHONY: ko-publish-capsule-proxy
-ko-publish-capsule: ko-login ## Build and publish kyvernopre image (with ko)
+ko-publish-capsule-proxy: ko-login
 	@LD_FLAGS=$(LD_FLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO=$(CAPSULE_PROXY_IMG) \
 		$(KO) build ./ --bare --tags=$(KO_TAGS)
 
