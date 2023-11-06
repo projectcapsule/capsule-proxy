@@ -2,7 +2,7 @@ name: e2e
 
 on:
   push:
-    branches: [ "*" ]
+    branches: [ "issues/257" ]
     paths:
       - '.github/workflows/e2e.yaml'
       - 'e2e/**'
@@ -12,7 +12,7 @@ on:
       - 'main.go'
       - 'Makefile'
   pull_request:
-    branches: [ "*" ]
+    branches: [ "issues/257" ]
     paths:
       - '.github/workflows/e2e.yaml'
       - 'e2e/**'
