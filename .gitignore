@@ -24,3 +24,4 @@ bin
 *~
 .vscode
 .DS_Store
+.vim/swaps/
