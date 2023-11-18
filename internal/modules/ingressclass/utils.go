@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/gorilla/mux"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

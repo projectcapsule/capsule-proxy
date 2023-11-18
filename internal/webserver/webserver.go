@@ -14,11 +14,10 @@ import (
 	"strings"
 	"time"
 
-	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/go-logr/logr"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	"golang.org/x/net/http/httpguts"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -29,6 +28,8 @@ import (
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers/watchdog"
+	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	moderrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
@@ -36,9 +37,9 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/lease"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/metric"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/namespace"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/namespaced"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/node"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/persistentvolume"
-	"github.com/projectcapsule/capsule-proxy/internal/modules/pod"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/priorityclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/runtimeclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/storageclass"
@@ -49,7 +50,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
 )
 
-func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader) (Filter, error) {
+func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, managerReader, override client.Reader, client client.Client) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
@@ -61,7 +62,9 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
-		reader:                clientOverride,
+		managerReader:         managerReader,
+		writer:                client,
+		reader:                override,
 		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
 		authTypes:             opts.AuthTypes(),
 		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
@@ -129,20 +132,6 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 
 	if sc := resp.StatusCode; sc != 200 {
 		return fmt.Errorf("returned status code from _healthz is %d, expected 200", sc)
-	}
-
-	return nil
-}
-
-func (n *kubeFilter) InjectClient(client client.Client) error {
-	n.managerReader = client
-
-	if n.reader == nil {
-		n.reader = client
-	}
-
-	if n.writer == nil {
-		n.writer = client
 	}
 
 	return nil
@@ -234,8 +223,35 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		lease.Get(n.reader),
 		metric.Get(n.reader),
 		metric.List(n.reader),
-		pod.Get(n.reader),
 	}
+	// Get all API group resources
+	if enabled, _ := features.Enabled(features.ProxyAllNamespaced); enabled {
+		apis, err := watchdog.API(ctrl.GetConfigOrDie())
+		if err != nil {
+			panic(err)
+		}
+
+		for _, api := range apis {
+			// Generating the API path according to the provided GVK
+			var parts []string
+
+			if api.Group != "" {
+				parts = append(parts, "apis")
+				parts = append(parts, api.Group)
+			} else {
+				parts = append(parts, "api")
+			}
+
+			parts = append(parts, api.Version)
+			parts = append(parts, api.URLName)
+
+			modList = append(modList, namespaced.CatchAll(n.reader, n.writer, fmt.Sprintf("/%s", strings.Join(parts, "/"))))
+		}
+	}
+	// Catching namespaced Custom Resource Definition instances
+	mod := namespaced.CatchAll(n.reader, n.writer, "/apis/{group}/{version}/{kind}")
+	modList = append(modList, mod)
+
 	for _, i := range modList {
 		mod := i
 		rp := root.Path(mod.Path())
@@ -287,7 +303,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 //nolint:funlen
 func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
-	r.Use(handlers.RecoveryHandler())
+	//r.Use(handlers.RecoveryHandler())
 
 	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusOK)

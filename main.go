@@ -9,14 +9,15 @@ import (
 	"os"
 	"time"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
-	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
-	capsuleindexer "github.com/clastix/capsule/pkg/indexer"
-	"github.com/clastix/capsule/pkg/indexer/tenant"
+	capsulev1alpha1 "github.com/projectcapsule/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/projectcapsule/capsule/api/v1beta1"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleindexer "github.com/projectcapsule/capsule/pkg/indexer"
+	"github.com/projectcapsule/capsule/pkg/indexer/tenant"
 	flag "github.com/spf13/pflag"
 	"github.com/thediveo/enumflag"
 	"go.uber.org/zap/zapcore"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -26,6 +27,8 @@ import (
 
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers/watchdog"
+	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
@@ -42,24 +45,20 @@ func main() {
 	utilruntime.Must(capsulev1beta1.AddToScheme(scheme))
 	utilruntime.Must(capsulev1beta2.AddToScheme(scheme))
 	utilruntime.Must(capsuleproxyv1beta1.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
-	var err error
-
-	var mgr ctrl.Manager
-
-	var certPath, keyPath, usernameClaimField, capsuleConfigurationName string
-
-	var capsuleUserGroups, ignoredUserGroups []string
-
-	var listeningPort uint
-
-	var bindSsl, disableCaching bool
-
-	var rolebindingsResyncPeriod time.Duration
-
-	var clientConnectionQPS float32
-
-	var clientConnectionBurst int32
+	var (
+		err                                                             error
+		mgr                                                             ctrl.Manager
+		certPath, keyPath, usernameClaimField, capsuleConfigurationName string
+		capsuleUserGroups, ignoredUserGroups                            []string
+		listeningPort                                                   uint
+		bindSsl, disableCaching                                         bool
+		rolebindingsResyncPeriod                                        time.Duration
+		clientConnectionQPS                                             float32
+		clientConnectionBurst                                           int32
+		featureGates                                                    features.FeatureGates
+	)
 
 	authTypes := []request.AuthType{
 		request.TLSCertificate,
@@ -86,6 +85,7 @@ First match is used and can be specified multiple times as comma separated value
 	flag.BoolVar(&disableCaching, "disable-caching", false, "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)")
 	flag.Float32Var(&clientConnectionQPS, "client-connection-qps", 20.0, "QPS to use for interacting with kubernetes apiserver.")
 	flag.Int32Var(&clientConnectionBurst, "client-connection-burst", 30, "Burst to use for interacting with kubernetes apiserver.")
+	featureGates.BindFlags(flag.CommandLine)
 
 	opts := zap.Options{
 		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
@@ -98,8 +98,15 @@ First match is used and can be specified multiple times as comma separated value
 	opts.BindFlags(&goFlagSet)
 	flag.CommandLine.AddGoFlagSet(&goFlagSet)
 	flag.Parse()
+	logger := zap.New(zap.UseFlagOptions(&opts))
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(logger)
+
+	err = featureGates.WithLogger(logger).SupportedFeatures()
+	if err != nil {
+		log.Error(err, "unable to load feature gates")
+		os.Exit(1)
+	}
 
 	log.Info("---")
 	log.Info(fmt.Sprintf("Manager listening on port %d", listeningPort))
@@ -202,7 +209,7 @@ First match is used and can be specified multiple times as comma separated value
 		clientOverride = mgr.GetAPIReader()
 	}
 
-	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector, clientOverride)
+	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector, mgr.GetClient(), clientOverride, mgr.GetClient())
 	if err != nil {
 		log.Error(err, "cannot create NamespaceFilter runner")
 		os.Exit(1)
@@ -211,11 +218,19 @@ First match is used and can be specified multiple times as comma separated value
 	log.Info("Adding the NamespaceFilter runner to the Manager")
 
 	if err = (&controllers.CapsuleConfiguration{
+		Client:                      mgr.GetClient(),
 		CapsuleConfigurationName:    capsuleConfigurationName,
 		DeprecatedCapsuleUserGroups: capsuleUserGroups,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
 		os.Exit(1)
+	}
+
+	if ok, _ := features.Enabled(features.ProxyAllNamespaced); ok {
+		if err = (&watchdog.CRDWatcher{Client: mgr.GetClient()}).SetupWithManager(ctx, mgr); err != nil {
+			log.Error(err, "cannot start watchdog.CRDWatcher controller for features.ProxyAllNamespaced")
+			os.Exit(1)
+		}
 	}
 
 	if err = mgr.Add(r); err != nil {
@@ -232,8 +247,6 @@ First match is used and can be specified multiple times as comma separated value
 		log.Error(err, "cannot create readiness probe")
 		os.Exit(1)
 	}
-
-	log.Info("Starting the Manager")
 
 	if err = mgr.Start(ctx); err != nil {
 		log.Error(err, "cannot start the Manager")

@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/pkg/errors"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -20,17 +20,17 @@ import (
 )
 
 type CapsuleConfiguration struct {
-	client                      client.Client
+	Client                      client.Client
 	CapsuleConfigurationName    string
 	DeprecatedCapsuleUserGroups []string
 }
 
 //nolint:gochecknoglobals
-var CapsuleUserGroups sets.String
+var CapsuleUserGroups sets.Set[string]
 
 func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	if len(c.DeprecatedCapsuleUserGroups) > 0 {
-		CapsuleUserGroups = sets.NewString(c.DeprecatedCapsuleUserGroups...)
+		CapsuleUserGroups = sets.New(c.DeprecatedCapsuleUserGroups...)
 
 		return nil
 	}
@@ -52,18 +52,12 @@ func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 
 func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	capsuleConfig := &capsulev1beta2.CapsuleConfiguration{}
-
-	if err := c.client.Get(ctx, types.NamespacedName{Name: request.Name}, capsuleConfig); err != nil {
+	if err := c.Client.Get(ctx, types.NamespacedName{Name: request.Name}, capsuleConfig); err != nil {
+		fmt.Sprintln(err, "Unable to retrieve CapsuleConfiguration")
 		panic(err)
 	}
 
-	CapsuleUserGroups = sets.NewString(capsuleConfig.Spec.UserGroups...)
+	CapsuleUserGroups = sets.New(capsuleConfig.Spec.UserGroups...)
 
 	return reconcile.Result{}, nil
-}
-
-func (c *CapsuleConfiguration) InjectClient(client client.Client) error {
-	c.client = client
-
-	return nil
 }
