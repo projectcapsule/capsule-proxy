@@ -114,6 +114,10 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 		return "", nil, fmt.Errorf("cannot create TokenReview")
 	}
 
+	if !tr.Status.Authenticated {
+		return "", nil, fmt.Errorf("cannot verify the token due to error")
+	}
+
 	if statusErr := tr.Status.Error; len(statusErr) > 0 {
 		return "", nil, fmt.Errorf("cannot verify the token due to error")
 	}
