@@ -10,6 +10,7 @@ import (
 
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
+	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -97,6 +98,15 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 		defer func() {
 			username = impersonateUser
 			groups = nil
+
+			// If the user is of a service account, replicate the work of the built-in service account token authenticator
+			// by appending the expected service account groups:
+			// - system:serviceaccounts:<namespace>
+			// - system:serviceaccounts
+			if namespace, _, err := serviceaccount.SplitUsername(username); err == nil {
+				groups = append(groups, serviceaccount.AllServiceAccountsGroup)
+				groups = append(groups, fmt.Sprintf("%s%s", serviceaccount.ServiceAccountGroupPrefix, namespace))
+			}
 		}()
 	}
 
