@@ -107,11 +107,16 @@ helm-test: helm-controller-version kind ct ko-build-all
 	@kind create cluster --wait=60s --name capsule-charts
 	@kind load docker-image --name capsule-charts $(CAPSULE_PROXY_IMG):$(VERSION)
 	@kubectl create ns capsule-system
-	@kubectl create -f https://github.com/cert-manager/cert-manager/releases/download/v1.9.1/cert-manager.crds.yaml
-	@kubectl create -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.58.0/bundle.yaml
-	@ct install --config $(SRC_ROOT)/.github/configs/ct.yaml --namespace=capsule-system --all --debug
-	@kind delete cluster --name capsule-charts
+	@make helm-install
 
+helm-install:
+	@kubectl apply --server-side=true -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.2/cert-manager.yaml
+	@make install-capsule
+	@kubectl apply --server-side=true -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.58.0/bundle.yaml
+	@ct install --config $(SRC_ROOT)/.github/configs/ct.yaml --namespace=capsule-system --all --debug
+
+helm-destroy:
+	@kind delete cluster --name capsule-charts
 
 ####################
 # -- Testing

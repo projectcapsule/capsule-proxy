@@ -61,6 +61,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
+| certManager.certificate.dnsNames | list | `[]` | Additional DNS Names to include in certificate |
+| certManager.certificate.ipAddresses | list | `[]` | Additional IP Addresses to include in certificate |
+| certManager.certificate.uris | list | `[]` | Additional URIs to include in certificate |
 | certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
 | certManager.externalCA.secretName | string | `""` |  |
 | certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |

@@ -1,0 +1,12 @@
+options:
+  enableSSL: true
+  generateCertificates: false
+certManager:
+  generateCertificates: true
+  certificate:
+    dnsNames:
+      - "localhost"
+    ipAddresses:
+      - "127.0.0.1"
+    uris:
+      - "spiffe://cluster.local/ns/sandbox/sa/example"

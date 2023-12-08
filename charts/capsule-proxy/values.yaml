@@ -99,6 +99,13 @@ certManager:
     kind: Issuer # Issuer or ClusterIssuer
     # -- Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates
     name: "" #  Name of the ClusterIssuer
+  certificate:
+    # -- Additional DNS Names to include in certificate
+    dnsNames: []
+    # -- Additional IP Addresses to include in certificate
+    ipAddresses: []
+    # -- Additional URIs to include in certificate
+    uris: []
 
 
 # ServiceAccount
