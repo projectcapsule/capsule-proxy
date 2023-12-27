@@ -5,6 +5,12 @@ metadata:
   name: {{ include "capsule-proxy.fullname" . }}
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
+  {{- if .Values.podAnnotations }}
+  {{- with .Values.podAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
 spec:
   strategy:
     type: RollingUpdate
