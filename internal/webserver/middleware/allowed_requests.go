@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-func CheckPaths(log logr.Logger, allowedPaths sets.String, skipTo func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+func CheckPaths(log logr.Logger, allowedPaths sets.Set[string], skipTo func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if allowedPaths.Has(request.URL.Path) {

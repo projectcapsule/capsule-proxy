@@ -15,7 +15,7 @@ import (
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
-func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.String, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if ignoredUserGroups.Len() > 0 {
