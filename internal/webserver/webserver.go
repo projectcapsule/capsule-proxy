@@ -49,7 +49,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
 )
 
-func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader) (Filter, error) {
+func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader, client client.Client) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
@@ -62,6 +62,8 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 
 	return &kubeFilter{
 		reader:                clientOverride,
+		writer:                client,
+		managerReader:         client,
 		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
 		authTypes:             opts.AuthTypes(),
 		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
@@ -129,20 +131,6 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 
 	if sc := resp.StatusCode; sc != 200 {
 		return fmt.Errorf("returned status code from _healthz is %d, expected 200", sc)
-	}
-
-	return nil
-}
-
-func (n *kubeFilter) InjectClient(client client.Client) error {
-	n.managerReader = client
-
-	if n.reader == nil {
-		n.reader = client
-	}
-
-	if n.writer == nil {
-		n.writer = client
 	}
 
 	return nil

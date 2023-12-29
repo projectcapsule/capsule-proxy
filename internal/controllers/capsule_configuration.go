@@ -20,7 +20,7 @@ import (
 )
 
 type CapsuleConfiguration struct {
-	client                      client.Client
+	Client                      client.Client
 	CapsuleConfigurationName    string
 	DeprecatedCapsuleUserGroups []string
 }
@@ -53,17 +53,11 @@ func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	capsuleConfig := &capsulev1beta2.CapsuleConfiguration{}
 
-	if err := c.client.Get(ctx, types.NamespacedName{Name: request.Name}, capsuleConfig); err != nil {
+	if err := c.Client.Get(ctx, types.NamespacedName{Name: request.Name}, capsuleConfig); err != nil {
 		panic(err)
 	}
 
 	CapsuleUserGroups = sets.NewString(capsuleConfig.Spec.UserGroups...)
 
 	return reconcile.Result{}, nil
-}
-
-func (c *CapsuleConfiguration) InjectClient(client client.Client) error {
-	c.client = client
-
-	return nil
 }
