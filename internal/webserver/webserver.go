@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	"golang.org/x/net/http/httpguts"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/labels"
