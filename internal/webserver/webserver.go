@@ -64,9 +64,9 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 		reader:                clientOverride,
 		writer:                client,
 		managerReader:         client,
-		allowedPaths:          sets.NewString("/api", "/apis", "/version"),
+		allowedPaths:          sets.New("/api", "/apis", "/version"),
 		authTypes:             opts.AuthTypes(),
-		ignoredUserGroups:     sets.NewString(opts.IgnoredGroupNames()...),
+		ignoredUserGroups:     sets.New(opts.IgnoredGroupNames()...),
 		reverseProxy:          reverseProxy,
 		bearerToken:           opts.BearerToken(),
 		usernameClaimField:    opts.PreferredUsernameClaim(),
@@ -77,9 +77,9 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 }
 
 type kubeFilter struct {
-	allowedPaths          sets.String
+	allowedPaths          sets.Set[string]
 	authTypes             []req.AuthType
-	ignoredUserGroups     sets.String
+	ignoredUserGroups     sets.Set[string]
 	reverseProxy          *httputil.ReverseProxy
 	bearerToken           string
 	usernameClaimField    string

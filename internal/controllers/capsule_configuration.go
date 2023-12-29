@@ -26,11 +26,11 @@ type CapsuleConfiguration struct {
 }
 
 //nolint:gochecknoglobals
-var CapsuleUserGroups sets.String
+var CapsuleUserGroups sets.Set[string]
 
 func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	if len(c.DeprecatedCapsuleUserGroups) > 0 {
-		CapsuleUserGroups = sets.NewString(c.DeprecatedCapsuleUserGroups...)
+		CapsuleUserGroups = sets.New[string](c.DeprecatedCapsuleUserGroups...)
 
 		return nil
 	}
@@ -57,7 +57,7 @@ func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.
 		panic(err)
 	}
 
-	CapsuleUserGroups = sets.NewString(capsuleConfig.Spec.UserGroups...)
+	CapsuleUserGroups = sets.New(capsuleConfig.Spec.UserGroups...)
 
 	return reconcile.Result{}, nil
 }

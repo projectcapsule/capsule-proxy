@@ -42,7 +42,7 @@ func HandleGetSelector(ctx context.Context, obj client.Object, client client.Rea
 func HandleListSelector(requirements []labels.Requirement) (selector labels.Selector, err error) {
 	selector = labels.NewSelector()
 
-	requirementsMap := make(map[string]sets.String)
+	requirementsMap := make(map[string]sets.Set[string])
 	generateRequirementsKey := func(requirement labels.Requirement) string { //nolint:nolintlint
 		switch requirement.Operator() { //nolint:exhaustive
 		case selection.Equals, selection.DoubleEquals, selection.In:
@@ -58,18 +58,18 @@ func HandleListSelector(requirements []labels.Requirement) (selector labels.Sele
 		key := generateRequirementsKey(requirement)
 
 		if _, ok := requirementsMap[key]; !ok {
-			requirementsMap[key] = requirement.Values()
+			requirementsMap[key] = sets.Set[string](requirement.Values())
 
 			continue
 		}
 
-		requirementsMap[key] = requirementsMap[key].Union(requirement.Values())
+		requirementsMap[key] = requirementsMap[key].Union(sets.Set[string](requirement.Values()))
 	}
 
 	for k, v := range requirementsMap {
 		key, op := strings.Split(k, ":")[0], strings.Split(k, ":")[1]
 
-		requirement, err := labels.NewRequirement(key, selection.Operator(op), v.List())
+		requirement, err := labels.NewRequirement(key, selection.Operator(op), v.UnsortedList())
 		if err != nil {
 			return nil, err
 		}
