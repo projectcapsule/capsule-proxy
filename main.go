@@ -200,7 +200,7 @@ First match is used and can be specified multiple times as comma separated value
 		clientOverride = mgr.GetAPIReader()
 	}
 
-	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector, clientOverride)
+	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, rbReflector, clientOverride, mgr.GetClient())
 	if err != nil {
 		log.Error(err, "cannot create NamespaceFilter runner")
 		os.Exit(1)
@@ -209,6 +209,7 @@ First match is used and can be specified multiple times as comma separated value
 	log.Info("Adding the NamespaceFilter runner to the Manager")
 
 	if err = (&controllers.CapsuleConfiguration{
+		Client:                      mgr.GetClient(),
 		CapsuleConfigurationName:    capsuleConfigurationName,
 		DeprecatedCapsuleUserGroups: capsuleUserGroups,
 	}).SetupWithManager(ctx, mgr); err != nil {
