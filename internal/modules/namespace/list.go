@@ -63,7 +63,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 
 	switch {
 	case len(userNamespaces) > 0:
-		r, err = labels.NewRequirement("name", selection.In, userNamespaces)
+		r, err = labels.NewRequirement(corev1.LabelMetadataName, selection.In, userNamespaces)
 	default:
 		r, err = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 	}
