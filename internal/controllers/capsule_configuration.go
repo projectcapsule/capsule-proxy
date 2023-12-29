@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/pkg/errors"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"

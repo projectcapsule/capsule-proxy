@@ -4,7 +4,7 @@
 package v1beta1
 
 import (
-	"github.com/clastix/capsule/api/v1beta2"
+	"github.com/projectcapsule/capsule/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

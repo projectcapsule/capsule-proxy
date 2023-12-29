@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	capsulev1beta2 "github.com/clastix/capsule/api/v1beta2"
 	"github.com/pkg/errors"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
