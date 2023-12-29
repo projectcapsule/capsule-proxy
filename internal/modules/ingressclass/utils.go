@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,7 +138,7 @@ func getIngressClassSelector(sc client.ObjectList, exact []string, regex []*rege
 	}
 
 	if len(names) > 0 {
-		return labels.NewRequirement("name", selection.In, names)
+		return labels.NewRequirement(corev1.LabelMetadataName, selection.In, names)
 	}
 
 	return nil, fmt.Errorf("cannot create LabelSelector for the requested IngressClass requirement")

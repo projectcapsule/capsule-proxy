@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -59,7 +60,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	}
 
 	sc := &storagev1.StorageClassList{}
-	if err = g.client.List(httpRequest.Context(), sc, client.MatchingLabels{"name": name}); err != nil {
+	if err = g.client.List(httpRequest.Context(), sc, client.MatchingLabels{corev1.LabelMetadataName: name}); err != nil {
 		return nil, errors.NewBadRequest(err, g.gk)
 	}
 
