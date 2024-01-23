@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
+	"regexp"
 	"strings"
 	"time"
 
@@ -61,31 +62,35 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
-		reader:                clientOverride,
-		writer:                client,
-		managerReader:         client,
-		allowedPaths:          sets.New("/api", "/apis", "/version"),
-		authTypes:             opts.AuthTypes(),
-		ignoredUserGroups:     sets.New(opts.IgnoredGroupNames()...),
-		reverseProxy:          reverseProxy,
-		bearerToken:           opts.BearerToken(),
-		usernameClaimField:    opts.PreferredUsernameClaim(),
-		serverOptions:         srv,
-		log:                   ctrl.Log.WithName("proxy"),
-		roleBindingsReflector: rbReflector,
+		reader:                     clientOverride,
+		writer:                     client,
+		managerReader:              client,
+		allowedPaths:               sets.New("/api", "/apis", "/version"),
+		authTypes:                  opts.AuthTypes(),
+		ignoredUserGroups:          sets.New(opts.IgnoredGroupNames()...),
+		ignoredImpersonationGroups: opts.IgnoredImpersonationsGroups(),
+		impersonationGroupsRegexp:  opts.ImpersonationGroupsRegexp(),
+		reverseProxy:               reverseProxy,
+		bearerToken:                opts.BearerToken(),
+		usernameClaimField:         opts.PreferredUsernameClaim(),
+		serverOptions:              srv,
+		log:                        ctrl.Log.WithName("proxy"),
+		roleBindingsReflector:      rbReflector,
 	}, nil
 }
 
 type kubeFilter struct {
-	allowedPaths          sets.Set[string]
-	authTypes             []req.AuthType
-	ignoredUserGroups     sets.Set[string]
-	reverseProxy          *httputil.ReverseProxy
-	bearerToken           string
-	usernameClaimField    string
-	serverOptions         options.ServerOptions
-	log                   logr.Logger
-	roleBindingsReflector *controllers.RoleBindingReflector
+	allowedPaths               sets.Set[string]
+	authTypes                  []req.AuthType
+	ignoredUserGroups          sets.Set[string]
+	ignoredImpersonationGroups []string
+	impersonationGroupsRegexp  *regexp.Regexp
+	reverseProxy               *httputil.ReverseProxy
+	bearerToken                string
+	usernameClaimField         string
+	serverOptions              options.ServerOptions
+	log                        logr.Logger
+	roleBindingsReflector      *controllers.RoleBindingReflector
 
 	managerReader, reader client.Reader
 	writer                client.Writer
@@ -171,7 +176,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 }
 
 func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer)
+	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp)
 
 	username, groups, err := hr.GetUserAndGroups()
 	if err != nil {
@@ -240,7 +245,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer)
+			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, nil, nil)
 			username, groups, err := proxyRequest.GetUserAndGroups()
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")

@@ -6,6 +6,7 @@ package request
 import (
 	"fmt"
 	h "net/http"
+	"regexp"
 	"strings"
 
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -16,13 +17,15 @@ import (
 
 type http struct {
 	*h.Request
-	authTypes          []AuthType
-	usernameClaimField string
-	client             client.Writer
+	authTypes                  []AuthType
+	usernameClaimField         string
+	ignoredImpersonationGroups []string
+	impersonationGroupsRegexp  *regexp.Regexp
+	client                     client.Writer
 }
 
-func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client client.Writer) Request {
-	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client}
+func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp) Request {
+	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client, ignoredImpersonationGroups: ignoredImpersonationGroups, impersonationGroupsRegexp: impersonationGroupsRegexp}
 }
 
 func (h http) GetHTTPRequest() *h.Request {
@@ -45,7 +48,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 
 	// In case the requester is asking for impersonation, we have to be sure that's allowed by creating a
 	// SubjectAccessReview with the requested data, before proceeding.
-	if impersonateGroups := GetImpersonatingGroups(h.Request); len(impersonateGroups) > 0 {
+	if impersonateGroups := GetImpersonatingGroups(h.Request, h.ignoredImpersonationGroups, h.impersonationGroupsRegexp); len(impersonateGroups) > 0 {
 		for _, impersonateGroup := range impersonateGroups {
 			ac := &authorizationv1.SubjectAccessReview{
 				Spec: authorizationv1.SubjectAccessReviewSpec{

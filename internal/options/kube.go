@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/pkg/errors"
@@ -19,25 +20,37 @@ import (
 )
 
 type kubeOpts struct {
-	authTypes     []request.AuthType
-	url           url.URL
-	ignoredGroups []string
-	claimName     string
-	config        *rest.Config
+	authTypes                  []request.AuthType
+	url                        url.URL
+	ignoredGroups              []string
+	ignoredImpersonationGroups []string
+	claimName                  string
+	impersonationGroupsRegexp  *regexp.Regexp
+	config                     *rest.Config
 }
 
-func NewKube(authTypes []request.AuthType, ignoredGroups []string, claimName string, config *rest.Config) (ListenerOpts, error) {
+func NewKube(authTypes []request.AuthType, ignoredGroups []string, claimName string, config *rest.Config, ignoredImpersonationGroups []string, impersonationGroupsString string) (ListenerOpts, error) {
 	u, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
 	}
 
+	var impersonationGroupsRegexp *regexp.Regexp
+	if impersonationGroupsString != "" {
+		impersonationGroupsRegexp, err = regexp.Compile(impersonationGroupsString)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create Kubernetes Options due to failed regexp compilation: %w", err)
+		}
+	}
+
 	return &kubeOpts{
-		authTypes:     authTypes,
-		url:           *u,
-		ignoredGroups: ignoredGroups,
-		claimName:     claimName,
-		config:        config,
+		authTypes:                  authTypes,
+		url:                        *u,
+		ignoredGroups:              ignoredGroups,
+		ignoredImpersonationGroups: ignoredImpersonationGroups,
+		impersonationGroupsRegexp:  impersonationGroupsRegexp,
+		claimName:                  claimName,
+		config:                     config,
 	}, nil
 }
 
@@ -55,6 +68,14 @@ func (k kubeOpts) KubernetesControlPlaneURL() *url.URL {
 
 func (k kubeOpts) IgnoredGroupNames() []string {
 	return k.ignoredGroups
+}
+
+func (k kubeOpts) IgnoredImpersonationsGroups() []string {
+	return k.ignoredImpersonationGroups
+}
+
+func (k kubeOpts) ImpersonationGroupsRegexp() *regexp.Regexp {
+	return k.impersonationGroupsRegexp
 }
 
 func (k kubeOpts) PreferredUsernameClaim() string {

@@ -31,7 +31,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver"
 )
 
-//nolint:funlen,cyclop
+//nolint:funlen,cyclop,maintidx
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
@@ -45,9 +45,9 @@ func main() {
 
 	var mgr ctrl.Manager
 
-	var certPath, keyPath, usernameClaimField, capsuleConfigurationName string
+	var certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp string
 
-	var capsuleUserGroups, ignoredUserGroups []string
+	var capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups []string
 
 	var listeningPort uint
 
@@ -72,6 +72,8 @@ func main() {
 	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
+	flag.StringSliceVar(&ignoreImpersonationGroups, "ignored-impersonation-group", []string{}, "Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)")
+	flag.StringVar(&impersonationGroupsRegexp, "impersonation-group-regexp", "", "Regular expression to match the groups which are considered for impersonation")
 	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
 	flag.BoolVar(&bindSsl, "enable-ssl", true, "Enable the bind on HTTPS for secure communication (default: true)")
@@ -123,6 +125,15 @@ First match is used and can be specified multiple times as comma separated value
 
 	log.Info(fmt.Sprintf("The ignored User Groups are %v", ignoredUserGroups))
 	log.Info(fmt.Sprintf("The OIDC username selected is %s", usernameClaimField))
+
+	if impersonationGroupsRegexp != "" {
+		log.Info(fmt.Sprintf("The Group impersonation Regexp %s", impersonationGroupsRegexp))
+	}
+
+	if len(ignoreImpersonationGroups) > 0 {
+		log.Info(fmt.Sprintf("The Groups dropped for impersonation %s", ignoreImpersonationGroups))
+	}
+
 	log.Info("---")
 	log.Info("Creating the manager")
 
@@ -182,7 +193,7 @@ First match is used and can be specified multiple times as comma separated value
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, config); err != nil {
+	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, config, ignoreImpersonationGroups, impersonationGroupsRegexp); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
