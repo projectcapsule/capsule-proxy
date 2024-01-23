@@ -14,7 +14,7 @@ import (
 	model "github.com/prometheus/client_model/go"
 )
 
-func dummyHandler(w http.ResponseWriter, r *http.Request) {
+func dummyHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("hello"))
 	w.WriteHeader(http.StatusOK)
 }

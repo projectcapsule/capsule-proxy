@@ -42,6 +42,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/priorityclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/runtimeclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/storageclass"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/tenants"
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
@@ -223,6 +224,8 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		metric.Get(n.reader),
 		metric.List(n.reader),
 		pod.Get(n.reader),
+		tenants.List(),
+		tenants.Get(n.reader),
 	}
 	for _, i := range modList {
 		mod := i

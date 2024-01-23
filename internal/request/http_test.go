@@ -20,23 +20,23 @@ import (
 
 type testClient func(ctx context.Context, obj client.Object) error
 
-func (t testClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+func (t testClient) Delete(ctx context.Context, obj client.Object, _ ...client.DeleteOption) error {
 	return t(ctx, obj)
 }
 
-func (t testClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+func (t testClient) Update(ctx context.Context, obj client.Object, _ ...client.UpdateOption) error {
 	return t(ctx, obj)
 }
 
-func (t testClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (t testClient) Patch(ctx context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 	return t(ctx, obj)
 }
 
-func (t testClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
+func (t testClient) DeleteAllOf(ctx context.Context, obj client.Object, _ ...client.DeleteAllOfOption) error {
 	return t(ctx, obj)
 }
 
-func (t testClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+func (t testClient) Create(ctx context.Context, obj client.Object, _ ...client.CreateOption) error {
 	return t(ctx, obj)
 }
 

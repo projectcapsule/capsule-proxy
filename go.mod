@@ -1,6 +1,6 @@
 module github.com/projectcapsule/capsule-proxy
 
-go 1.19
+go 1.21
 
 require (
 	github.com/go-logr/logr v1.3.0
