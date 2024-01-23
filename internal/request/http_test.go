@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"regexp"
 	"sort"
 	"testing"
 
@@ -45,10 +46,12 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
-		Request            *http.Request
-		authTypes          []request.AuthType
-		usernameClaimField string
-		client             client.Writer
+		Request                   *http.Request
+		authTypes                 []request.AuthType
+		ignoreGroups              []string
+		ignoreImpersonationRegexp *regexp.Regexp
+		usernameClaimField        string
+		client                    client.Writer
 	}
 
 	tests := []struct {
@@ -95,7 +98,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 				}),
 			},
 			wantUsername: "ImpersonatedUser",
-			wantGroups:   []string{"group", "ImpersonatedGroup"},
+			wantGroups:   []string{"ImpersonatedGroup"},
 			wantErr:      false,
 		},
 		{
@@ -117,6 +120,44 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 			},
 			wantUsername: "",
 			wantGroups:   nil,
+			wantErr:      true,
+		},
+		{
+			name: "Certificate-Impersonation",
+			fields: fields{
+				Request: &http.Request{
+					Header: map[string][]string{
+						authenticationv1.ImpersonateGroupHeader: {"ImpersonatedGroup", "Regex:Group1", "Regex:Group2", "Regex:DropGroup1", "Regex:DropGroup2"},
+						authenticationv1.ImpersonateUserHeader:  {"ImpersonatedUser"},
+					},
+					TLS: &tls.ConnectionState{
+						PeerCertificates: []*x509.Certificate{
+							{
+								Subject: pkix.Name{
+									CommonName: "nobody",
+									Organization: []string{
+										"group",
+									},
+								},
+							},
+						},
+					},
+				},
+				ignoreImpersonationRegexp: regexp.MustCompile("Regex:.*"),
+				ignoreGroups:              []string{"Regex:DropGroup1", "Regex:DropGroup2"},
+				authTypes: []request.AuthType{
+					request.BearerToken,
+					request.TLSCertificate,
+				},
+				client: testClient(func(ctx context.Context, obj client.Object) error {
+					ac := obj.(*authorizationv1.SubjectAccessReview)
+					ac.Status.Allowed = true
+
+					return nil
+				}),
+			},
+			wantUsername: "ImpersonatedUser",
+			wantGroups:   []string{"Regex:Group1", "Regex:Group2"},
 			wantErr:      false,
 		},
 	}
@@ -126,7 +167,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := request.NewHTTP(tc.fields.Request, tc.fields.authTypes, tc.fields.usernameClaimField, tc.fields.client)
+			req := request.NewHTTP(tc.fields.Request, tc.fields.authTypes, tc.fields.usernameClaimField, tc.fields.client, tc.fields.ignoreGroups, tc.fields.ignoreImpersonationRegexp)
 			gotUsername, gotGroups, err := req.GetUserAndGroups()
 			if (err != nil) != tc.wantErr {
 				t.Errorf("GetUserAndGroups() error = %v, wantErr %v", err, tc.wantErr)
