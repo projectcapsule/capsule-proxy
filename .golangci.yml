@@ -39,5 +39,6 @@ linters:
     - tparallel
     - nilerr
     - exhaustruct
+    - depguard
 service:
-  golangci-lint-version: 1.45.x
+  golangci-lint-version: 1.55.x
