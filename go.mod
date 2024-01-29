@@ -9,7 +9,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/projectcapsule/capsule v0.5.0
 	github.com/prometheus/client_golang v1.17.0
-	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16
+	github.com/prometheus/client_model v0.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/thediveo/enumflag v0.10.1
 	go.uber.org/zap v1.26.0
