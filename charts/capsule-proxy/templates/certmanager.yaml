@@ -48,8 +48,10 @@ spec:
   {{- range $dns := .Values.certManager.certificate.dnsNames }}
   - {{ $dns }}
   {{- end }}
+  {{- if $.Values.certManager.certificate.includeInternalServiceNames }}
   - {{ include "capsule-proxy.fullname" . }}
   - {{ include "capsule-proxy.fullname" . }}.{{ .Release.Namespace }}.svc
+  {{- end }}
   {{- with .Values.certManager.certificate.ipAddresses }}
   ipAddresses:
     {{- range $ip := . }}
