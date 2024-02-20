@@ -62,6 +62,7 @@ If you only need to make minor customizations, you can specify them on the comma
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
 | certManager.certificate.dnsNames | list | `[]` | Additional DNS Names to include in certificate |
+| certManager.certificate.includeInternalServiceNames | bool | `true` | Include internal service names in certificate (disable if you create a public cert) |
 | certManager.certificate.ipAddresses | list | `[]` | Additional IP Addresses to include in certificate |
 | certManager.certificate.uris | list | `[]` | Additional URIs to include in certificate |
 | certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
@@ -71,18 +72,25 @@ If you only need to make minor customizations, you can specify them on the comma
 | certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
+| hostNetwork | bool | `false` | When deployed as DaemonSet use |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
 | image.registry | string | `"ghcr.io"` | Set the image registry for capsule-proxy |
 | image.repository | string | `"projectcapsule/capsule-proxy"` | Set the image repository for capsule-proxy. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
+| jobs.affinity | object | `{}` | Set affinity rules |
 | jobs.annotations | object | `{}` | Annotations to add to the certgen job. |
 | jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
 | jobs.certs.registry | string | `"docker.io"` | Set the image repository of the post install certgen job |
 | jobs.certs.repository | string | `"jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
 | jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| jobs.nodeSelector | object | `{}` | Set the node selector |
 | jobs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
+| jobs.priorityClassName | string | `""` | Set a pod priorityClassName |
+| jobs.restartPolicy | string | `"Never"` | Set the restartPolicy |
 | jobs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
+| jobs.tolerations | list | `[]` | Set list of tolerations |
+| jobs.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
 | jobs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
 | kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |

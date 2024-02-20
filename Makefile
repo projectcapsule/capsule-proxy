@@ -103,17 +103,18 @@ helm-docs: docker
 helm-lint: docker
 	@docker run -v "$(SRC_ROOT):/workdir" --entrypoint /bin/sh quay.io/helmpack/chart-testing:v3.3.1 -c "cd /workdir; ct lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug"
 
-helm-test: helm-controller-version kind ct ko-build-all
-	@kind create cluster --wait=60s --name capsule-charts
-	@kind load docker-image --name capsule-charts $(CAPSULE_PROXY_IMG):$(VERSION)
-	@kubectl create ns capsule-system
-	@make helm-install
+helm-test: helm-controller-version kind ct ko-build-all helm-create helm-install helm-destroy
 
 helm-install:
 	@kubectl apply --server-side=true -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.2/cert-manager.yaml
 	@make install-capsule
 	@kubectl apply --server-side=true -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.58.0/bundle.yaml
-	@ct install --config $(SRC_ROOT)/.github/configs/ct.yaml --namespace=capsule-system --all --debug
+	@$(CT) install --config $(SRC_ROOT)/.github/configs/ct.yaml --namespace=capsule-system --all --debug
+
+helm-create:
+	@kind create cluster --wait=60s --name capsule-charts
+	@kind load docker-image --name capsule-charts $(CAPSULE_PROXY_IMG):$(VERSION)
+	@kubectl create ns capsule-system
 
 helm-destroy:
 	@kind delete cluster --name capsule-charts

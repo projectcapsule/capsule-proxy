@@ -19,10 +19,29 @@ spec:
       labels:
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
     spec:
-      restartPolicy: Never
+      restartPolicy: {{ $.Values.jobs.restartPolicy }}
       {{- with $.Values.jobs.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jobs.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jobs.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jobs.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jobs.topologySpreadConstraints }}
+      topologySpreadConstraints: 
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jobs.priorityClassName }}
+      priorityClassName: {{ . }}
       {{- end }}
       containers:
       - name: post-install-job

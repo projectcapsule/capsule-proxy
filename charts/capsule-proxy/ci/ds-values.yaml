@@ -45,6 +45,16 @@ tolerations:
     operator: Exists
   - effect: NoSchedule
     key: node-role.kubernetes.io/master
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
+        - key: another-node-label-key
+          operator: In
+          values:
+          - another-node-label-value
 # Ingress
 ingress:
   enabled: true
@@ -59,3 +69,29 @@ ingress:
 # ServiceMonitor
 serviceMonitor:
   enabled: true
+jobs:
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: another-node-label-key
+            operator: In
+            values:
+            - another-node-label-value
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: capsule-proxy
+  priorityClassName: "system-node-critical"
+  nodeSelector:
+    node-role.kubernetes.io/master: ""
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - effect: NoSchedule
+      key: node-role.kubernetes.io/master

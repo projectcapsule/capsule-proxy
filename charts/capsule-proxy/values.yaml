@@ -2,8 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# -- Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.
-kind: Deployment
 image:
   # -- Set the image registry for capsule-proxy
   registry: ghcr.io
@@ -13,41 +11,93 @@ image:
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
-jobs:
-  certs:
-    # -- Set the image repository of the post install certgen job
-    registry: docker.io
-    # -- Set the image repository of the post install certgen job
-    repository: jettech/kube-webhook-certgen
-    # -- Set the image pull policy of the post install certgen job
-    pullPolicy: IfNotPresent
-    # -- Set the image tag of the post install certgen job
-    tag: "v1.3.0"
-
-  # -- Annotations to add to the certgen job.
-  annotations: {}
-
-  # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
-  ttlSecondsAfterFinished: 60
-
-  # -- Security context for the job pods.
-  podSecurityContext:
-    seccompProfile:
-      type: "RuntimeDefault"
-
-  # -- Security context for the job containers.
-  securityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-      - ALL
-    readOnlyRootFilesystem: true
-    runAsGroup: 1002
-    runAsNonRoot: true
-    runAsUser: 1002
 
 # -- Configuration for `imagePullSecrets` so that you can use a private images registry.
 imagePullSecrets: []
+
+# -- Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.
+kind: Deployment
+
+# -- When deployed as DaemonSet use
+hostNetwork: false
+daemonset:
+  # -- Use the host network namespace for capsule-proxy pod.
+  hostNetwork: false
+  # -- Binding the capsule-proxy listening port to the host port.
+  hostPort: false
+
+
+# -- Set the replica count for capsule-proxy pod.
+replicaCount: 1
+
+#  The following annotations guarantee scheduling for critical add-on pods
+#  podAnnotations:
+#    scheduler.alpha.kubernetes.io/critical-pod: ''
+# -- Annotations to add to the capsule-proxy pod.
+podAnnotations: {}
+
+# -- Labels to add to the capsule-proxy pod.
+podLabels: {}
+
+# Enable node selector and tolerations when deploying on the controlplane
+# nodeSelector:
+#   node-role.kubernetes.io/master: ""
+# tolerations:
+# - key: CriticalAddonsOnly
+#   operator: Exists
+# - effect: NoSchedule
+#   key: node-role.kubernetes.io/master
+# -- Set the node selector for the capsule-proxy pod.
+nodeSelector: {}
+# -- Set list of tolerations for the capsule-proxy pod.
+tolerations: []
+# -- Set affinity rules for the capsule-proxy pod.
+affinity: {}
+# -- Set the restartPolicy for the capsule-proxy pod.
+restartPolicy: Always
+
+# -- Topology Spread Constraints for the capsule-proxy pod.
+topologySpreadConstraints: []
+# Ensure Replicas are spreaded across different Nodes:
+# - maxSkew: 1
+#   topologyKey: kubernetes.io/hostname
+#   whenUnsatisfiable: ScheduleAnyway
+#   labelSelector:
+#     matchLabels:
+#       app.kubernetes.io/name: capsule-proxy
+
+# Set a pod priorityClassName
+# priorityClassName: system-node-critical
+# -- Specifies PriorityClass of the capsule-proxy pod.
+priorityClassName: ""
+
+# -- Security context for the capsule-proxy pod.
+podSecurityContext:
+  seccompProfile:
+    type: "RuntimeDefault"
+
+# -- Security context for the capsule-proxy container.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsGroup: 1002
+  runAsNonRoot: true
+  runAsUser: 1002
+
+resources:
+  limits:
+    # -- Set the CPU requests assigned to the controller.
+    cpu: 200m
+    # -- Set the memory requests assigned to the controller.
+    memory: 128Mi
+  requests:
+    # -- Set the CPU limits assigned to the controller.
+    cpu: 200m
+    # -- Set the memory limits assigned to the controller.
+    memory: 128Mi
 
 # Controller Options
 options:
@@ -86,6 +136,47 @@ options:
   # -- Burst to use for interacting with kubernetes API Server.
   clientConnectionBurst: 30
 
+jobs:
+  certs:
+    # -- Set the image repository of the post install certgen job
+    registry: docker.io
+    # -- Set the image repository of the post install certgen job
+    repository: jettech/kube-webhook-certgen
+    # -- Set the image pull policy of the post install certgen job
+    pullPolicy: IfNotPresent
+    # -- Set the image tag of the post install certgen job
+    tag: "v1.3.0"
+  # -- Annotations to add to the certgen job.
+  annotations: {}
+  # -- Set the restartPolicy
+  restartPolicy: Never
+  # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
+  ttlSecondsAfterFinished: 60
+  # -- Security context for the job pods.
+  podSecurityContext:
+    seccompProfile:
+      type: "RuntimeDefault"
+  # -- Security context for the job containers.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsGroup: 1002
+    runAsNonRoot: true
+    runAsUser: 1002
+  # -- Set the node selector
+  nodeSelector: {}
+  # -- Set list of tolerations
+  tolerations: []
+  # -- Set affinity rules
+  affinity: {}
+  # -- Set Topology Spread Constraints
+  topologySpreadConstraints: []
+  # -- Set a pod priorityClassName
+  priorityClassName: ""
+
 certManager:
   # -- Set if the cert manager will generate SSL certificates (self-signed or CA-signed)
   generateCertificates: false
@@ -100,13 +191,14 @@ certManager:
     # -- Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates
     name: "" #  Name of the ClusterIssuer
   certificate:
+    # -- Include internal service names in certificate (disable if you create a public cert)
+    includeInternalServiceNames: true
     # -- Additional DNS Names to include in certificate
     dnsNames: []
     # -- Additional IP Addresses to include in certificate
     ipAddresses: []
     # -- Additional URIs to include in certificate
     uris: []
-
 
 # ServiceAccount
 serviceAccount:
@@ -118,62 +210,6 @@ serviceAccount:
   # @default -- `capsule-proxy``
   name: ""
 
-# -- Set the replica count for capsule-proxy pod.
-replicaCount: 1
-
-#  The following annotations guarantee scheduling for critical add-on pods
-#  podAnnotations:
-#    scheduler.alpha.kubernetes.io/critical-pod: ''
-# -- Annotations to add to the capsule-proxy pod.
-podAnnotations: {}
-
-# -- Labels to add to the capsule-proxy pod.
-podLabels: {}
-
-# -- Topology Spread Constraints for the capsule-proxy pod.
-topologySpreadConstraints: []
-# Ensure Replicas are spreaded across different Nodes:
-# - maxSkew: 1
-#   topologyKey: kubernetes.io/hostname
-#   whenUnsatisfiable: ScheduleAnyway
-#   labelSelector:
-#     matchLabels:
-#       app.kubernetes.io/name: capsule-proxy
-
-# Set a pod priorityClassName
-# priorityClassName: system-node-critical
-# -- Specifies PriorityClass of the capsule-proxy pod.
-priorityClassName: ""
-
-# -- Security context for the capsule-proxy pod.
-podSecurityContext:
-  seccompProfile:
-    type: "RuntimeDefault"
-
-# -- Security context for the capsule-proxy container.
-securityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-    - ALL
-  readOnlyRootFilesystem: true
-  runAsGroup: 1002
-  runAsNonRoot: true
-  runAsUser: 1002
-
-
-resources:
-  limits:
-    # -- Set the CPU requests assigned to the controller.
-    cpu: 200m
-    # -- Set the memory requests assigned to the controller.
-    memory: 128Mi
-  requests:
-    # -- Set the CPU limits assigned to the controller.
-    cpu: 200m
-    # -- Set the memory limits assigned to the controller.
-    memory: 128Mi
-
 # HorizontalPodAutoscaler
 autoscaling:
   # -- Specifies whether an hpa for capsule-proxy should be created.
@@ -184,31 +220,6 @@ autoscaling:
   maxReplicas: 5
   # -- Set the targetCPUUtilizationPercentage for capsule-proxy hpa.
   targetCPUUtilizationPercentage: 80
-
-# Enable node selector and tolerations when deploying on the controlplane
-# nodeSelector:
-#   node-role.kubernetes.io/master: ""
-# tolerations:
-# - key: CriticalAddonsOnly
-#   operator: Exists
-# - effect: NoSchedule
-#   key: node-role.kubernetes.io/master
-# -- Set the node selector for the capsule-proxy pod.
-nodeSelector: {}
-# -- Set list of tolerations for the capsule-proxy pod.
-tolerations: []
-# -- Set affinity rules for the capsule-proxy pod.
-affinity: {}
-# -- Set the restartPolicy for the capsule-proxy pod.
-restartPolicy: Always
-
-# When deployed as DaemonSet use
-# hostNetwork: true
-daemonset:
-  # -- Use the host network namespace for capsule-proxy pod.
-  hostNetwork: false
-  # -- Binding the capsule-proxy listening port to the host port.
-  hostPort: false
 
 # Service
 service:
