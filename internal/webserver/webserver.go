@@ -25,11 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
+	"k8s.io/component-base/featuregate"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers/watchdog"
+	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	moderrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
@@ -37,9 +40,9 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/lease"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/metric"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/namespace"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/namespaced"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/node"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/persistentvolume"
-	"github.com/projectcapsule/capsule-proxy/internal/modules/pod"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/priorityclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/runtimeclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/storageclass"
@@ -51,7 +54,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
 )
 
-func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader, client client.Client) (Filter, error) {
+func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, gates featuregate.FeatureGate, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader, client client.Client) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
@@ -63,6 +66,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, rbRefle
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
+		gates:                      gates,
 		reader:                     clientOverride,
 		writer:                     client,
 		managerReader:              client,
@@ -92,6 +96,7 @@ type kubeFilter struct {
 	serverOptions              options.ServerOptions
 	log                        logr.Logger
 	roleBindingsReflector      *controllers.RoleBindingReflector
+	gates                      featuregate.FeatureGate
 
 	managerReader, reader client.Reader
 	writer                client.Writer
@@ -228,10 +233,37 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		lease.Get(n.reader),
 		metric.Get(n.reader),
 		metric.List(n.reader),
-		pod.Get(n.reader),
 		tenants.List(),
 		tenants.Get(n.reader),
 	}
+	// Get all API group resources
+	if n.gates.Enabled(features.ProxyAllNamespaced) {
+		apis, err := watchdog.API(ctrl.GetConfigOrDie())
+		if err != nil {
+			panic(err)
+		}
+
+		for _, api := range apis {
+			// Generating the API path according to the provided GVK
+			var parts []string
+
+			if api.Group != "" {
+				parts = append(parts, "apis")
+				parts = append(parts, api.Group)
+			} else {
+				parts = append(parts, "api")
+			}
+
+			parts = append(parts, api.Version)
+			parts = append(parts, api.URLName)
+
+			modList = append(modList, namespaced.CatchAll(n.reader, n.writer, fmt.Sprintf("/%s", strings.Join(parts, "/"))))
+		}
+	}
+	// Catching namespaced Custom Resource Definition instances
+	mod := namespaced.CatchAll(n.reader, n.writer, "/apis/{group}/{version}/{kind}")
+	modList = append(modList, mod)
+
 	for _, i := range modList {
 		mod := i
 		rp := root.Path(mod.Path())
