@@ -58,6 +58,9 @@ spec:
     {{- end }}
     - --client-connection-qps={{ .Values.options.clientConnectionQPS }}
     - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
+    {{- with .Values.options.extraArgs }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
     ports:
     - name: proxy
       protocol: TCP

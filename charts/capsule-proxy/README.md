@@ -126,6 +126,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.clientConnectionQPS | int | `20` | QPS to use for interacting with Kubernetes API Server. |
 | options.disableCaching | bool | `false` | Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector |
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
+| options.extraArgs | list | `[]` | A list of extra arguments to add to the capsule-proxy. |
 | options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |

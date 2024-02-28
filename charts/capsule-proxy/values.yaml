@@ -135,6 +135,8 @@ options:
   clientConnectionQPS: 20
   # -- Burst to use for interacting with kubernetes API Server.
   clientConnectionBurst: 30
+  # -- A list of extra arguments to add to the capsule-proxy.
+  extraArgs: []
 
 jobs:
   certs:
