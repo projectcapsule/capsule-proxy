@@ -14,6 +14,8 @@ import (
 
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
+	"k8s.io/apiserver/pkg/authentication/serviceaccount"
+	"k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/internal/request"
@@ -102,6 +104,38 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 			wantErr:      false,
 		},
 		{
+			name: "Certificate-ServiceAccount",
+			fields: fields{
+				Request: &http.Request{
+					Header: map[string][]string{
+						authenticationv1.ImpersonateUserHeader: {serviceaccount.ServiceAccountUsernamePrefix + testServiceAccountSuffix},
+					},
+					TLS: &tls.ConnectionState{
+						PeerCertificates: []*x509.Certificate{
+							{
+								Subject: pkix.Name{
+									CommonName: serviceaccount.ServiceAccountUsernamePrefix + testServiceAccountSuffix,
+								},
+							},
+						},
+					},
+				},
+				authTypes: []request.AuthType{
+					request.BearerToken,
+					request.TLSCertificate,
+				},
+				client: testClient(func(ctx context.Context, obj client.Object) error {
+					ac := obj.(*authorizationv1.SubjectAccessReview)
+					ac.Status.Allowed = true
+
+					return nil
+				}),
+			},
+			wantUsername: serviceaccount.ServiceAccountUsernamePrefix + testServiceAccountSuffix,
+			wantGroups:   []string{fmt.Sprintf("%s%s", serviceaccount.ServiceAccountGroupPrefix, "ns"), serviceaccount.AllServiceAccountsGroup, user.AllAuthenticated},
+			wantErr:      false,
+		},
+		{
 			name: "Bearer",
 			fields: fields{
 				Request: &http.Request{
@@ -187,3 +221,5 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 		})
 	}
 }
+
+const testServiceAccountSuffix = "ns:account"
