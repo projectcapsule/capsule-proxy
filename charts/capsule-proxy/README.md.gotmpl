@@ -22,11 +22,11 @@ The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on you
 
 1. Add this repository:
 
-        $ helm repo add clastix https://clastix.github.io/charts
+        $ helm repo add projectcapsule https://projectcapsule.github.io/charts
 
 2. Install the Chart:
 
-        $ helm install capsule-proxy clastix/capsule-proxy -n capsule-system
+        $ helm install capsule-proxy projectcapsule/capsule-proxy -n capsule-system
 
 3. Show the status:
 
@@ -34,7 +34,7 @@ The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on you
 
 4. Upgrade the Chart
 
-        $ helm upgrade capsule-proxy clastix/capsule-proxy -n capsule-system
+        $ helm upgrade capsule-proxy projectcapsule/capsule-proxy -n capsule-system
 
 5. Uninstall the Chart
    
@@ -48,13 +48,13 @@ The `--values` option is the preferred method because it allows you to keep your
 
 Specify your overrides file when you install the chart:
 
-        $ helm install capsule-proxy clastix/capsule-proxy --values myvalues.yaml -n capsule-system  
+        $ helm install capsule-proxy projectcapsule/capsule-proxy --values myvalues.yaml -n capsule-system  
 
 The values in your overrides file `myvalues.yaml` will override their counterparts in the chart’s values.yaml file. Any values in `values.yaml` that weren’t overridden will keep their defaults.
 
 If you only need to make minor customizations, you can specify them on the command line by using the `--set` option. For example:
 
-        $ helm install capsule-proxy clastix/capsule-proxy --set "kind=DaemonSet" -n capsule-system
+        $ helm install capsule-proxy projectcapsule/capsule-proxy --set "kind=DaemonSet" -n capsule-system
 
 ### General Parameters
 
