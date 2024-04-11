@@ -24,12 +24,13 @@ type kubeOpts struct {
 	url                        url.URL
 	ignoredGroups              []string
 	ignoredImpersonationGroups []string
+	skipImpersonationReview    bool
 	claimName                  string
 	impersonationGroupsRegexp  *regexp.Regexp
 	config                     *rest.Config
 }
 
-func NewKube(authTypes []request.AuthType, ignoredGroups []string, claimName string, config *rest.Config, ignoredImpersonationGroups []string, impersonationGroupsString string) (ListenerOpts, error) {
+func NewKube(authTypes []request.AuthType, ignoredGroups []string, claimName string, config *rest.Config, ignoredImpersonationGroups []string, impersonationGroupsString string, skipImpersonationReview bool) (ListenerOpts, error) {
 	u, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
@@ -49,6 +50,7 @@ func NewKube(authTypes []request.AuthType, ignoredGroups []string, claimName str
 		ignoredGroups:              ignoredGroups,
 		ignoredImpersonationGroups: ignoredImpersonationGroups,
 		impersonationGroupsRegexp:  impersonationGroupsRegexp,
+		skipImpersonationReview:    skipImpersonationReview,
 		claimName:                  claimName,
 		config:                     config,
 	}, nil
@@ -80,6 +82,10 @@ func (k kubeOpts) ImpersonationGroupsRegexp() *regexp.Regexp {
 
 func (k kubeOpts) PreferredUsernameClaim() string {
 	return k.claimName
+}
+
+func (k kubeOpts) SkipImpersonationReview() bool {
+	return k.skipImpersonationReview
 }
 
 func (k kubeOpts) ReverseProxyTransport() (*http.Transport, error) {

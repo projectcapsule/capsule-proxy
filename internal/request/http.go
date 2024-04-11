@@ -22,11 +22,12 @@ type http struct {
 	usernameClaimField         string
 	ignoredImpersonationGroups []string
 	impersonationGroupsRegexp  *regexp.Regexp
+	skipImpersonationReview    bool
 	client                     client.Writer
 }
 
-func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp) Request {
-	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client, ignoredImpersonationGroups: ignoredImpersonationGroups, impersonationGroupsRegexp: impersonationGroupsRegexp}
+func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool) Request {
+	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client, ignoredImpersonationGroups: ignoredImpersonationGroups, impersonationGroupsRegexp: impersonationGroupsRegexp, skipImpersonationReview: skipImpersonationReview}
 }
 
 func (h http) GetHTTPRequest() *h.Request {
@@ -49,14 +50,45 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 
 	// In case the requester is asking for impersonation, we have to be sure that's allowed by creating a
 	// SubjectAccessReview with the requested data, before proceeding.
+	//nolint:nestif
 	if impersonateGroups := GetImpersonatingGroups(h.Request, h.ignoredImpersonationGroups, h.impersonationGroupsRegexp); len(impersonateGroups) > 0 {
-		for _, impersonateGroup := range impersonateGroups {
+		if !h.skipImpersonationReview {
+			for _, impersonateGroup := range impersonateGroups {
+				ac := &authorizationv1.SubjectAccessReview{
+					Spec: authorizationv1.SubjectAccessReviewSpec{
+						ResourceAttributes: &authorizationv1.ResourceAttributes{
+							Verb:     "impersonate",
+							Resource: "groups",
+							Name:     impersonateGroup,
+						},
+						User:   username,
+						Groups: groups,
+					},
+				}
+				if err = h.client.Create(h.Request.Context(), ac); err != nil {
+					return "", nil, err
+				}
+
+				if !ac.Status.Allowed {
+					return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the group %s", username, impersonateGroup))
+				}
+			}
+		}
+
+		defer func() {
+			groups = impersonateGroups
+		}()
+	}
+
+	//nolint:nestif
+	if impersonateUser := GetImpersonatingUser(h.Request); len(impersonateUser) > 0 {
+		if !h.skipImpersonationReview {
 			ac := &authorizationv1.SubjectAccessReview{
 				Spec: authorizationv1.SubjectAccessReviewSpec{
 					ResourceAttributes: &authorizationv1.ResourceAttributes{
 						Verb:     "impersonate",
-						Resource: "groups",
-						Name:     impersonateGroup,
+						Resource: "users",
+						Name:     impersonateUser,
 					},
 					User:   username,
 					Groups: groups,
@@ -67,33 +99,8 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 			}
 
 			if !ac.Status.Allowed {
-				return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the group %s", username, impersonateGroup))
+				return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the user %s", username, impersonateUser))
 			}
-		}
-
-		defer func() {
-			groups = impersonateGroups
-		}()
-	}
-
-	if impersonateUser := GetImpersonatingUser(h.Request); len(impersonateUser) > 0 {
-		ac := &authorizationv1.SubjectAccessReview{
-			Spec: authorizationv1.SubjectAccessReviewSpec{
-				ResourceAttributes: &authorizationv1.ResourceAttributes{
-					Verb:     "impersonate",
-					Resource: "users",
-					Name:     impersonateUser,
-				},
-				User:   username,
-				Groups: groups,
-			},
-		}
-		if err = h.client.Create(h.Request.Context(), ac); err != nil {
-			return "", nil, err
-		}
-
-		if !ac.Status.Allowed {
-			return "", nil, NewErrUnauthorized(fmt.Sprintf("the current user %s cannot impersonate the user %s", username, impersonateUser))
 		}
 
 		// Assign impersonate user after group impersonation with current user

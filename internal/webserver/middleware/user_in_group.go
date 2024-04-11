@@ -5,6 +5,7 @@ package middleware
 
 import (
 	"net/http"
+	"regexp"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
@@ -15,11 +16,11 @@ import (
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
-func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if ignoredUserGroups.Len() > 0 {
-				user, groups, err := req.NewHTTP(request, authTypes, claim, client, nil, nil).GetUserAndGroups()
+				user, groups, err := req.NewHTTP(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview).GetUserAndGroups()
 				if err != nil {
 					log.Error(err, "Cannot retrieve username and group from request")
 				}
@@ -39,10 +40,10 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 	}
 }
 
-func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
+func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			_, groups, err := req.NewHTTP(request, authTypes, claim, client, nil, nil).GetUserAndGroups()
+			_, groups, err := req.NewHTTP(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview).GetUserAndGroups()
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
 			}

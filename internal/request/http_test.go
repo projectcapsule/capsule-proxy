@@ -52,6 +52,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 		authTypes                 []request.AuthType
 		ignoreGroups              []string
 		ignoreImpersonationRegexp *regexp.Regexp
+		skipImpersonationReview   bool
 		usernameClaimField        string
 		client                    client.Writer
 	}
@@ -201,7 +202,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := request.NewHTTP(tc.fields.Request, tc.fields.authTypes, tc.fields.usernameClaimField, tc.fields.client, tc.fields.ignoreGroups, tc.fields.ignoreImpersonationRegexp)
+			req := request.NewHTTP(tc.fields.Request, tc.fields.authTypes, tc.fields.usernameClaimField, tc.fields.client, tc.fields.ignoreGroups, tc.fields.ignoreImpersonationRegexp, tc.fields.skipImpersonationReview)
 			gotUsername, gotGroups, err := req.GetUserAndGroups()
 			if (err != nil) != tc.wantErr {
 				t.Errorf("GetUserAndGroups() error = %v, wantErr %v", err, tc.wantErr)

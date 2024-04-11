@@ -66,6 +66,11 @@ func main() {
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
 		},
+		features.SkipImpersonationReview: {
+			Default:       false,
+			LockToDefault: false,
+			PreRelease:    featuregate.Alpha,
+		},
 	}))
 
 	authTypes := []request.AuthType{
@@ -150,6 +155,10 @@ First match is used and can be specified multiple times as comma separated value
 		log.Info(fmt.Sprintf("The Groups dropped for impersonation %s", ignoreImpersonationGroups))
 	}
 
+	if gates.Enabled(features.SkipImpersonationReview) {
+		log.Info("SECURITY IMPLICATION: Skipping Impersonation reviews are enabled!")
+	}
+
 	log.Info("---")
 	log.Info("Creating the manager")
 
@@ -209,7 +218,7 @@ First match is used and can be specified multiple times as comma separated value
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, config, ignoreImpersonationGroups, impersonationGroupsRegexp); err != nil {
+	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, config, ignoreImpersonationGroups, impersonationGroupsRegexp, gates.Enabled(features.SkipImpersonationReview)); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}

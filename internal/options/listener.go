@@ -20,4 +20,5 @@ type ListenerOpts interface {
 	PreferredUsernameClaim() string
 	ReverseProxyTransport() (*http.Transport, error)
 	BearerToken() string
+	SkipImpersonationReview() bool
 }
