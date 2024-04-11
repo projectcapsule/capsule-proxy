@@ -15,6 +15,8 @@ type OwnerSpec struct {
 	Name string `json:"name"`
 	// Proxy settings for tenant owner.
 	ProxyOperations []v1beta2.ProxySettings `json:"proxySettings,omitempty"`
+	// Cluster Resources for tenant Owner.
+	ClusterResources []ClusterResource `json:"clusterResources,omitempty"`
 }
 
 // ProxySettingSpec defines the additional Capsule Proxy settings for additional users of the Tenant.

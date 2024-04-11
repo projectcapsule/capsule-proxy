@@ -9,7 +9,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -37,21 +36,25 @@ func Get(client client.Reader) modules.Module {
 		client:       client,
 		log:          ctrl.Log.WithName("tenant_get"),
 		gk: schema.GroupKind{
-			Group: corev1.GroupName,
+			Group: "capsule.clastix.io",
 			Kind:  "tenants",
 		},
 	}
 }
 
-func (l get) Path() string {
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk
+}
+
+func (g get) Path() string {
 	return "/apis/capsule.clastix.io/v1beta2/tenants/{name}"
 }
 
-func (l get) Methods() []string {
+func (g get) Methods() []string {
 	return []string{http.MethodGet}
 }
 
-func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	name := mux.Vars(proxyRequest.GetHTTPRequest())["name"]
 
 	userTenants := sets.New[string]()
@@ -64,5 +67,5 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 		return labels.NewSelector(), nil
 	}
 
-	return nil, errors.NewNotFoundError(name, l.gk)
+	return nil, errors.NewNotFoundError(name, g.gk)
 }

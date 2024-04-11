@@ -48,6 +48,10 @@ func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.
 	}
 }
 
+func (l get) GroupKind() schema.GroupKind {
+	return l.gk
+}
+
 func (l get) Path() string {
 	return "/api/v1/namespaces/{name}"
 }

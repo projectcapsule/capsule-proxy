@@ -39,6 +39,10 @@ func Get(client client.Reader) modules.Module {
 	}
 }
 
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk
+}
+
 func (g get) Path() string {
 	return "/apis/scheduling.k8s.io/v1/{endpoint:priorityclasses}/{name}"
 }
