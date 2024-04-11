@@ -12,8 +12,9 @@ import (
 )
 
 type ProxyTenant struct {
-	Tenant       capsulev1beta2.Tenant
-	ProxySetting map[capsulev1beta2.ProxyServiceKind]*Operations
+	Tenant           capsulev1beta2.Tenant
+	ProxySetting     map[capsulev1beta2.ProxyServiceKind]*Operations
+	ClusterResources []v1beta1.ClusterResource
 }
 
 func defaultProxySettings() map[capsulev1beta2.ProxyServiceKind]*Operations {
@@ -28,11 +29,15 @@ func defaultProxySettings() map[capsulev1beta2.ProxyServiceKind]*Operations {
 }
 
 func NewProxyTenant(ownerName string, ownerKind capsulev1beta2.OwnerKind, tenant capsulev1beta2.Tenant, owners []v1beta1.OwnerSpec) *ProxyTenant {
-	var tenantProxySettings []capsulev1beta2.ProxySettings
+	var (
+		tenantProxySettings    []capsulev1beta2.ProxySettings
+		tenantClusterResources []v1beta1.ClusterResource
+	)
 
 	for _, owner := range owners {
 		if owner.Name == ownerName && owner.Kind == ownerKind {
 			tenantProxySettings = owner.ProxyOperations
+			tenantClusterResources = owner.ClusterResources
 		}
 	}
 
@@ -45,8 +50,9 @@ func NewProxyTenant(ownerName string, ownerKind capsulev1beta2.OwnerKind, tenant
 	}
 
 	return &ProxyTenant{
-		Tenant:       tenant,
-		ProxySetting: proxySettings,
+		Tenant:           tenant,
+		ProxySetting:     proxySettings,
+		ClusterResources: tenantClusterResources,
 	}
 }
 
