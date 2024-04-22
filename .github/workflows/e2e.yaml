@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           fetch-depth: 0
-      - uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78
+      - uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814
         with:
           version: 3.3.4
       - name: Installing BATS
