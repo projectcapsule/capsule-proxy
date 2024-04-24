@@ -223,8 +223,10 @@ First match is used and can be specified multiple times as comma separated value
 
 	var clientOverride client.Reader
 
-	if !disableCaching {
+	if disableCaching {
 		clientOverride = mgr.GetAPIReader()
+	} else {
+		clientOverride = mgr.GetClient()
 	}
 
 	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, gates, rbReflector, clientOverride, mgr.GetClient())
