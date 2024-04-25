@@ -1,6 +1,8 @@
 # Version
 GIT_HEAD_COMMIT ?= $(shell git rev-parse --short HEAD)
 VERSION         ?= $(or $(shell git describe --abbrev=0 --tags --match "v*" 2>/dev/null),$(GIT_HEAD_COMMIT))
+GO_OS 		    ?= $(shell go env GOOS)
+GO_ARCH 	    ?= $(shell go env GOARCH)
 
 # Defaults
 REGISTRY        ?= ghcr.io
@@ -39,6 +41,7 @@ dlv-build:
 	docker build . --build-arg "GCFLAGS=all=-N -l" --tag projectcapsule/capsule-proxy:dlv --target dlv
 
 
+KO_PLATFORM     ?= $(GOOS)/$(GO_ARCH)
 KOCACHE         ?= /tmp/ko-cache
 KO_TAGS         ?= "latest"
 
@@ -60,9 +63,9 @@ LD_FLAGS        := "-X main.Version=$(VERSION) \
 
 .PHONY: ko-build-capsule-proxy
 ko-build-capsule-proxy: ko
-	@echo Building Capsule Proxy $(KO_TAGS) >&2
+	echo Building Capsule Proxy $(KO_TAGS) for $(KO_PLATFORM) >&2
 	@LD_FLAGS=$(LD_FLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO=$(CAPSULE_PROXY_IMG) \
-		$(KO) build ./ --bare --tags=$(KO_TAGS) --local --push=false
+		$(KO) build ./ --bare --tags=$(KO_TAGS) --local --push=false --platform=$(KO_PLATFORM)
 
 .PHONY: ko-build-all
 ko-build-all: ko-build-capsule-proxy

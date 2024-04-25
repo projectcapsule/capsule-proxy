@@ -40,6 +40,25 @@ The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on you
   
         $ helm uninstall capsule-proxy -n capsule-system
 
+## Upgrading the Chart
+
+Intsructions to upgrade the chart the versions, which may remove features or introduce breaking changes.
+
+### 0.7.x
+
+Introduces a new methode to manage all capsule-proxy CRDs and their lifecycle. We are no longer relying on the [native CRD hook with the Helm Chart](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations). The hook only allows to manage CRDs on install and uninstall but we can't deliver updates to the CRDs.
+When you newly install the chart we recommend to set  `crds.install` to `true`. This will manage the CRDs with the Helm Chart.
+
+If you are upgrading to this release, you can choose to set `global.crds.install` to `true` (by default `false`). However you need to add metadata to the existing CRDs so they can be correctly managed with the new flow. Run the following commands:
+
+```bash
+kubectl label crd proxysettings.capsule.clastix.io  app.kubernetes.io/managed-by=Helm
+kubectl annotate crd proxysettings.capsule.clastix.io meta.helm.sh/release-namespace=capsule-system # might be different
+kubectl annotate crd proxysettings.capsule.clastix.io meta.helm.sh/release-name=capsule-proxy # might be different
+```
+
+With the new CRD management we can release update CRDs bundled with the chart. The Chart can be uninstalled and the CRDs are still kept.
+
 ## Customize the installation
 
 There are two methods for specifying overrides of values during chart installation: `--values` and `--set`.
@@ -56,6 +75,13 @@ If you only need to make minor customizations, you can specify them on the comma
 
         $ helm install capsule-proxy projectcapsule/capsule-proxy --set "kind=DaemonSet" -n capsule-system
 
+### CustomResourceDefinition Lifecycle
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| crds.install | bool | `false` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
+| crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |
+
 ### General Parameters
 
 | Key | Type | Default | Description |
@@ -70,6 +96,8 @@ If you only need to make minor customizations, you can specify them on the comma
 | certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
 | certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
 | certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
+| crds.install | bool | `false` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
+| crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
 | hostNetwork | bool | `false` | When deployed as DaemonSet use |

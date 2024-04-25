@@ -1,3 +1,6 @@
+crds:
+  install: true
+  keep: false
 kind: DaemonSet
 imagePullSecrets: []
 certManager:
