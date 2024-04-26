@@ -75,6 +75,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, gates f
 		ignoredUserGroups:          sets.New(opts.IgnoredGroupNames()...),
 		ignoredImpersonationGroups: opts.IgnoredImpersonationsGroups(),
 		impersonationGroupsRegexp:  opts.ImpersonationGroupsRegexp(),
+		skipImpersonationReview:    opts.SkipImpersonationReview(),
 		reverseProxy:               reverseProxy,
 		bearerToken:                opts.BearerToken(),
 		usernameClaimField:         opts.PreferredUsernameClaim(),
@@ -90,6 +91,7 @@ type kubeFilter struct {
 	ignoredUserGroups          sets.Set[string]
 	ignoredImpersonationGroups []string
 	impersonationGroupsRegexp  *regexp.Regexp
+	skipImpersonationReview    bool
 	reverseProxy               *httputil.ReverseProxy
 	bearerToken                string
 	usernameClaimField         string
@@ -182,7 +184,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 }
 
 func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp)
+	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 
 	username, groups, err := hr.GetUserAndGroups()
 	if err != nil {
@@ -276,11 +278,11 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr.Use(
 			middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 			middleware.CheckJWTMiddleware(n.writer),
-			middleware.CheckUserInIgnoredGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.impersonateHandler),
-			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.impersonateHandler),
+			middleware.CheckUserInIgnoredGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.impersonateHandler),
+			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, nil, nil)
+			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 			username, groups, err := proxyRequest.GetUserAndGroups()
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")
