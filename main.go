@@ -35,7 +35,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver"
 )
 
-//nolint:funlen,cyclop,maintidx
+//nolint:funlen,cyclop,maintidx,gocognit
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
