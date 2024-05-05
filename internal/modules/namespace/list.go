@@ -37,6 +37,10 @@ func List(roleBindingsReflector *controllers.RoleBindingReflector) modules.Modul
 	}
 }
 
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk
+}
+
 func (l list) Path() string {
 	return basePath
 }

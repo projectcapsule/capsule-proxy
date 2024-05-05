@@ -9,6 +9,7 @@ import (
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,10 +22,22 @@ import (
 type get struct {
 	client client.Reader
 	log    logr.Logger
+	gk     schema.GroupKind
 }
 
 func Get(client client.Reader) modules.Module {
-	return &get{client: client, log: ctrl.Log.WithName("node_get")}
+	return &get{
+		client: client,
+		log:    ctrl.Log.WithName("node_get"),
+		gk: schema.GroupKind{
+			Group: corev1.GroupName,
+			Kind:  "nodes",
+		},
+	}
+}
+
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk
 }
 
 func (g get) Path() string {

@@ -36,6 +36,10 @@ func List(client client.Reader) modules.Module {
 	}
 }
 
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk
+}
+
 func (l list) Path() string {
 	return "/apis/networking.k8s.io/{version}/{endpoint:ingressclasses/?}"
 }

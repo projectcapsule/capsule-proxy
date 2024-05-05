@@ -1,6 +1,8 @@
 # Version
 GIT_HEAD_COMMIT ?= $(shell git rev-parse --short HEAD)
 VERSION         ?= $(or $(shell git describe --abbrev=0 --tags --match "v*" 2>/dev/null),$(GIT_HEAD_COMMIT))
+GO_OS 		    ?= $(shell go env GOOS)
+GO_ARCH 	    ?= $(shell go env GOARCH)
 
 # Defaults
 REGISTRY        ?= ghcr.io
@@ -39,6 +41,7 @@ dlv-build:
 	docker build . --build-arg "GCFLAGS=all=-N -l" --tag projectcapsule/capsule-proxy:dlv --target dlv
 
 
+KO_PLATFORM     ?= $(GOOS)/$(GO_ARCH)
 KOCACHE         ?= /tmp/ko-cache
 KO_TAGS         ?= "latest"
 
@@ -60,9 +63,9 @@ LD_FLAGS        := "-X main.Version=$(VERSION) \
 
 .PHONY: ko-build-capsule-proxy
 ko-build-capsule-proxy: ko
-	@echo Building Capsule Proxy $(KO_TAGS) >&2
+	echo Building Capsule Proxy $(KO_TAGS) for $(KO_PLATFORM) >&2
 	@LD_FLAGS=$(LD_FLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO=$(CAPSULE_PROXY_IMG) \
-		$(KO) build ./ --bare --tags=$(KO_TAGS) --local --push=false
+		$(KO) build ./ --bare --tags=$(KO_TAGS) --local --push=false --platform=$(KO_PLATFORM)
 
 .PHONY: ko-build-all
 ko-build-all: ko-build-capsule-proxy
@@ -132,8 +135,8 @@ e2e-exec:
 
 .PHONY: e2e-build
 e2e-build:
-	@echo "Building kubernetes env using Kind $${KIND_K8S_VERSION:-v1.22.0}..."
-	@kind create cluster --name capsule --image kindest/node:$${KIND_K8S_VERSION:-v1.22.0} --config ./e2e/kind.yaml --wait=120s \
+	@echo "Building kubernetes env using Kind $${KIND_K8S_VERSION:-v1.27.0}..."
+	@kind create cluster --name capsule --image kindest/node:$${KIND_K8S_VERSION:-v1.27.0} --config ./e2e/kind.yaml --wait=120s \
 		&& kubectl taint nodes capsule-worker2 key1=value1:NoSchedule
 	@helm repo add bitnami https://charts.bitnami.com/bitnami
 	@helm repo update
@@ -176,6 +179,7 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=$(VERSION)" \
 		--set "options.enableSSL=false" \
+		--set "options.logLevel=10" \
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
@@ -186,7 +190,7 @@ else
 	@echo "Running in HTTPS mode"
 	@echo "capsule proxy certificates..."
 	cd hack && $(MKCERT) -install && $(MKCERT) 127.0.0.1  \
-		&& kubectl --namespace capsule-systemdelete secret capsule-proxy \
+		&& kubectl --namespace capsule-system delete secret capsule-proxy || true \
 		&& kubectl --namespace capsule-system create secret generic capsule-proxy --from-file=tls.key=./127.0.0.1-key.pem --from-file=tls.crt=./127.0.0.1.pem --from-literal=ca=$$(cat $(ROOTCA) | base64 |tr -d '\n')
 	@echo "kubeconfig configurations..."
 	@cd hack \
@@ -210,6 +214,7 @@ else
 	@helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=$(VERSION)" \
+		--set "options.logLevel=10" \
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
@@ -227,7 +232,7 @@ rbac-fix:
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=charts/capsule-proxy/crds
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=charts/capsule-proxy/crd
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.

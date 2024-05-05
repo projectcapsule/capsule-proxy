@@ -6,6 +6,7 @@ import (
 
 	v1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -27,6 +28,10 @@ func CatchAll(client client.Reader, writer client.Writer, path string) modules.M
 		reader: client,
 		writer: writer,
 	}
+}
+
+func (l catchall) GroupKind() schema.GroupKind {
+	return schema.GroupKind{}
 }
 
 func (l catchall) Path() string {

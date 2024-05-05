@@ -34,4 +34,4 @@ annotations:
       url: https://capsule.clastix.io/
   artifacthub.io/changes: |
     - kind: added
-      description: add subjects for cert-manager certificate
+      description: crd lifecycle

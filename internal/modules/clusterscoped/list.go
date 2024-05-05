@@ -1,17 +1,16 @@
-// Copyright 2020-2023 Project Capsule Authors.
-// SPDX-License-Identifier: Apache-2.0
-
-package metric
+package clusterscoped
 
 import (
+	"slices"
+
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
@@ -20,28 +19,27 @@ import (
 )
 
 type list struct {
-	client client.Reader
+	path   string
 	log    logr.Logger
-	gk     schema.GroupKind
+	reader client.Reader
+	writer client.Writer
 }
 
-func List(client client.Reader) modules.Module {
+func List(client client.Reader, writer client.Writer, path string) modules.Module {
 	return &list{
-		client: client,
-		log:    ctrl.Log.WithName("metric_list"),
-		gk: schema.GroupKind{
-			Group: "metrics.k8s.io",
-			Kind:  "nodes",
-		},
+		path:   path,
+		log:    ctrl.Log.WithName("clusterresource_list"),
+		reader: client,
+		writer: writer,
 	}
 }
 
 func (l list) GroupKind() schema.GroupKind {
-	return l.gk
+	return schema.GroupKind{}
 }
 
 func (l list) Path() string {
-	return "/apis/metrics.k8s.io/{version}/{endpoint:nodes/?}"
+	return l.path
 }
 
 func (l list) Methods() []string {
@@ -49,19 +47,19 @@ func (l list) Methods() []string {
 }
 
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
-	httpRequest := proxyRequest.GetHTTPRequest()
+	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	selectors := utils.GetNodeSelectors(httpRequest, proxyTenants)
+	operations, requirements := getRequirements(gvk, proxyTenants)
+	if len(requirements) > 0 {
+		// Verify if the list operation is allowed
+		if slices.Contains(operations, v1beta1.ClusterResourceOperationList) {
+			return utils.HandleListSelector(requirements)
+		}
 
-	nl := &corev1.NodeList{}
-	if err = l.client.List(httpRequest.Context(), nl); err != nil {
-		return nil, errors.NewBadRequest(err, l.gk)
+		return nil, errors.NewNotAllowed(gvk.GroupKind())
 	}
 
-	var r *labels.Requirement
-	if r, err = utils.GetNodeSelector(nl, selectors); err != nil {
-		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
-	}
+	r, _ := labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 
 	return labels.NewSelector().Add(*r), nil
 }

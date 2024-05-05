@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
+	"k8s.io/client-go/discovery"
 	"k8s.io/component-base/featuregate"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,6 +36,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	moderrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/ingressclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/lease"
@@ -238,6 +240,25 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		tenants.List(),
 		tenants.Get(n.reader),
 	}
+
+	// Discovery client
+	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie())
+
+	if n.gates.Enabled(features.ProxyClusterScoped) {
+		apis, err := serverPreferredResources(discoveryClient)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, api := range apis {
+			if !moduleGroupKindPresent(modList, api) {
+				n.log.V(6).Info("adding generic cluster scoped resource", "url", api.Path())
+				modList = append(modList, clusterscoped.List(n.reader, n.writer, api.Path()))
+				modList = append(modList, clusterscoped.Get(discoveryClient, n.reader, n.writer, api.ResourcePath()))
+			}
+		}
+	}
+
 	// Get all API group resources
 	if n.gates.Enabled(features.ProxyAllNamespaced) {
 		apis, err := watchdog.API(ctrl.GetConfigOrDie())
@@ -246,25 +267,10 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		}
 
 		for _, api := range apis {
-			// Generating the API path according to the provided GVK
-			var parts []string
-
-			if api.Group != "" {
-				parts = append(parts, "apis")
-				parts = append(parts, api.Group)
-			} else {
-				parts = append(parts, "api")
-			}
-
-			parts = append(parts, api.Version)
-			parts = append(parts, api.URLName)
-
-			modList = append(modList, namespaced.CatchAll(n.reader, n.writer, fmt.Sprintf("/%s", strings.Join(parts, "/"))))
+			n.log.V(6).Info("adding generic namespaced resource", "url", api.Path())
+			modList = append(modList, namespaced.CatchAll(n.reader, n.writer, api.Path()))
 		}
 	}
-	// Catching namespaced Custom Resource Definition instances
-	mod := namespaced.CatchAll(n.reader, n.writer, "/apis/{group}/{version}/{kind}")
-	modList = append(modList, mod)
 
 	for _, i := range modList {
 		mod := i

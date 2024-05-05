@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
@@ -28,10 +27,14 @@ func List() modules.Module {
 	return &list{
 		log: ctrl.Log.WithName("tenant_list"),
 		gk: schema.GroupKind{
-			Group: corev1.GroupName,
+			Group: "capsule.clastix.io",
 			Kind:  "tenants",
 		},
 	}
+}
+
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk
 }
 
 func (l list) Path() string {

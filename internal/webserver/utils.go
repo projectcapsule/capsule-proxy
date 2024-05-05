@@ -1,4 +1,4 @@
-package watchdog
+package webserver
 
 import (
 	"strings"
@@ -7,20 +7,30 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/rest"
 
+	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/utils"
 )
 
-func API(config *rest.Config) ([]utils.ProxyGroupVersionKind, error) {
-	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(config)
+func moduleGroupKindPresent(modules []modules.Module, clusterModule utils.ProxyGroupVersionKind) (present bool) {
+	present = false
 
-	apiResourceLists, err := discoveryClient.ServerPreferredNamespacedResources()
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot retrieve server's preferred namespaced resources")
+	for _, mod := range modules {
+		if mod.GroupKind().Group == clusterModule.Group && mod.GroupKind().Kind == clusterModule.URLName {
+			present = true
+
+			break
+		}
 	}
 
-	var out []utils.ProxyGroupVersionKind
+	return
+}
+
+func serverPreferredResources(discoveryClient *discovery.DiscoveryClient) (out []utils.ProxyGroupVersionKind, err error) {
+	apiResourceLists, err := discoveryClient.ServerPreferredResources()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot retrieve server's preferred resources")
+	}
 
 	for _, ar := range apiResourceLists {
 		parts := strings.Split(ar.GroupVersion, "/")
@@ -36,6 +46,11 @@ func API(config *rest.Config) ([]utils.ProxyGroupVersionKind, error) {
 		}
 
 		for _, i := range ar.APIResources {
+			// Skip namespaced resources
+			if i.Namespaced {
+				continue
+			}
+
 			if !sets.New[string]([]string(i.Verbs)...).Has("get") {
 				continue
 			}

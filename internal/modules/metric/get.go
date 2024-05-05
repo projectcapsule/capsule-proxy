@@ -32,10 +32,14 @@ func Get(client client.Reader) modules.Module {
 		client: client,
 		log:    ctrl.Log.WithName("metric_get"),
 		gk: schema.GroupKind{
-			Group: corev1.GroupName,
+			Group: "metrics.k8s.io",
 			Kind:  "nodes",
 		},
 	}
+}
+
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk
 }
 
 func (g get) Path() string {

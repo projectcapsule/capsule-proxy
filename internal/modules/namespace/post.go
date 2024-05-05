@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
@@ -17,6 +18,10 @@ type post struct{}
 
 func Post() modules.Module {
 	return &post{}
+}
+
+func (l post) GroupKind() schema.GroupKind {
+	return schema.GroupKind{}
 }
 
 func (l post) Path() string {

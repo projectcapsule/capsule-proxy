@@ -2,6 +2,13 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Manage CRD Lifecycle
+crds:
+  # -- Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations)
+  install: false
+  # -- Keep the CustomResourceDefinitions (when the chart is deleted)
+  keep: true
+
 image:
   # -- Set the image registry for capsule-proxy
   registry: ghcr.io

@@ -71,6 +71,11 @@ func main() {
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
 		},
+		features.ProxyClusterScoped: {
+			Default:       false,
+			LockToDefault: false,
+			PreRelease:    featuregate.Alpha,
+		},
 	}))
 
 	authTypes := []request.AuthType{

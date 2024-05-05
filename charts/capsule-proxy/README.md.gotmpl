@@ -40,6 +40,25 @@ The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on you
    
         $ helm uninstall capsule-proxy -n capsule-system
 
+## Upgrading the Chart
+
+Intsructions to upgrade the chart the versions, which may remove features or introduce breaking changes.
+
+### 0.7.x
+
+Introduces a new methode to manage all capsule-proxy CRDs and their lifecycle. We are no longer relying on the [native CRD hook with the Helm Chart](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations). The hook only allows to manage CRDs on install and uninstall but we can't deliver updates to the CRDs.
+When you newly install the chart we recommend to set  `crds.install` to `true`. This will manage the CRDs with the Helm Chart.
+
+If you are upgrading to this release, you can choose to set `global.crds.install` to `true` (by default `false`). However you need to add metadata to the existing CRDs so they can be correctly managed with the new flow. Run the following commands:
+
+```bash
+kubectl label crd proxysettings.capsule.clastix.io  app.kubernetes.io/managed-by=Helm
+kubectl annotate crd proxysettings.capsule.clastix.io meta.helm.sh/release-namespace=capsule-system # might be different
+kubectl annotate crd proxysettings.capsule.clastix.io meta.helm.sh/release-name=capsule-proxy # might be different
+```
+
+With the new CRD management we can release update CRDs bundled with the chart. The Chart can be uninstalled and the CRDs are still kept.
+
 ## Customize the installation
 
 There are two methods for specifying overrides of values during chart installation: `--values` and `--set`.
@@ -55,6 +74,17 @@ The values in your overrides file `myvalues.yaml` will override their counterpar
 If you only need to make minor customizations, you can specify them on the command line by using the `--set` option. For example:
 
         $ helm install capsule-proxy projectcapsule/capsule-proxy --set "kind=DaemonSet" -n capsule-system
+
+### CustomResourceDefinition Lifecycle
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if (hasPrefix "crds" .Key)  }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
 
 ### General Parameters
 
