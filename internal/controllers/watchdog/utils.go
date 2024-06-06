@@ -36,7 +36,7 @@ func API(config *rest.Config) ([]utils.ProxyGroupVersionKind, error) {
 		}
 
 		for _, i := range ar.APIResources {
-			if !sets.New[string]([]string(i.Verbs)...).Has("get") {
+			if !sets.New[string]([]string(i.Verbs)...).HasAll("get", "list", "watch") {
 				continue
 			}
 
