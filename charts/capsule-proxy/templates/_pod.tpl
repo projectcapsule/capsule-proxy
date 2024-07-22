@@ -24,8 +24,11 @@ spec:
   securityContext:
     {{- toYaml .Values.podSecurityContext | nindent 4 }}
   priorityClassName: {{ .Values.priorityClassName }}
-  {{- if .Values.options.enableSSL }}
   volumes:
+  {{- with .Values.volumes }}
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+  {{- if .Values.options.enableSSL }}
   - name: certs
     secret:
       secretName: {{ .Values.options.certificateVolumeName | default  (include "capsule-proxy.fullname" .) }}
@@ -61,6 +64,10 @@ spec:
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+    {{- with .Values.env }}
+    env: 
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
     ports:
     - name: proxy
       protocol: TCP
@@ -76,20 +83,21 @@ spec:
     - name: probe
       containerPort: 8081
       protocol: TCP
-    readinessProbe:
-      httpGet:
-        path: /readyz/
-        port: probe
-        scheme: HTTP
+    {{- if .Values.livenessProbe.enabled }}
     livenessProbe:
-      httpGet:
-        path: /healthz/
-        port: probe
-        scheme: HTTP
+      {{- toYaml (omit .Values.livenessProbe "enabled") | nindent 6 }}
+    {{- end }}
+    {{- if .Values.readinessProbe.enabled }}
+    readinessProbe:
+      {{- toYaml (omit .Values.readinessProbe "enabled") | nindent 6 }}
+    {{- end }}
     resources:
       {{- toYaml .Values.resources | nindent 12 }}
-    {{- if .Values.options.enableSSL }}
     volumeMounts:
+    {{- with .Values.volumeMounts }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.options.enableSSL }}
     - mountPath: {{ .Values.options.SSLDirectory }}
       name: certs
     {{- end }}
