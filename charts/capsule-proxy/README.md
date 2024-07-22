@@ -100,6 +100,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
+| env | list | `[]` | Additional environment variables |
 | hostNetwork | bool | `false` | When deployed as DaemonSet use |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
 | image.registry | string | `"ghcr.io"` | Set the image registry for capsule-proxy |
@@ -121,11 +122,13 @@ If you only need to make minor customizations, you can specify them on the comma
 | jobs.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
 | jobs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
 | kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. |
+| livenessProbe | object | `{"enabled":true,"httpGet":{"path":"/healthz/","port":"probe","scheme":"HTTP"},"initialDelaySeconds":20}` | Proxy Liveness-Probe |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
 | podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the capsule-proxy pod. |
 | priorityClassName | string | `""` | Specifies PriorityClass of the capsule-proxy pod. |
+| readinessProbe | object | `{"enabled":true,"httpGet":{"path":"/readyz/","port":"probe","scheme":"HTTP"},"initialDelaySeconds":5}` | Proxy Readyness-Probe |
 | replicaCount | int | `1` | Set the replica count for capsule-proxy pod. |
 | resources.limits.cpu | string | `"200m"` | Set the CPU requests assigned to the controller. |
 | resources.limits.memory | string | `"128Mi"` | Set the memory requests assigned to the controller. |
@@ -138,6 +141,8 @@ If you only need to make minor customizations, you can specify them on the comma
 | serviceAccount.name | string | `capsule-proxy`` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template |
 | tolerations | list | `[]` | Set list of tolerations for the capsule-proxy pod. |
 | topologySpreadConstraints | list | `[]` | Topology Spread Constraints for the capsule-proxy pod. |
+| volumeMounts | list | `[]` | Additional volume mounts |
+| volumes | list | `[]` | Additional volumes |
 
 ### Controller Options Parameters
 

@@ -73,6 +73,24 @@ topologySpreadConstraints: []
 #     matchLabels:
 #       app.kubernetes.io/name: capsule-proxy
 
+# -- Proxy Readyness-Probe
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  httpGet:
+    path: /readyz/
+    port: probe
+    scheme: HTTP
+
+# -- Proxy Liveness-Probe
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 20
+  httpGet:
+    path: /healthz/
+    port: probe
+    scheme: HTTP
+
 # Set a pod priorityClassName
 # priorityClassName: system-node-critical
 # -- Specifies PriorityClass of the capsule-proxy pod.
@@ -105,6 +123,16 @@ resources:
     cpu: 200m
     # -- Set the memory limits assigned to the controller.
     memory: 128Mi
+
+# -- Additional environment variables
+env: []
+
+# -- Additional volumes
+volumes: []
+
+# -- Additional volume mounts
+volumeMounts: []
+
 
 # Controller Options
 options:
@@ -144,6 +172,8 @@ options:
   clientConnectionBurst: 30
   # -- A list of extra arguments to add to the capsule-proxy.
   extraArgs: []
+  # -"--feature-gates=ProxyClusterScoped=true"
+  # -"--feature-gates=ProxyAllNamespaced=true"
 
 jobs:
   certs:
