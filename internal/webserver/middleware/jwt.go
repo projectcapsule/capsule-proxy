@@ -11,19 +11,23 @@ import (
 	"github.com/gorilla/mux"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 )
 
 func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
+	invalidatedToken := sets.New[string]()
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			var err error
 
 			token := strings.ReplaceAll(request.Header.Get("Authorization"), "Bearer ", "")
 
-			if len(token) > 0 {
+			switch {
+			case len(token) > 0 && !invalidatedToken.Has(token):
 				tr := authenticationv1.TokenReview{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "TokenReview",
@@ -37,8 +41,12 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 					errors.HandleError(writer, err, "cannot create TokenReview")
 				}
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
+					invalidatedToken.Insert(token)
+
 					errors.HandleUnauthorized(writer, fmt.Errorf(statusErr), "cannot authenticate the token due to error")
 				}
+			case invalidatedToken.Has(token):
+				errors.HandleUnauthorized(writer, fmt.Errorf("token is invalid"), "cannot authenticate the token due to error")
 			}
 
 			next.ServeHTTP(writer, request)
