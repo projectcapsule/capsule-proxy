@@ -178,13 +178,13 @@ options:
 jobs:
   certs:
     # -- Set the image repository of the post install certgen job
-    registry: docker.io
+    registry: registry.k8s.io
     # -- Set the image repository of the post install certgen job
-    repository: jettech/kube-webhook-certgen
+    repository: ingress-nginx/kube-webhook-certgen
     # -- Set the image pull policy of the post install certgen job
     pullPolicy: IfNotPresent
     # -- Set the image tag of the post install certgen job
-    tag: "v1.3.0"
+    tag: "v1.4.3"
   # -- Annotations to add to the certgen job.
   annotations: {}
   # -- Set the restartPolicy
