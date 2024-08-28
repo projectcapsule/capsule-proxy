@@ -45,6 +45,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/namespaced"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/node"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/persistentvolume"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/pod"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/priorityclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/runtimeclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/storageclass"
@@ -239,6 +240,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		metric.List(n.reader),
 		tenants.List(),
 		tenants.Get(n.reader),
+		pod.Get(n.reader),
 	}
 
 	// Discovery client
