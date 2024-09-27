@@ -9,6 +9,13 @@ metadata:
   name: {{ include "capsule-proxy.fullname" . }}
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
+    {{- if .Values.autoscaling.labels }}
+      {{- toYaml .Values.autoscaling.labels | nindent 4 }}
+    {{- end }}
+  {{- with .Values.autoscaling.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -40,5 +47,8 @@ spec:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
         {{- end }}
+    {{- end }}
+    {{- if .Values.autoscaling.metrics }}
+      {{- toYaml .Values.autoscaling.metrics | nindent 4 }}
     {{- end }}
 {{- end }}

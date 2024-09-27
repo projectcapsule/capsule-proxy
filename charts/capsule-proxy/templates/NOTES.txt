@@ -1,9 +1,9 @@
-- Capsule-proxy Helm Chart deployed:
+- 🚀 Capsule-proxy Helm Chart deployed:
 
    # Check the capsule-proxy logs
    $ kubectl logs -f deployment/{{ template "capsule-proxy.fullname" . }} -n {{ .Release.Namespace }}
 
-- Manage this chart:
+- 🛠️ Manage this chart:
 
    # Upgrade capsule-proxy
    $ helm upgrade {{ .Release.Name }} -f <values.yaml> capsule-proxy -n {{ .Release.Namespace }}
@@ -13,3 +13,5 @@
 
    # Uninstall capsule-proxy
    $ helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+- 📚 Read More on the configuration for the capulse-proxy here: https://projectcapsule.dev/integrations/addons/capsule-proxy/
