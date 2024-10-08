@@ -110,9 +110,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | jobs.affinity | object | `{}` | Set affinity rules |
 | jobs.annotations | object | `{}` | Annotations to add to the certgen job. |
 | jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
-| jobs.certs.registry | string | `"docker.io"` | Set the image repository of the post install certgen job |
-| jobs.certs.repository | string | `"jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
-| jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| jobs.certs.registry | string | `"registry.k8s.io"` | Set the image repository of the post install certgen job |
+| jobs.certs.repository | string | `"ingress-nginx/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
+| jobs.certs.tag | string | `"v1.4.3"` | Set the image tag of the post install certgen job |
 | jobs.nodeSelector | object | `{}` | Set the node selector |
 | jobs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | jobs.priorityClassName | string | `""` | Set a pod priorityClassName |
