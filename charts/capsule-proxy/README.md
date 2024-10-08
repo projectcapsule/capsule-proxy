@@ -112,7 +112,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
 | jobs.certs.registry | string | `"docker.io"` | Set the image repository of the post install certgen job |
 | jobs.certs.repository | string | `"jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
-| jobs.certs.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| jobs.certs.tag | string | `"v1.5.2"` | Set the image tag of the post install certgen job |
 | jobs.nodeSelector | object | `{}` | Set the node selector |
 | jobs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | jobs.priorityClassName | string | `""` | Set a pod priorityClassName |
@@ -128,6 +128,8 @@ If you only need to make minor customizations, you can specify them on the comma
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
 | podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the capsule-proxy pod. |
 | priorityClassName | string | `""` | Specifies PriorityClass of the capsule-proxy pod. |
+| rbac.clusterRole | string | `"cluster-admin"` | Controller ClusterRole |
+| rbac.enabled | bool | `true` | Enable Creation of ClusterRoles |
 | readinessProbe | object | `{"enabled":true,"httpGet":{"path":"/readyz/","port":"probe","scheme":"HTTP"},"initialDelaySeconds":5}` | Proxy Readyness-Probe |
 | replicaCount | int | `1` | Set the replica count for capsule-proxy pod. |
 | resources.limits.cpu | string | `"200m"` | Set the CPU requests assigned to the controller. |
@@ -182,21 +184,27 @@ If you only need to make minor customizations, you can specify them on the comma
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| ingress.annotations | object | `{}` | Annotations to add to the capsule-proxy ingress. |
+| ingress.annotations | object | `{}` | Annotations to add to the ingress. |
 | ingress.className | string | `""` | Set the IngressClass to use for the capsule-proxy ingress (do not set via annotations if setting here). |
 | ingress.enabled | bool | `false` | Specifies whether an ingress should be created. |
-| ingress.hosts[0] | object | `{"host":"kube.capsule.io","paths":["/"]}` | Set the host configuration for the capsule-proxy ingress. |
+| ingress.hosts[0] | object | `{"host":"projectcapsule.dev","paths":["/"]}` | Set the host configuration for the capsule-proxy ingress. |
 | ingress.hosts[0].paths | list | `["/"]` | Set the path configuration for the capsule-proxy ingress. |
+| ingress.labels | object | `{}` | Labels to add to the ingress. |
 | ingress.tls | list | `[]` | Set the tls configuration for the capsule-proxy ingress. |
 
 ### Autoscaler Parameters
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| autoscaling.annotations | object | `{}` | Annotations to add to the hpa. |
+| autoscaling.behavior | object | `{}` | HPA [behavior](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) |
 | autoscaling.enabled | bool | `false` | Specifies whether an hpa for capsule-proxy should be created. |
-| autoscaling.maxReplicas | int | `5` | Set the maxReplicas for capsule-proxy hpa. |
+| autoscaling.labels | object | `{}` | Labels to add to the hpa. |
+| autoscaling.maxReplicas | int | `3` | Set the maxReplicas for capsule-proxy hpa. |
+| autoscaling.metrics | list | `[]` | Custom [metrics-objects](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/#autoscaling-on-multiple-metrics-and-custom-metrics) for capsule-proxy hpa |
 | autoscaling.minReplicas | int | `1` | Set the minReplicas for capsule-proxy hpa. |
-| autoscaling.targetCPUUtilizationPercentage | int | `80` | Set the targetCPUUtilizationPercentage for capsule-proxy hpa. |
+| autoscaling.targetCPUUtilizationPercentage | string | `nil` | Set the targetCPUUtilizationPercentage for capsule-proxy hpa. |
+| autoscaling.targetMemoryUtilizationPercentage | string | `nil` | Set the targetMemoryUtilizationPercentage for capsule-proxy hpa. |
 
 ### ServiceMonitor Parameters
 

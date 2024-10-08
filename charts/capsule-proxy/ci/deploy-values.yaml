@@ -1,6 +1,11 @@
 crds:
   install: true
   keep: false
+rbac:
+  annotations:
+    extra: annotation
+  labels:
+    extra: label
 kind: DaemonSet
 imagePullSecrets: []
 certManager:
@@ -35,9 +40,30 @@ resources:
     memory: 128Mi
 autoscaling:
   enabled: true
+  annotations:
+    example: annotation
+  labels:
+    example: label
   minReplicas: 1
   maxReplicas: 5
   targetCPUUtilizationPercentage: 80
+  metrics:
+  - type: Pods
+    pods:
+      metric:
+        name: packets-per-second
+      target:
+        type: AverageValue
+        averageValue: 1k
+  behavior:
+    scaleDown:
+      policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+      - type: Percent
+        value: 10
+        periodSeconds: 60
 nodeSelector:
   node-role.kubernetes.io/master: ""
 tolerations:
@@ -45,10 +71,19 @@ tolerations:
     operator: Exists
   - effect: NoSchedule
     key: node-role.kubernetes.io/master
+service:
+  annotations:
+    example: annotation
+  labels:
+    example: label
 # Ingress
 ingress:
   enabled: true
   ingressClassName: "nginx"
+  annotations:
+    example: annotation
+  labels:
+    example: label
   hosts:
   - host: "kube.clastix.io"
     paths: ["/"]
