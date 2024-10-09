@@ -235,12 +235,10 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		runtimeclass.List(n.reader),
 		persistentvolume.Get(n.reader),
 		persistentvolume.List(n.reader),
-		lease.Get(n.reader),
 		metric.Get(n.reader),
 		metric.List(n.reader),
 		tenants.List(),
 		tenants.Get(n.reader),
-		pod.Get(n.reader),
 	}
 
 	// Discovery client
@@ -272,6 +270,11 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			n.log.V(6).Info("adding generic namespaced resource", "url", api.Path())
 			modList = append(modList, namespaced.CatchAll(n.reader, n.writer, api.Path()))
 		}
+	} else {
+		// Register legacy namespaced modules only when featureGate ProxyAllNamespaced is not active.
+		// This is to avoid registering the same resources twice and having different behaviors on these apis.
+		modList = append(modList, pod.Get(n.reader))
+		modList = append(modList, lease.Get(n.reader))
 	}
 
 	for _, i := range modList {
