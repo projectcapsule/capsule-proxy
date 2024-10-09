@@ -2,6 +2,101 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Global Values
+global:
+  # Global Values for jobs
+  jobs:
+    # kubectl job configuration
+    kubectl:
+      image:
+        # -- Set the image repository of the helm chart job
+        registry: docker.io
+        # -- Set the image repository of the helm chart job
+        repository: clastix/kubectl
+        # -- Set the image pull policy of the helm chart job
+        pullPolicy: IfNotPresent
+        # -- Set the image tag of the helm chart job
+        tag: ""
+      # -- Annotations to add to the certgen job.
+      annotations:
+        "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+      # -- Set the restartPolicy
+      restartPolicy: Never
+      # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
+      ttlSecondsAfterFinished: 60
+      # -- Security context for the job pods.
+      podSecurityContext:
+        seccompProfile:
+          type: "RuntimeDefault"
+      # -- Security context for the job containers.
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        readOnlyRootFilesystem: true
+        runAsGroup: 1002
+        runAsNonRoot: true
+        runAsUser: 1002
+      # -- Job resources
+      resources: {}
+      # -- Set the node selector
+      nodeSelector: {}
+      # -- Set list of tolerations
+      tolerations: []
+      # -- Set affinity rules
+      affinity: {}
+      # -- Set Topology Spread Constraints
+      topologySpreadConstraints: []
+      # -- Set a pod priorityClassName
+      priorityClassName: ""
+
+    # cert job configuration
+    certs:
+      image:
+        # -- Set the image repository of the post install certgen job
+        registry: docker.io
+        # -- Set the image repository of the post install certgen job
+        repository: jettech/kube-webhook-certgen
+        # -- Set the image pull policy of the post install certgen job
+        pullPolicy: IfNotPresent
+        # -- Set the image tag of the post install certgen job
+        tag: "v1.3.0"
+      # -- Annotations to add to the certgen job.
+      annotations: {}
+      # -- Set the restartPolicy
+      restartPolicy: Never
+      # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
+      ttlSecondsAfterFinished: 60
+      # -- Security context for the job pods.
+      podSecurityContext:
+        seccompProfile:
+          type: "RuntimeDefault"
+      # -- Security context for the job containers.
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        readOnlyRootFilesystem: true
+        runAsGroup: 1002
+        runAsNonRoot: true
+        runAsUser: 1002
+      # -- Set the node selector
+      nodeSelector: {}
+      # -- Set list of tolerations
+      tolerations: []
+      # -- Set affinity rules
+      affinity: {}
+      # -- Set Topology Spread Constraints
+      topologySpreadConstraints: []
+      # -- Set a pod priorityClassName
+      priorityClassName: ""
+
+# -- Deprecated: Use `global.jobs.certs` instead
+jobs:
+  certs: {}
+
 # Manage CRD Lifecycle
 crds:
   # -- Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations)
@@ -176,47 +271,7 @@ options:
   # -"--feature-gates=ProxyClusterScoped=true"
   # -"--feature-gates=ProxyAllNamespaced=true"
 
-jobs:
-  certs:
-    # -- Set the image repository of the post install certgen job
-    registry: docker.io
-    # -- Set the image repository of the post install certgen job
-    repository: jettech/kube-webhook-certgen
-    # -- Set the image pull policy of the post install certgen job
-    pullPolicy: IfNotPresent
-    # -- Set the image tag of the post install certgen job
-    tag: "v1.5.2"
-  # -- Annotations to add to the certgen job.
-  annotations: {}
-  # -- Set the restartPolicy
-  restartPolicy: Never
-  # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
-  ttlSecondsAfterFinished: 60
-  # -- Security context for the job pods.
-  podSecurityContext:
-    seccompProfile:
-      type: "RuntimeDefault"
-  # -- Security context for the job containers.
-  securityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-      - ALL
-    readOnlyRootFilesystem: true
-    runAsGroup: 1002
-    runAsNonRoot: true
-    runAsUser: 1002
-  # -- Set the node selector
-  nodeSelector: {}
-  # -- Set list of tolerations
-  tolerations: []
-  # -- Set affinity rules
-  affinity: {}
-  # -- Set Topology Spread Constraints
-  topologySpreadConstraints: []
-  # -- Set a pod priorityClassName
-  priorityClassName: ""
-
+# Cert Manager Configuration
 certManager:
   # -- Set if the cert manager will generate SSL certificates (self-signed or CA-signed)
   generateCertificates: false
@@ -239,6 +294,11 @@ certManager:
     ipAddresses: []
     # -- Additional URIs to include in certificate
     uris: []
+    # -- Additional fields to include in certificate
+    fields:
+      privateKey:
+        rotationPolicy: 'Always'
+      # renewBefore: '24h'
 
 # ServiceAccount
 serviceAccount:
@@ -247,7 +307,7 @@ serviceAccount:
   # -- Annotations to add to the service account.
   annotations: {}
   # -- The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template
-  # @default -- `capsule-proxy``
+  # @default -- `capsule-proxy`
   name: ""
 
 # HorizontalPodAutoscaler

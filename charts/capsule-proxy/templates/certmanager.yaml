@@ -1,5 +1,5 @@
 {{- if and .Values.certManager.generateCertificates .Values.options.enableSSL -}}
-  {{- if and (not .Values.certManager.externalCA.enabled) (eq .Values.certManager.issuer.kind "Issuer")  -}}
+  {{- if and (not .Values.certManager.externalCA.enabled) (eq .Values.certManager.issuer.kind "Issuer") -}}
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -24,8 +24,8 @@ spec:
     kind: Issuer
     group: cert-manager.io
   {{- end }}
----
   {{- if eq .Values.certManager.issuer.kind "Issuer" }}
+---  
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
@@ -40,6 +40,9 @@ kind: Certificate
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-serving-cert
 spec:
+  {{- with .Values.certManager.certificate.fields }}
+    {{ toYaml . | nindent 2 }}
+  {{- end }}
   dnsNames:
   {{- if .Values.ingress.enabled -}}
     {{- range $hosts := .Values.ingress.hosts }}

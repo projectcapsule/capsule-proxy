@@ -1,0 +1,95 @@
+{{- if .Values.crds.install }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "capsule-proxy.crds.name" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    # create hook dependencies in the right order
+    "helm.sh/hook-weight": "-1"
+    {{- include "capsule-proxy.crds.annotations" . | nindent 4 }}
+  labels:
+    app.kubernetes.io/component: {{ include "capsule-proxy.crds.component" . | quote }}
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
+spec:
+  {{- if ge .Values.global.jobs.kubectl.ttlSecondsAfterFinished 0.0 }}
+  ttlSecondsAfterFinished: {{ .Values.global.jobs.kubectl.ttlSecondsAfterFinished }}
+  {{- end }}
+  template:
+    metadata:
+      name: "{{ include "capsule-proxy.crds.name" . }}"
+      labels:
+        app.kubernetes.io/component: {{ include "capsule-proxy.crds.component" . | quote }}
+        {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: {{ $.Values.global.jobs.kubectl.restartPolicy }}
+      {{- with $.Values.global.jobs.kubectl.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.jobs.kubectl.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.jobs.kubectl.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.jobs.kubectl.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.jobs.kubectl.topologySpreadConstraints }}
+      topologySpreadConstraints: 
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.jobs.kubectl.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}  
+      serviceAccountName: {{ include "capsule-proxy.crds.name" . }}
+      containers:
+      - name: crds-hook
+        image: {{ include "capsule-proxy.kubectlFullyQualifiedDockerImage" . }}
+        imagePullPolicy: {{ .Values.global.jobs.kubectl.image.pullPolicy }}
+        {{- with $.Values.global.jobs.kubectl.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        command:
+        - sh
+        - -c
+        - |
+          set -o errexit ; set -o xtrace ; set -o nounset
+
+          # piping stderr to stdout means kubectl's errors are surfaced
+          # in the pod's logs.
+
+          kubectl apply --server-side=true --overwrite=true --force-conflicts=true -f /data/ 2>&1
+        volumeMounts:
+{{- range $path, $_ := .Files.Glob "crds/**.yaml" }}
+        - name: {{ $path | base | trimSuffix ".yaml" | regexFind "[^_]+$" }}
+          mountPath: /data/{{ $path | base }}
+          subPath: {{ $path | base }}
+{{- end }}
+        {{- with .Values.global.jobs.kubectl.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+{{ $currentScope := . }}
+{{- range $path, $_ := .Files.Glob "crds/**.yaml" }}
+    {{- with $currentScope }}
+      - name: {{ $path | base | trimSuffix ".yaml" | regexFind "[^_]+$" }}
+        configMap:
+          name: {{ include "capsule-proxy.crds.name" $ }}-{{ $path | base | trimSuffix ".yaml" | regexFind "[^_]+$" }}
+          items:
+          - key: content
+            path: {{ $path | base }}
+{{- end }}
+{{- end }}
+  backoffLimit: 4
+{{- end }}

@@ -85,13 +85,23 @@ If you only need to make minor customizations, you can specify them on the comma
   {{- end }}
 {{- end }}
 
+### Global Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if (hasPrefix "global" .Key)  }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
 
 ### General Parameters
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 {{- range .Values }}
-  {{- if not (or (hasPrefix "options" .Key) (hasPrefix "service." .Key) (hasPrefix "ingress" .Key) (hasPrefix "autoscaling" .Key) (hasPrefix "serviceMonitor" .Key) )  }}
+  {{- if not (or (hasPrefix "certManager" .Key)  (hasPrefix "global" .Key) (hasPrefix "options" .Key) (hasPrefix "service." .Key) (hasPrefix "ingress" .Key) (hasPrefix "autoscaling" .Key) (hasPrefix "serviceMonitor" .Key) )  }}
 | {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
   {{- end }}
 {{- end }}
@@ -103,6 +113,18 @@ If you only need to make minor customizations, you can specify them on the comma
 |-----|------|---------|-------------|
 {{- range .Values }}
   {{- if hasPrefix "options" .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+### Cert-Manager Parameters
+
+You can manage the certificate with the help of [cert-manager](https://cert-manager.io/docs/). By default the chart will create a self-signed certificate.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "certManager" .Key }}
 | {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
   {{- end }}
 {{- end }}

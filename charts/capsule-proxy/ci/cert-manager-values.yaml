@@ -1,3 +1,7 @@
+global:
+  jobs:
+    kubectl:
+      ttlSecondsAfterFinished: 120
 crds:
   install: true
   keep: false
@@ -13,3 +17,7 @@ certManager:
       - "127.0.0.1"
     uris:
       - "spiffe://cluster.local/ns/sandbox/sa/example"
+    fields:
+      privateKey:
+        rotationPolicy: 'Always'
+      renewBefore: '24h'

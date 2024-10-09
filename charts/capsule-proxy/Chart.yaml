@@ -16,7 +16,7 @@ keywords:
 - namespace
 - proxy
 sources:
-  - https://capsule.clastix.io/docs/general/proxy
+  - https://projectcapsule.dev/integrations/addons/capsule-proxy/
 maintainers:
   - name: capsule-maintainers
     email: cncf-capsule-maintainers@lists.cncf.io
@@ -31,7 +31,11 @@ annotations:
       email: cncf-capsule-maintainers@lists.cncf.io
   artifacthub.io/links: |
     - name: Documentation
-      url: https://capsule.clastix.io/
+      url: https://projectcapsule.dev/
   artifacthub.io/changes: |
-    - kind: added
-      description: crd lifecycle
+    - kind: refactor
+      description: crd lifecycle (aligned with main project)
+    - kind: refactor
+      description: job values (global key)
+    - kind: fix
+      description: cert-manager values corrected (should no longer trigger job)
