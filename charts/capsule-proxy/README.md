@@ -82,20 +82,45 @@ If you only need to make minor customizations, you can specify them on the comma
 | crds.install | bool | `false` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
 | crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |
 
+### Global Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| global.jobs.certs.affinity | object | `{}` | Set affinity rules |
+| global.jobs.certs.annotations | object | `{}` | Annotations to add to the certgen job. |
+| global.jobs.certs.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
+| global.jobs.certs.image.registry | string | `"docker.io"` | Set the image repository of the post install certgen job |
+| global.jobs.certs.image.repository | string | `"jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
+| global.jobs.certs.image.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| global.jobs.certs.nodeSelector | object | `{}` | Set the node selector |
+| global.jobs.certs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
+| global.jobs.certs.priorityClassName | string | `""` | Set a pod priorityClassName |
+| global.jobs.certs.restartPolicy | string | `"Never"` | Set the restartPolicy |
+| global.jobs.certs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
+| global.jobs.certs.tolerations | list | `[]` | Set list of tolerations |
+| global.jobs.certs.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
+| global.jobs.certs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
+| global.jobs.kubectl.affinity | object | `{}` | Set affinity rules |
+| global.jobs.kubectl.annotations | object | `{"helm.sh/hook-delete-policy":"before-hook-creation,hook-succeeded"}` | Annotations to add to the certgen job. |
+| global.jobs.kubectl.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the helm chart job |
+| global.jobs.kubectl.image.registry | string | `"docker.io"` | Set the image repository of the helm chart job |
+| global.jobs.kubectl.image.repository | string | `"clastix/kubectl"` | Set the image repository of the helm chart job |
+| global.jobs.kubectl.image.tag | string | `""` | Set the image tag of the helm chart job |
+| global.jobs.kubectl.nodeSelector | object | `{}` | Set the node selector |
+| global.jobs.kubectl.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
+| global.jobs.kubectl.priorityClassName | string | `""` | Set a pod priorityClassName |
+| global.jobs.kubectl.resources | object | `{}` | Job resources |
+| global.jobs.kubectl.restartPolicy | string | `"Never"` | Set the restartPolicy |
+| global.jobs.kubectl.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
+| global.jobs.kubectl.tolerations | list | `[]` | Set list of tolerations |
+| global.jobs.kubectl.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
+| global.jobs.kubectl.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
+
 ### General Parameters
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
-| certManager.certificate.dnsNames | list | `[]` | Additional DNS Names to include in certificate |
-| certManager.certificate.includeInternalServiceNames | bool | `true` | Include internal service names in certificate (disable if you create a public cert) |
-| certManager.certificate.ipAddresses | list | `[]` | Additional IP Addresses to include in certificate |
-| certManager.certificate.uris | list | `[]` | Additional URIs to include in certificate |
-| certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
-| certManager.externalCA.secretName | string | `""` |  |
-| certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
-| certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
-| certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
 | crds.install | bool | `false` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
 | crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
@@ -107,20 +132,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | image.repository | string | `"projectcapsule/capsule-proxy"` | Set the image repository for capsule-proxy. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
-| jobs.affinity | object | `{}` | Set affinity rules |
-| jobs.annotations | object | `{}` | Annotations to add to the certgen job. |
-| jobs.certs.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
-| jobs.certs.registry | string | `"docker.io"` | Set the image repository of the post install certgen job |
-| jobs.certs.repository | string | `"jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
-| jobs.certs.tag | string | `"v1.5.2"` | Set the image tag of the post install certgen job |
-| jobs.nodeSelector | object | `{}` | Set the node selector |
-| jobs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
-| jobs.priorityClassName | string | `""` | Set a pod priorityClassName |
-| jobs.restartPolicy | string | `"Never"` | Set the restartPolicy |
-| jobs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
-| jobs.tolerations | list | `[]` | Set list of tolerations |
-| jobs.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
-| jobs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
+| jobs | object | `{"certs":{}}` | Deprecated: Use `global.jobs.certs` instead |
 | kind | string | `"Deployment"` | Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`. |
 | livenessProbe | object | `{"enabled":true,"httpGet":{"path":"/healthz/","port":"probe","scheme":"HTTP"},"initialDelaySeconds":20}` | Proxy Liveness-Probe |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
@@ -140,7 +152,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the capsule-proxy container. |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
-| serviceAccount.name | string | `capsule-proxy`` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template |
+| serviceAccount.name | string | `capsule-proxy` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template |
 | tolerations | list | `[]` | Set list of tolerations for the capsule-proxy pod. |
 | topologySpreadConstraints | list | `[]` | Topology Spread Constraints for the capsule-proxy pod. |
 | volumeMounts | list | `[]` | Additional volume mounts |
@@ -168,6 +180,23 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.logLevel | string | `"4"` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
 | options.oidcUsernameClaim | string | `"preferred_username"` | Specify if capsule-proxy will use SSL |
 | options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174) |
+
+### Cert-Manager Parameters
+
+You can manage the certificate with the help of [cert-manager](https://cert-manager.io/docs/). By default the chart will create a self-signed certificate.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| certManager.certificate.dnsNames | list | `[]` | Additional DNS Names to include in certificate |
+| certManager.certificate.fields | object | `{"privateKey":{"rotationPolicy":"Always"}}` | Additional fields to include in certificate |
+| certManager.certificate.includeInternalServiceNames | bool | `true` | Include internal service names in certificate (disable if you create a public cert) |
+| certManager.certificate.ipAddresses | list | `[]` | Additional IP Addresses to include in certificate |
+| certManager.certificate.uris | list | `[]` | Additional URIs to include in certificate |
+| certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
+| certManager.externalCA.secretName | string | `""` |  |
+| certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
+| certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
+| certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
 
 ### Service Parameters
 

@@ -69,13 +69,6 @@ Create the fully-qualified Docker image to use
 {{- end }}
 
 {{/*
-Create the certs jobs fully-qualified Docker image to use
-*/}}
-{{- define "capsule.jobs.certsFullyQualifiedDockerImage" -}}
-{{- printf "%s/%s:%s" .Values.jobs.certs.registry .Values.jobs.certs.repository .Values.jobs.certs.tag -}}
-{{- end -}}
-
-{{/*
 Create CA secret name for the capsule proxy
 */}}
 {{- define "capsule-proxy.caSecretName" -}}
