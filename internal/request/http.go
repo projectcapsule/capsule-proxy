@@ -4,6 +4,7 @@
 package request
 
 import (
+	"encoding/base64"
 	"fmt"
 	h "net/http"
 	"regexp"
@@ -148,8 +149,29 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 	return tr.Status.User.Username, tr.Status.User.Groups, nil
 }
 
+// Get the JWT from headers
+// If there is no Authorizaion Bearer, then try finding the Bearer in Websocket Protocols header. This is for browser support.
 func (h http) bearerToken() string {
-	return strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
+	tradBearer := strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
+	wsHeader := h.Header.Get("Sec-Websocket-Protocol")
+	if tradBearer != "" {
+		return tradBearer
+	} else if wsHeader != "" {
+		re := regexp.MustCompile(`(base64url\.bearer\.authorization\.k8s\.io\.)([^,]*)`)
+		match := re.FindStringSubmatch(wsHeader)
+		// our token is base64 encoded without padding
+		b64decode, err := base64.RawStdEncoding.DecodeString(match[2])
+		if err != nil {
+			fmt.Println("failed to decode websocket auth bearer:", err)
+		}
+		if match[2] != "" {
+			return string(b64decode)
+		} else {
+			return ""
+		}
+	} else {
+		return ""
+	}
 }
 
 type authenticationFn func() (username string, groups []string, err error)
