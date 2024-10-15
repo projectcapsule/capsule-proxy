@@ -46,11 +46,11 @@ spec:
   dnsNames:
   {{- if .Values.ingress.enabled -}}
     {{- range $hosts := .Values.ingress.hosts }}
-  - {{ $hosts.host }}
+  - {{ $hosts.host | quote }}
     {{- end }}
   {{- end }}
   {{- range $dns := .Values.certManager.certificate.dnsNames }}
-  - {{ $dns }}
+  - {{ $dns | quote }}
   {{- end }}
   {{- if $.Values.certManager.certificate.includeInternalServiceNames }}
   - {{ include "capsule-proxy.fullname" . }}
