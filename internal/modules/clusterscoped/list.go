@@ -34,6 +34,10 @@ func List(client client.Reader, writer client.Writer, path string) modules.Modul
 	}
 }
 
+func (l list) GroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{}
+}
+
 func (l list) GroupKind() schema.GroupKind {
 	return schema.GroupKind{}
 }
@@ -49,7 +53,7 @@ func (l list) Methods() []string {
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	operations, requirements := getRequirements(gvk, proxyTenants)
+	operations, requirements := utils.GetClusterScopeRequirements(gvk, proxyTenants)
 	if len(requirements) > 0 {
 		// Verify if the list operation is allowed
 		if slices.Contains(operations, v1beta1.ClusterResourceOperationList) {

@@ -25,22 +25,27 @@ import (
 type get struct {
 	client client.Reader
 	log    logr.Logger
-	gk     schema.GroupKind
+	gk     schema.GroupVersionKind
 }
 
 func Get(client client.Reader) modules.Module {
 	return &get{
 		client: client,
 		log:    ctrl.Log.WithName("ingressclass_get"),
-		gk: schema.GroupKind{
-			Group: networkingv1.GroupName,
-			Kind:  "ingressclasses",
+		gk: schema.GroupVersionKind{
+			Group:   networkingv1.GroupName,
+			Version: "*",
+			Kind:    "ingressclasses",
 		},
 	}
 }
 
-func (g get) GroupKind() schema.GroupKind {
+func (g get) GroupVersionKind() schema.GroupVersionKind {
 	return g.gk
+}
+
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk.GroupKind()
 }
 
 func (g get) Path() string {
@@ -60,19 +65,19 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	if len(requirements) > 0 {
 		ic, errIc := getIngressClassFromRequest(httpRequest)
 		if errIc != nil {
-			return nil, errors.NewBadRequest(errIc, g.gk)
+			return nil, errors.NewBadRequest(errIc, g.GroupKind())
 		}
 
-		return utils.HandleGetSelector(httpRequest.Context(), ic, g.client, requirements, name, g.gk)
+		return utils.HandleGetSelector(httpRequest.Context(), ic, g.client, requirements, name, g.GroupKind())
 	}
 
 	icl, err := getIngressClassListFromRequest(httpRequest)
 	if err != nil {
-		return nil, errors.NewBadRequest(err, g.gk)
+		return nil, errors.NewBadRequest(err, g.GroupKind())
 	}
 
 	if err = g.client.List(httpRequest.Context(), icl, client.MatchingLabels{corev1.LabelMetadataName: name}); err != nil {
-		return nil, errors.NewBadRequest(err, g.gk)
+		return nil, errors.NewBadRequest(err, g.GroupKind())
 	}
 
 	var r *labels.Requirement
@@ -83,7 +88,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	switch httpRequest.Method {
 	case http.MethodGet:
-		return nil, errors.NewNotFoundError(name, g.gk)
+		return nil, errors.NewNotFoundError(name, g.GroupKind())
 	default:
 		return nil, nil
 	}

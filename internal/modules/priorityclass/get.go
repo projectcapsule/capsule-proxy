@@ -25,22 +25,27 @@ import (
 type get struct {
 	client client.Reader
 	log    logr.Logger
-	gk     schema.GroupKind
+	gk     schema.GroupVersionKind
 }
 
 func Get(client client.Reader) modules.Module {
 	return &get{
 		client: client,
 		log:    ctrl.Log.WithName("priorityclass_get"),
-		gk: schema.GroupKind{
-			Group: schedulingv1.GroupName,
-			Kind:  "priorityclasses",
+		gk: schema.GroupVersionKind{
+			Group:   schedulingv1.GroupName,
+			Version: "*",
+			Kind:    "priorityclasses",
 		},
 	}
 }
 
-func (g get) GroupKind() schema.GroupKind {
+func (g get) GroupVersionKind() schema.GroupVersionKind {
 	return g.gk
+}
+
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk.GroupKind()
 }
 
 func (g get) Path() string {
@@ -60,12 +65,12 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	if len(requirements) > 0 {
 		pc := &schedulingv1.PriorityClass{}
 
-		return utils.HandleGetSelector(httpRequest.Context(), pc, g.client, requirements, name, g.gk)
+		return utils.HandleGetSelector(httpRequest.Context(), pc, g.client, requirements, name, g.GroupKind())
 	}
 
 	sc := &schedulingv1.PriorityClassList{}
 	if err = g.client.List(httpRequest.Context(), sc, client.MatchingLabels{corev1.LabelMetadataName: name}); err != nil {
-		return nil, errors.NewBadRequest(err, g.gk)
+		return nil, errors.NewBadRequest(err, g.GroupKind())
 	}
 
 	var r *labels.Requirement
@@ -75,7 +80,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	case err == nil:
 		return labels.NewSelector().Add(*r), nil
 	case httpRequest.Method == http.MethodGet:
-		return nil, errors.NewNotFoundError(name, g.gk)
+		return nil, errors.NewNotFoundError(name, g.GroupKind())
 	default:
 		return nil, nil
 	}
