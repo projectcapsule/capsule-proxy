@@ -47,6 +47,8 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
 			}
+			log.V(10).Info("request groups", "groups", groups)
+
 			for _, group := range groups {
 				if controllers.CapsuleUserGroups.Has(group) {
 					next.ServeHTTP(writer, request)
@@ -54,7 +56,8 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 					return
 				}
 			}
-			log.V(5).Info("current user is not a Capsule one")
+
+			log.V(5).Info("current user is not a Capsule one", "capsule-groups", controllers.CapsuleUserGroups)
 			impersonate(writer, request)
 		})
 	}
