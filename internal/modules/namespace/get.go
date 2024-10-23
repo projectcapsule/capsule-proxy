@@ -30,7 +30,7 @@ type get struct {
 	client       client.Reader
 	log          logr.Logger
 	rbReflector  *controllers.RoleBindingReflector
-	gk           schema.GroupKind
+	gk           schema.GroupVersionKind
 }
 
 func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.Reader) modules.Module {
@@ -41,15 +41,20 @@ func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.
 		client:       client,
 		log:          ctrl.Log.WithName("namespace_get"),
 		rbReflector:  roleBindingsReflector,
-		gk: schema.GroupKind{
-			Group: corev1.GroupName,
-			Kind:  "namespaces",
+		gk: schema.GroupVersionKind{
+			Group:   corev1.GroupName,
+			Version: "*",
+			Kind:    "namespaces",
 		},
 	}
 }
 
-func (l get) GroupKind() schema.GroupKind {
+func (l get) GroupVersionKind() schema.GroupVersionKind {
 	return l.gk
+}
+
+func (l get) GroupKind() schema.GroupKind {
+	return l.gk.GroupKind()
 }
 
 func (l get) Path() string {
@@ -70,7 +75,7 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	}
 	// Returning a not found if the Namespace is not owned by a Tenant resource.
 	if len(ns.GetOwnerReferences()) == 0 || ns.GetOwnerReferences()[0].Kind != "Tenant" {
-		return nil, errors.NewNotFoundError(name, l.gk)
+		return nil, errors.NewNotFoundError(name, l.GroupKind())
 	}
 	// Extracting the Tenant name from the owner reference:
 	// in some scenarios Capsule could lag in reconciling the Tenant resources as performing the Namespace metadata
@@ -88,14 +93,14 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	// in case of rolebinding reflector, using the local cache.
 	if l.rbReflector != nil {
 		if userNamespaces, err = l.rbReflector.GetUserNamespacesFromRequest(proxyRequest); err != nil {
-			return nil, errors.NewBadRequest(err, l.gk)
+			return nil, errors.NewBadRequest(err, l.GroupKind())
 		}
 
 		if !sets.NewString(userNamespaces...).Has(name) {
-			return nil, errors.NewNotFoundError(name, l.gk)
+			return nil, errors.NewNotFoundError(name, l.GroupKind())
 		}
 	} else if !tenants.Has(tntName) {
-		return nil, errors.NewNotFoundError(name, l.gk)
+		return nil, errors.NewNotFoundError(name, l.GroupKind())
 	}
 
 	return labels.NewSelector(), nil

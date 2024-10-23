@@ -1,0 +1,15 @@
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  apiServerAddress: "127.0.0.1"
+  apiServerPort: 6443
+kind: Cluster
+nodes:
+  - role: control-plane
+  - role: worker
+    extraPortMappings:
+      - hostPort: 9001
+        containerPort: 9001
+  - role: worker
+    extraPortMappings:
+      - hostPort: 9002
+        containerPort: 9002

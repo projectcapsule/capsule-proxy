@@ -209,6 +209,10 @@ First match is used and can be specified multiple times as comma separated value
 		&tenant.OwnerReference{},
 		&indexer.ProxySetting{},
 	}
+	// Optional Indexers
+	if gates.Enabled(features.ProxyClusterScoped) {
+		indexers = append(indexers, &indexer.GlobalProxySetting{})
+	}
 
 	for _, fieldIndex := range indexers {
 		if err = mgr.GetFieldIndexer().IndexField(ctx, fieldIndex.Object(), fieldIndex.Field(), fieldIndex.Func()); err != nil {

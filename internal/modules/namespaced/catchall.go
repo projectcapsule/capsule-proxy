@@ -30,6 +30,10 @@ func CatchAll(client client.Reader, writer client.Writer, path string) modules.M
 	}
 }
 
+func (l catchall) GroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{}
+}
+
 func (l catchall) GroupKind() schema.GroupKind {
 	return schema.GroupKind{}
 }
