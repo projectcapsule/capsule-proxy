@@ -128,9 +128,13 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 }
 
 func (h http) processBearerToken() (username string, groups []string, err error) {
+	token, err := h.bearerToken()
+	if err != nil {
+		return "", nil, err
+	}
 	tr := &authenticationv1.TokenReview{
 		Spec: authenticationv1.TokenReviewSpec{
-			Token: h.bearerToken(),
+			Token: token,
 		},
 	}
 
@@ -151,26 +155,30 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 
 // Get the JWT from headers
 // If there is no Authorizaion Bearer, then try finding the Bearer in Websocket Protocols header. This is for browser support.
-func (h http) bearerToken() string {
+func (h http) bearerToken() (string, error) {
 	tradBearer := strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
 	wsHeader := h.Header.Get("Sec-Websocket-Protocol")
-	if tradBearer != "" {
-		return tradBearer
-	} else if wsHeader != "" {
+	fmt.Println("wsheader:", wsHeader)
+	switch {
+	case tradBearer != "":
+		return tradBearer, nil
+	case wsHeader != "":
 		re := regexp.MustCompile(`(base64url\.bearer\.authorization\.k8s\.io\.)([^,]*)`)
 		match := re.FindStringSubmatch(wsHeader)
-		// our token is base64 encoded without padding
-		b64decode, err := base64.RawStdEncoding.DecodeString(match[2])
-		if err != nil {
-			fmt.Println("failed to decode websocket auth bearer:", err)
+		if len(match) < 3 {
+			return "", NewErrUnauthorized("failed to extract token from Websocket Protocols")
 		}
 		if match[2] != "" {
-			return string(b64decode)
-		} else {
-			return ""
+			// our token is base64 encoded without padding
+			b64decode, err := base64.RawStdEncoding.DecodeString(match[2])
+			if err != nil {
+				return "", NewErrUnauthorized("failed to decode websocket auth bearer: " + err.Error())
+			}
+			return string(b64decode), nil
 		}
-	} else {
-		return ""
+		return "", NewErrUnauthorized("Websocket Protocol token is undefined")
+	default:
+		return "", NewErrUnauthorized("unauthenticated users are not supported")
 	}
 }
 
@@ -184,10 +192,6 @@ func (h http) authenticationFns() []authenticationFn {
 		switch authType {
 		case BearerToken:
 			fns = append(fns, func() (username string, groups []string, err error) {
-				if len(h.bearerToken()) == 0 {
-					return "", nil, NewErrUnauthorized("unauthenticated users not supported")
-				}
-
 				return h.processBearerToken()
 			})
 		case TLSCertificate:
