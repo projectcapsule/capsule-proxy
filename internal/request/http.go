@@ -158,24 +158,24 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 func (h http) bearerToken() (string, error) {
 	tradBearer := strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
 	wsHeader := h.Header.Get("Sec-Websocket-Protocol")
-	fmt.Println("wsheader:", wsHeader)
+
 	switch {
 	case tradBearer != "":
 		return tradBearer, nil
 	case wsHeader != "":
-		re := regexp.MustCompile(`(base64url\.bearer\.authorization\.k8s\.io\.)([^,]*)`)
-		match := re.FindStringSubmatch(wsHeader)
-		if len(match) < 3 {
-			return "", NewErrUnauthorized("failed to extract token from Websocket Protocols")
-		}
-		if match[2] != "" {
+		re := regexp.MustCompile(`base64url\.bearer\.authorization\.k8s\.io\.([^,]*)`)
+
+		match := re.FindStringSubmatch(wsHeader)[1]
+		if match != "" {
 			// our token is base64 encoded without padding
-			b64decode, err := base64.RawStdEncoding.DecodeString(match[2])
+			b64decode, err := base64.RawStdEncoding.DecodeString(match)
 			if err != nil {
 				return "", NewErrUnauthorized("failed to decode websocket auth bearer: " + err.Error())
 			}
+
 			return string(b64decode), nil
 		}
+
 		return "", NewErrUnauthorized("Websocket Protocol token is undefined")
 	default:
 		return "", NewErrUnauthorized("unauthenticated users are not supported")
@@ -191,9 +191,7 @@ func (h http) authenticationFns() []authenticationFn {
 		//nolint:exhaustive
 		switch authType {
 		case BearerToken:
-			fns = append(fns, func() (username string, groups []string, err error) {
-				return h.processBearerToken()
-			})
+			fns = append(fns, h.processBearerToken)
 		case TLSCertificate:
 			// If the proxy is handling a non TLS connection, we have to skip the authentication strategy,
 			// since the TLS section of the request would be nil.

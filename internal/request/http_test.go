@@ -137,7 +137,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 			wantErr:      false,
 		},
 		{
-			name: "Bearer",
+			name: "InvalidBearer",
 			fields: fields{
 				Request: &http.Request{
 					Header: map[string][]string{
@@ -156,6 +156,59 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 			wantUsername: "",
 			wantGroups:   nil,
 			wantErr:      true,
+		},
+		{
+			name: "TraditionalBearer",
+			fields: fields{
+				Request: &http.Request{
+					Header: map[string][]string{
+						"Authorization": {fmt.Sprintf("Bearer %s", "asdf")},
+					},
+				},
+				authTypes: []request.AuthType{
+					request.BearerToken,
+				},
+				usernameClaimField: "",
+				client: testClient(func(ctx context.Context, obj client.Object) error {
+					tr := obj.(*authenticationv1.TokenReview)
+					if tr.Spec.Token == "asdf" {
+						tr.Status.Authenticated = true
+
+						return nil
+					}
+
+					return fmt.Errorf("failed to match token")
+				}),
+			},
+			wantUsername: "",
+			wantGroups:   nil,
+			wantErr:      false,
+		},
+		{
+			name: "WebsocketBearer",
+			fields: fields{
+				Request: &http.Request{
+					Header: map[string][]string{
+						"Sec-Websocket-Protocol": {"base64url.bearer.authorization.k8s.io.YXNkZg"},
+					},
+				},
+				authTypes: []request.AuthType{
+					request.BearerToken,
+				},
+				usernameClaimField: "",
+				client: testClient(func(ctx context.Context, obj client.Object) error {
+					tr := obj.(*authenticationv1.TokenReview)
+					if tr.Spec.Token == "asdf" {
+						tr.Status.Authenticated = true
+						return nil
+					}
+
+					return fmt.Errorf("failed to match token or decode")
+				}),
+			},
+			wantUsername: "",
+			wantGroups:   nil,
+			wantErr:      false,
 		},
 		{
 			name: "Certificate-Impersonation",
