@@ -11,11 +11,13 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -80,7 +82,9 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, gates f
 		impersonationGroupsRegexp:  opts.ImpersonationGroupsRegexp(),
 		skipImpersonationReview:    opts.SkipImpersonationReview(),
 		reverseProxy:               reverseProxy,
+		bearerTokenFile:            opts.BearerTokenFile(),
 		bearerToken:                opts.BearerToken(),
+		bearerTokenExpirationTime:  bearerExpirationTime(opts.BearerToken()),
 		usernameClaimField:         opts.PreferredUsernameClaim(),
 		serverOptions:              srv,
 		log:                        ctrl.Log.WithName("proxy"),
@@ -97,6 +101,8 @@ type kubeFilter struct {
 	skipImpersonationReview    bool
 	reverseProxy               *httputil.ReverseProxy
 	bearerToken                string
+	bearerTokenFile            string
+	bearerTokenExpirationTime  time.Time
 	usernameClaimField         string
 	serverOptions              options.ServerOptions
 	log                        logr.Logger
@@ -180,9 +186,9 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 	n.log.V(4).Info("updating RawQuery", "query", q.Encode())
 	request.URL.RawQuery = q.Encode()
 
-	if len(n.bearerToken) > 0 {
-		n.log.V(4).Info("Updating the token", "token", n.bearerToken)
-		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+	if len(n.BearerToken()) > 0 {
+		n.log.V(4).Info("Updating the token", "token", n.BearerToken())
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.BearerToken()))
 	}
 }
 
@@ -203,8 +209,8 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 
 	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups, "uri", request.URL.Path)
 
-	if len(n.bearerToken) > 0 {
-		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.bearerToken))
+	if len(n.BearerToken()) > 0 {
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.BearerToken()))
 	}
 	// Dropping malicious header connection
 	// https://github.com/projectcapsule/capsule-proxy/issues/188
@@ -501,4 +507,30 @@ func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
 	}
 
 	request.Header.Del(connectionHeaderName)
+}
+
+func (n *kubeFilter) BearerToken() string {
+	if time.Now().After(n.bearerTokenExpirationTime) {
+		n.log.V(5).Info("Token expired. Reading new token from file", "token", n.bearerToken, "token file", n.bearerTokenFile)
+		token, _ := os.ReadFile(n.bearerTokenFile)
+		n.bearerToken = string(token)
+		n.bearerTokenExpirationTime = bearerExpirationTime(string(token))
+	}
+
+	return n.bearerToken
+}
+
+func bearerExpirationTime(tokenString string) time.Time {
+	token, _, _ := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	claims, _ := token.Claims.(jwt.MapClaims)
+
+	var mil int64
+	switch iat := claims["exp"].(type) {
+	case float64:
+		mil = int64(iat)
+	case json.Number:
+		mil, _ = iat.Int64()
+	}
+
+	return time.Unix(mil, 0)
 }
