@@ -19,6 +19,7 @@ type ListenerOpts interface {
 	ImpersonationGroupsRegexp() *regexp.Regexp
 	PreferredUsernameClaim() string
 	ReverseProxyTransport() (*http.Transport, error)
+	BearerTokenFile() string
 	BearerToken() string
 	SkipImpersonationReview() bool
 }

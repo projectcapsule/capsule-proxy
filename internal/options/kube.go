@@ -64,6 +64,10 @@ func (k kubeOpts) BearerToken() string {
 	return k.config.BearerToken
 }
 
+func (k kubeOpts) BearerTokenFile() string {
+	return k.config.BearerTokenFile
+}
+
 func (k kubeOpts) KubernetesControlPlaneURL() *url.URL {
 	return &k.url
 }
