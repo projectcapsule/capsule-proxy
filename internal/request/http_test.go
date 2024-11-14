@@ -171,6 +171,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 				usernameClaimField: "",
 				client: testClient(func(ctx context.Context, obj client.Object) error {
 					tr := obj.(*authenticationv1.TokenReview)
+
 					if tr.Spec.Token == "asdf" {
 						tr.Status.Authenticated = true
 
@@ -198,8 +199,9 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 				usernameClaimField: "",
 				client: testClient(func(ctx context.Context, obj client.Object) error {
 					tr := obj.(*authenticationv1.TokenReview)
-					if tr.Spec.Token == "asdf" {
+					if tr.Spec.Token == "fdsa" {
 						tr.Status.Authenticated = true
+
 						return nil
 					}
 

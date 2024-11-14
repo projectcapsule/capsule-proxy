@@ -132,6 +132,7 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 	if err != nil {
 		return "", nil, err
 	}
+
 	tr := &authenticationv1.TokenReview{
 		Spec: authenticationv1.TokenReviewSpec{
 			Token: token,
