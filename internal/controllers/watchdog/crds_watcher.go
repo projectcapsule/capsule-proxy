@@ -161,7 +161,7 @@ func (c *CRDWatcher) SetupWithManager(ctx context.Context, mgr manager.Manager) 
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		WatchesRawSource(&source.Channel{Source: c.requeue}, &handler.EnqueueRequestForObject{}).
+		WatchesRawSource(source.Channel(c.requeue, &handler.EnqueueRequestForObject{})).
 		For(&apiextensionsv1.CustomResourceDefinition{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			crd := object.(*apiextensionsv1.CustomResourceDefinition)
 
