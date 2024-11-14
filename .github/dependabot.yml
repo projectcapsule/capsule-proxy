@@ -7,6 +7,10 @@ updates:
     rebase-strategy: disabled
     commit-message:
       prefix: "feat(deps)"
+    groups:
+      arrow:
+        patterns:
+          - "k8s.io*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
