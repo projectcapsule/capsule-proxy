@@ -315,7 +315,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			case err != nil:
 				var t moderrors.Error
 				if errors.As(err, &t) {
-					writer.Header().Set("content-type", "application/json")
+					writer.Header().Set("Content-Type", "application/json")
 					b, _ := json.Marshal(t.Status())
 					_, _ = writer.Write(b)
 					panic(err.Error())
