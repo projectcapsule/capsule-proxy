@@ -50,7 +50,7 @@ func Test_MetricsMiddleware_RequestCount(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 
-		for i := 0; i < test.requestCount; i++ {
+		for range test.requestCount {
 			req, err := newRequest("GET", test.path)
 			if err != nil {
 				t.Errorf("failed to create HTTP request object")

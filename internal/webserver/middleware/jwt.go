@@ -4,11 +4,11 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
+	goerrors "github.com/pkg/errors"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -43,10 +43,10 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
 					invalidatedToken.Insert(token)
 
-					errors.HandleUnauthorized(writer, fmt.Errorf(statusErr), "cannot authenticate the token due to error")
+					errors.HandleUnauthorized(writer, goerrors.New(statusErr), "cannot authenticate the token due to error")
 				}
 			case invalidatedToken.Has(token):
-				errors.HandleUnauthorized(writer, fmt.Errorf("token is invalid"), "cannot authenticate the token due to error")
+				errors.HandleUnauthorized(writer, goerrors.New("token is invalid"), "cannot authenticate the token due to error")
 			}
 
 			next.ServeHTTP(writer, request)
