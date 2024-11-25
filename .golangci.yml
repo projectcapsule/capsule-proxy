@@ -26,23 +26,21 @@ linters:
     - ireturn
     - varnamelen
     - wrapcheck
-    - interfacer
-    - maligned
-    - golint
-    - scopelint
     - gomnd
-    - goerr113
-    - exhaustivestruct
     - lll
-    - ifshort
-    - deadcode
-    - structcheck
-    - varcheck
-    - nosnakecase
     - nonamedreturns
     - tparallel
     - nilerr
     - exhaustruct
     - depguard
-service:
-  golangci-lint-version: 1.55.x
+    # should be enabled
+    - revive
+    - err113
+    - mnd
+    - nilnil
+    - wsl
+    - perfsprint
+
+    # deprecated
+    - exportloopref
+    - execinquery
