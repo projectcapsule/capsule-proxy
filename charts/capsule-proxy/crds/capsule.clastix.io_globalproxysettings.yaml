@@ -5,20 +5,21 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: proxysettings.capsule.clastix.io
+  name: globalproxysettings.capsule.clastix.io
 spec:
   group: capsule.clastix.io
   names:
-    kind: ProxySetting
-    listKind: ProxySettingList
-    plural: proxysettings
-    singular: proxysetting
-  scope: Namespaced
+    kind: GlobalProxySettings
+    listKind: GlobalProxySettingsList
+    plural: globalproxysettings
+    singular: globalproxysettings
+  scope: Cluster
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ProxySetting is the Schema for the proxysettings API.
+        description: GlobalProxySettings is the Schema for the globalproxysettings
+          API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,12 +34,13 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxySettingSpec defines the additional Capsule Proxy settings
-              for additional users of the Tenant. Resource is Namespace-scoped and
-              applies the settings to the belonged Tenant.
+            description: GlobalProxySettingsSpec defines the desired state of GlobalProxySettings.
             properties:
-              subjects:
+              rules:
                 description: Subjects that should receive additional permissions.
+                  The subjects are selected based on the oncoming requests. They don't
+                  have to relate to an existing tenant. However they must be part
+                  of the capsule-user groups.
                 items:
                   properties:
                     clusterResources:
@@ -129,55 +131,42 @@ spec:
                         - selector
                         type: object
                       type: array
-                    kind:
-                      description: Kind of tenant owner. Possible values are "User",
-                        "Group", and "ServiceAccount"
-                      enum:
-                      - User
-                      - Group
-                      - ServiceAccount
-                      type: string
-                    name:
-                      description: Name of tenant owner.
-                      type: string
-                    proxySettings:
-                      description: Proxy settings for tenant owner.
+                    subjects:
+                      description: Subjects that should receive additional permissions.
+                        The subjects are selected based on the oncoming requests.
+                        They don't have to relate to an existing tenant. However they
+                        must be part of the capsule-user groups.
                       items:
                         properties:
                           kind:
+                            description: Kind of tenant owner. Possible values are
+                              "User", "Group", and "ServiceAccount".
                             enum:
-                            - Nodes
-                            - StorageClasses
-                            - IngressClasses
-                            - PriorityClasses
-                            - RuntimeClasses
-                            - PersistentVolumes
+                            - User
+                            - Group
+                            - ServiceAccount
                             type: string
-                          operations:
-                            items:
-                              enum:
-                              - List
-                              - Update
-                              - Delete
-                              type: string
-                            type: array
+                          name:
+                            description: Name of tenant owner.
+                            type: string
                         required:
                         - kind
-                        - operations
+                        - name
                         type: object
                       type: array
                   required:
-                  - kind
-                  - name
+                  - subjects
                   type: object
                 minItems: 1
                 type: array
             required:
-            - subjects
+            - rules
             type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

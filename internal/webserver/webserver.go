@@ -439,14 +439,17 @@ func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulev1beta2.OwnerL
 	return out
 }
 
+//nolint:funlen
 func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulev1beta2.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	//nolint:prealloc
 	var tenants []string
 
+	ownerIndexValue := fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)
+
 	tl := &capsulev1beta2.TenantList{}
 
 	f := client.MatchingFields{
-		".spec.owner.ownerkind": fmt.Sprintf("%s:%s", ownerKind.String(), ownerName),
+		".spec.owner.ownerkind": ownerIndexValue,
 	}
 	if err = n.managerReader.List(ctx, tl, f); err != nil {
 		return nil, fmt.Errorf("cannot retrieve Tenants list: %w", err)
@@ -455,9 +458,11 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 	n.log.V(8).Info("Tenant", "owner", ownerKind, "name", ownerName, "tenantList items", tl.Items, "number of tenants", len(tl.Items))
 
 	proxySettings := &v1beta1.ProxySettingList{}
-	if err = n.managerReader.List(ctx, proxySettings, client.MatchingFields{indexer.SubjectKindField: fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)}); err != nil {
+	if err = n.managerReader.List(ctx, proxySettings, client.MatchingFields{indexer.SubjectKindField: ownerIndexValue}); err != nil {
 		n.log.Error(err, "cannot retrieve ProxySetting", "owner", ownerKind, "name", ownerName)
 	}
+
+	n.log.V(10).Info("Collected ProxySettings", "owner", ownerKind, "name", ownerName, "settings", proxySettings)
 
 	for _, proxySetting := range proxySettings.Items {
 		tntList := &capsulev1beta2.TenantList{}
@@ -472,6 +477,24 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 		}
 
 		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, tntList.Items[0], proxySetting.Spec.Subjects))
+	}
+
+	// Consider Global ProxySettings
+	// Only consider GlobalProxySettings if the feature gate is enabled
+	if n.gates.Enabled(features.ProxyClusterScoped) {
+		globalProxySettings := &v1beta1.GlobalProxySettingsList{}
+		if err = n.managerReader.List(ctx, globalProxySettings, client.MatchingFields{indexer.GlobalKindField: ownerIndexValue}); err != nil {
+			n.log.Error(err, "cannot retrieve GlobalProxySettings", "owner", ownerKind, "name", ownerName)
+		}
+		// Convert GlobalProxySettings to TenantProxies
+		for _, globalProxySetting := range globalProxySettings.Items {
+			n.log.V(10).Info("Converting GlobalProxySettings", "Setting", globalProxySetting.Name)
+
+			tProxy := tenant.NewClusterProxy(ownerName, ownerKind, globalProxySetting.Spec.Rules)
+			proxyTenants = append(proxyTenants, tProxy)
+		}
+
+		n.log.V(10).Info("Collected GlobalProxySettings", "owner", ownerKind, "name", ownerName, "settings", len(globalProxySettings.Items))
 	}
 
 	for _, t := range tl.Items {

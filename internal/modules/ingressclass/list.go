@@ -22,22 +22,27 @@ import (
 type list struct {
 	client client.Reader
 	log    logr.Logger
-	gk     schema.GroupKind
+	gk     schema.GroupVersionKind
 }
 
 func List(client client.Reader) modules.Module {
 	return &list{
 		client: client,
 		log:    ctrl.Log.WithName("ingressclass_list"),
-		gk: schema.GroupKind{
-			Group: networkingv1.GroupName,
-			Kind:  "ingressclasses",
+		gk: schema.GroupVersionKind{
+			Group:   networkingv1.GroupName,
+			Version: "*",
+			Kind:    "ingressclasses",
 		},
 	}
 }
 
-func (l list) GroupKind() schema.GroupKind {
+func (l list) GroupVersionKind() schema.GroupVersionKind {
 	return l.gk
+}
+
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk.GroupKind()
 }
 
 func (l list) Path() string {
@@ -58,18 +63,18 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 
 	icl, err := getIngressClassListFromRequest(httpRequest)
 	if err != nil {
-		return nil, errors.NewBadRequest(err, l.gk)
+		return nil, errors.NewBadRequest(err, l.GroupKind())
 	}
 
 	if err = l.client.List(httpRequest.Context(), icl); err != nil {
-		return nil, errors.NewBadRequest(err, l.gk)
+		return nil, errors.NewBadRequest(err, l.GroupKind())
 	}
 
 	var r *labels.Requirement
 
 	if r, err = getIngressClassSelector(icl, exactMatch, regexMatch); err != nil {
 		if !allowed {
-			return nil, errors.NewNotAllowed(l.gk)
+			return nil, errors.NewNotAllowed(l.GroupKind())
 		}
 
 		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})

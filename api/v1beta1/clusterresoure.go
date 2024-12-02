@@ -26,5 +26,6 @@ type ClusterResource struct {
 	Operations []ClusterResourceOperation `json:"operations"`
 
 	// Select all cluster scoped resources with the given label selector.
+	// Defining a selector which does not match any resources is considered not selectable (eg. using operation NotExists).
 	Selector *metav1.LabelSelector `json:"selector"`
 }

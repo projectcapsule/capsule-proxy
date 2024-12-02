@@ -23,22 +23,27 @@ import (
 type list struct {
 	roleBindingsReflector *controllers.RoleBindingReflector
 	log                   logr.Logger
-	gk                    schema.GroupKind
+	gk                    schema.GroupVersionKind
 }
 
 func List(roleBindingsReflector *controllers.RoleBindingReflector) modules.Module {
 	return &list{
 		roleBindingsReflector: roleBindingsReflector,
 		log:                   ctrl.Log.WithName("namespace_list"),
-		gk: schema.GroupKind{
-			Group: corev1.GroupName,
-			Kind:  "namespaces",
+		gk: schema.GroupVersionKind{
+			Group:   corev1.GroupName,
+			Version: "*",
+			Kind:    "namespaces",
 		},
 	}
 }
 
-func (l list) GroupKind() schema.GroupKind {
+func (l list) GroupVersionKind() schema.GroupVersionKind {
 	return l.gk
+}
+
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk.GroupKind()
 }
 
 func (l list) Path() string {
@@ -55,7 +60,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	if l.roleBindingsReflector != nil {
 		userNamespaces, err = l.roleBindingsReflector.GetUserNamespacesFromRequest(proxyRequest)
 		if err != nil {
-			return nil, errors.NewBadRequest(err, l.gk)
+			return nil, errors.NewBadRequest(err, l.GroupKind())
 		}
 	} else {
 		for _, tnt := range proxyTenants {
@@ -73,7 +78,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	}
 
 	if err != nil {
-		return nil, errors.NewBadRequest(err, l.gk)
+		return nil, errors.NewBadRequest(err, l.GroupKind())
 	}
 
 	return labels.NewSelector().Add(*r), nil

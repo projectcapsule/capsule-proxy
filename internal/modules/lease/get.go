@@ -22,22 +22,27 @@ import (
 type get struct {
 	client client.Reader
 	log    logr.Logger
-	gk     schema.GroupKind
+	gk     schema.GroupVersionKind
 }
 
 func Get(client client.Reader) modules.Module {
 	return &get{
 		client: client,
 		log:    ctrl.Log.WithName("node_get"),
-		gk: schema.GroupKind{
-			Group: corev1.GroupName,
-			Kind:  "nodes",
+		gk: schema.GroupVersionKind{
+			Group:   corev1.GroupName,
+			Version: "*",
+			Kind:    "nodes",
 		},
 	}
 }
 
-func (g get) GroupKind() schema.GroupKind {
+func (g get) GroupVersionKind() schema.GroupVersionKind {
 	return g.gk
+}
+
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk.GroupKind()
 }
 
 func (g get) Path() string {
