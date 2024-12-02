@@ -174,6 +174,7 @@ First match is used and can be specified multiple times as comma separated value
 	mgr, err = ctrl.NewManager(config, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: ":8081",
+		PprofBindAddress:       ":8082",
 	})
 	if err != nil {
 		log.Error(err, "cannot create new Manager")

@@ -83,6 +83,9 @@ spec:
     - name: probe
       containerPort: 8081
       protocol: TCP
+    - name: pprof
+      containerPort: 8082
+      protocol: TCP
     {{- if .Values.livenessProbe.enabled }}
     livenessProbe:
       {{- toYaml (omit .Values.livenessProbe "enabled") | nindent 6 }}

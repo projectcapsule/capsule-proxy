@@ -35,12 +35,9 @@ linters:
     - depguard
     # should be enabled
     - revive
-    - err113
-    - mnd
     - nilnil
     - wsl
     - perfsprint
-
     # deprecated
     - exportloopref
     - execinquery
