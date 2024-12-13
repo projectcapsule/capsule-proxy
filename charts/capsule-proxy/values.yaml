@@ -82,6 +82,8 @@ global:
         runAsGroup: 1002
         runAsNonRoot: true
         runAsUser: 1002
+      # -- Job resources
+      resources: {}
       # -- Set the node selector
       nodeSelector: {}
       # -- Set list of tolerations

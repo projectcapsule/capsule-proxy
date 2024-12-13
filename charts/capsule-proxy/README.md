@@ -95,6 +95,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.certs.nodeSelector | object | `{}` | Set the node selector |
 | global.jobs.certs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | global.jobs.certs.priorityClassName | string | `""` | Set a pod priorityClassName |
+| global.jobs.certs.resources | object | `{}` | Job resources |
 | global.jobs.certs.restartPolicy | string | `"Never"` | Set the restartPolicy |
 | global.jobs.certs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
 | global.jobs.certs.tolerations | list | `[]` | Set list of tolerations |

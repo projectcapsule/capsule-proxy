@@ -57,6 +57,10 @@ spec:
             - --secret-name={{ include "capsule-proxy.fullname" . }}
             - --cert-name={{ .Values.options.SSLCertFileName }}
             - --key-name={{ .Values.options.SSLKeyFileName }}
+        {{- with $Values.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         env:
         - name: NAMESPACE
           valueFrom:
