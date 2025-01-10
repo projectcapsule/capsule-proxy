@@ -4,6 +4,7 @@ import (
 	"context"
 
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleutils "github.com/projectcapsule/capsule/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -86,11 +87,16 @@ func (c *NamespacedWatcher) SetupWithManager(mgr manager.Manager, gvk metav1.Gro
 			ns := corev1.Namespace{}
 			_ = c.Client.Get(context.Background(), types.NamespacedName{Name: object.GetNamespace()}, &ns)
 
-			if len(ns.GetOwnerReferences()) > 0 && ns.GetOwnerReferences()[0].Kind == "Tenant" {
-				return true
+			tenancy := false
+			for _, objectRef := range ns.ObjectMeta.OwnerReferences {
+				if capsuleutils.IsTenantOwnerReference(objectRef) {
+					tenancy = true
+
+					break
+				}
 			}
 
-			return false
+			return tenancy
 		}))).
 		Complete(c)
 }
