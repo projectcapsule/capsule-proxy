@@ -22,22 +22,27 @@ import (
 type list struct {
 	client client.Reader
 	log    logr.Logger
-	gk     schema.GroupKind
+	gk     schema.GroupVersionKind
 }
 
 func List(client client.Reader) modules.Module {
 	return &list{
 		client: client,
 		log:    ctrl.Log.WithName("runtimeclass_list"),
-		gk: schema.GroupKind{
-			Group: nodev1.GroupName,
-			Kind:  "runtimeclasses",
+		gk: schema.GroupVersionKind{
+			Group:   nodev1.GroupName,
+			Version: "*",
+			Kind:    "runtimeclasses",
 		},
 	}
 }
 
-func (l list) GroupKind() schema.GroupKind {
+func (l list) GroupVersionKind() schema.GroupVersionKind {
 	return l.gk
+}
+
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk.GroupKind()
 }
 
 func (l list) Path() string {
@@ -52,8 +57,9 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	httpRequest := proxyRequest.GetHTTPRequest()
 
 	allowed, selectorsMatch := getRuntimeClass(httpRequest, proxyTenants)
+
 	if !allowed {
-		return nil, errors.NewNotAllowed(l.gk)
+		return nil, errors.NewNotAllowed(l.GroupKind())
 	}
 
 	if len(selectorsMatch) == 0 {

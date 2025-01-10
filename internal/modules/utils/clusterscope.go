@@ -1,4 +1,4 @@
-package clusterscoped
+package utils
 
 import (
 	"regexp"
@@ -12,7 +12,8 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
-func getRequirements(gvk *schema.GroupVersionKind, proxyTenants []*tenant.ProxyTenant) (operations []v1beta1.ClusterResourceOperation, requirements []labels.Requirement) {
+// Calculate Requirements for a given GroupVersionKind based on the ProxyTenants clusterResource configurations.
+func GetClusterScopeRequirements(gvk *schema.GroupVersionKind, proxyTenants []*tenant.ProxyTenant) (operations []v1beta1.ClusterResourceOperation, requirements []labels.Requirement) {
 	operations = []v1beta1.ClusterResourceOperation{}
 	requirements = []labels.Requirement{}
 

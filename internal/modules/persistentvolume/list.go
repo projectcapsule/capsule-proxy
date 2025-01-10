@@ -23,7 +23,7 @@ type list struct {
 	client   client.Reader
 	log      logr.Logger
 	labelKey string
-	gk       schema.GroupKind
+	gk       schema.GroupVersionKind
 }
 
 func List(client client.Reader) modules.Module {
@@ -33,15 +33,20 @@ func List(client client.Reader) modules.Module {
 		client:   client,
 		log:      ctrl.Log.WithName("persistentvolume_list"),
 		labelKey: label,
-		gk: schema.GroupKind{
-			Group: corev1.GroupName,
-			Kind:  "persistentvolumes",
+		gk: schema.GroupVersionKind{
+			Group:   corev1.GroupName,
+			Version: "*",
+			Kind:    "persistentvolumes",
 		},
 	}
 }
 
-func (l list) GroupKind() schema.GroupKind {
+func (l list) GroupVersionKind() schema.GroupVersionKind {
 	return l.gk
+}
+
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk.GroupKind()
 }
 
 func (l list) Path() string {
@@ -57,7 +62,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 
 	allowed, requirement := getPersistentVolume(httpRequest, proxyTenants, l.labelKey)
 	if !allowed {
-		return nil, errors.NewNotAllowed(l.gk)
+		return nil, errors.NewNotAllowed(l.GroupKind())
 	}
 
 	return utils.HandleListSelector([]labels.Requirement{requirement})

@@ -25,7 +25,7 @@ type get struct {
 	capsuleLabel string
 	client       client.Reader
 	log          logr.Logger
-	gk           schema.GroupKind
+	gk           schema.GroupVersionKind
 }
 
 func Get(client client.Reader) modules.Module {
@@ -35,19 +35,24 @@ func Get(client client.Reader) modules.Module {
 		capsuleLabel: label,
 		client:       client,
 		log:          ctrl.Log.WithName("tenant_get"),
-		gk: schema.GroupKind{
-			Group: "capsule.clastix.io",
-			Kind:  "tenants",
+		gk: schema.GroupVersionKind{
+			Group:   "capsule.clastix.io",
+			Version: "*",
+			Kind:    "tenants",
 		},
 	}
 }
 
-func (g get) GroupKind() schema.GroupKind {
+func (g get) GroupVersionKind() schema.GroupVersionKind {
 	return g.gk
 }
 
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk.GroupKind()
+}
+
 func (g get) Path() string {
-	return "/apis/capsule.clastix.io/v1beta2/tenants/{name}"
+	return "/apis/{}/v1beta2/tenants/{name}"
 }
 
 func (g get) Methods() []string {
@@ -67,5 +72,5 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 		return labels.NewSelector(), nil
 	}
 
-	return nil, errors.NewNotFoundError(name, g.gk)
+	return nil, errors.NewNotFoundError(name, g.GroupKind())
 }

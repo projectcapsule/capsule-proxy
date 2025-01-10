@@ -41,6 +41,10 @@ func Get(discovery *discovery.DiscoveryClient, client client.Reader, writer clie
 	}
 }
 
+func (g get) GroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{}
+}
+
 func (g get) GroupKind() schema.GroupKind {
 	return schema.GroupKind{}
 }
@@ -58,7 +62,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	operations, requirements := getRequirements(gvk, proxyTenants)
+	operations, requirements := utils.GetClusterScopeRequirements(gvk, proxyTenants)
 	if len(requirements) > 0 {
 		// Verify if the list operation is allowed
 		if slices.Contains(operations, v1beta1.ClusterResourceOperationList) {

@@ -12,6 +12,7 @@ import (
 )
 
 type Module interface {
+	GroupVersionKind() schema.GroupVersionKind
 	GroupKind() schema.GroupKind
 	Path() string
 	Methods() []string
