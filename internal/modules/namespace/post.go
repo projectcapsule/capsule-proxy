@@ -20,6 +20,10 @@ func Post() modules.Module {
 	return &post{}
 }
 
+func (l post) GroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{}
+}
+
 func (l post) GroupKind() schema.GroupKind {
 	return schema.GroupKind{}
 }

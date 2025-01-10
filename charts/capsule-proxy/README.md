@@ -79,8 +79,10 @@ If you only need to make minor customizations, you can specify them on the comma
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| crds.install | bool | `false` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
+| crds.annnotations | object | `{}` | Extra Annotations for CRDs |
+| crds.install | bool | `true` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
 | crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |
+| crds.labels | object | `{}` | Extra Labels for CRDs |
 
 ### Global Parameters
 
@@ -122,8 +124,10 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
-| crds.install | bool | `false` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
+| crds.annnotations | object | `{}` | Extra Annotations for CRDs |
+| crds.install | bool | `true` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
 | crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |
+| crds.labels | object | `{}` | Extra Labels for CRDs |
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
 | env | list | `[]` | Additional environment variables |

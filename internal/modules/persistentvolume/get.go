@@ -23,7 +23,7 @@ type get struct {
 	client   client.Reader
 	log      logr.Logger
 	labelKey string
-	gk       schema.GroupKind
+	gk       schema.GroupVersionKind
 }
 
 func Get(client client.Reader) modules.Module {
@@ -33,15 +33,20 @@ func Get(client client.Reader) modules.Module {
 		client:   client,
 		log:      ctrl.Log.WithName("persistentvolume_get"),
 		labelKey: label,
-		gk: schema.GroupKind{
-			Group: corev1.GroupName,
-			Kind:  "persistentvolumes",
+		gk: schema.GroupVersionKind{
+			Group:   corev1.GroupName,
+			Version: "*",
+			Kind:    "persistentvolumes",
 		},
 	}
 }
 
-func (g get) GroupKind() schema.GroupKind {
+func (g get) GroupVersionKind() schema.GroupVersionKind {
 	return g.gk
+}
+
+func (g get) GroupKind() schema.GroupKind {
+	return g.gk.GroupKind()
 }
 
 func (g get) Path() string {
@@ -61,5 +66,5 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	rc := &corev1.PersistentVolume{}
 
-	return utils.HandleGetSelector(httpRequest.Context(), rc, g.client, []labels.Requirement{requirement}, name, g.gk)
+	return utils.HandleGetSelector(httpRequest.Context(), rc, g.client, []labels.Requirement{requirement}, name, g.GroupKind())
 }

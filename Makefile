@@ -106,7 +106,7 @@ helm-docs: docker
 helm-lint: docker
 	@docker run -v "$(SRC_ROOT):/workdir" --entrypoint /bin/sh quay.io/helmpack/chart-testing:v3.3.1 -c "cd /workdir; ct lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug"
 
-helm-test: helm-controller-version kind ct ko-build-all helm-create helm-install helm-destroy
+helm-test: helm-controller-version ct ko-build-all helm-create helm-install helm-destroy
 
 helm-install:
 	@kubectl apply --server-side=true -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.2/cert-manager.yaml
@@ -114,13 +114,13 @@ helm-install:
 	@kubectl apply --server-side=true -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.58.0/bundle.yaml
 	@$(CT) install --config $(SRC_ROOT)/.github/configs/ct.yaml --namespace=capsule-system --all --debug
 
-helm-create:
-	@kind create cluster --wait=60s --name capsule-charts
-	@kind load docker-image --name capsule-charts $(CAPSULE_PROXY_IMG):$(VERSION)
+helm-create: kind
+	@$(KIND) create cluster --wait=60s --name capsule-charts
+	@$(KIND) load docker-image --name capsule-charts $(CAPSULE_PROXY_IMG):$(VERSION)
 	@kubectl create ns capsule-system
 
-helm-destroy:
-	@kind delete cluster --name capsule-charts
+helm-destroy: kind
+	@$(KIND) delete cluster --name capsule-charts
 
 ####################
 # -- Testing
@@ -129,14 +129,18 @@ helm-destroy:
 .PHONY: e2e
 e2e: e2e-build e2e-install e2e-exec
 
-.PHONY: e2e-exec
-e2e-exec:
+.PHONY: e2e-legacy-exec
+e2e-legacy-exec:
 	@./e2e/run.bash $${CLIENT_TEST:-kubectl}-$${CAPSULE_PROXY_MODE:-https}
 
+.PHONY: e2e-exec
+e2e-exec: ginkgo
+	$(GINKGO) -v -tags e2e ./e2e
+
 .PHONY: e2e-build
-e2e-build:
+e2e-build: kind
 	@echo "Building kubernetes env using Kind $${KIND_K8S_VERSION:-v1.27.0}..."
-	@kind create cluster --name capsule --image kindest/node:$${KIND_K8S_VERSION:-v1.27.0} --config ./e2e/kind.yaml --wait=120s \
+	@$(KIND) create cluster --name capsule --image kindest/node:$${KIND_K8S_VERSION:-v1.27.0} --config ./e2e/kind.yaml --wait=120s \
 		&& kubectl taint nodes capsule-worker2 key1=value1:NoSchedule
 	@helm repo add bitnami https://charts.bitnami.com/bitnami
 	@helm repo update
@@ -149,13 +153,13 @@ e2e-build:
 e2e-install: install-capsule install-capsule-proxy rbac-fix
 
 .PHONY: e2e-load-image
-e2e-load-image: ko-build-all
+e2e-load-image: kind ko-build-all
 	@echo "Loading Docker image..."
-	@kind load docker-image --name capsule --nodes capsule-worker $(CAPSULE_PROXY_IMG):$(VERSION)
+	@$(KIND) load docker-image --name capsule $(CAPSULE_PROXY_IMG):$(VERSION)
 
 .PHONY: e2e-destroy
-e2e-destroy:
-	kind delete cluster --name capsule
+e2e-destroy: kind
+	$(KIND) delete cluster --name capsule
 
 install-capsule:
 	@echo "Installing capsule..."
@@ -185,7 +189,8 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
-		--set "options.generateCertificates=false"
+		--set "options.generateCertificates=false" \
+		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 else
 	@echo "Running in HTTPS mode"
 	@echo "capsule proxy certificates..."
@@ -194,19 +199,19 @@ else
 		&& kubectl --namespace capsule-system create secret generic capsule-proxy --from-file=tls.key=./127.0.0.1-key.pem --from-file=tls.crt=./127.0.0.1.pem --from-literal=ca=$$(cat $(ROOTCA) | base64 |tr -d '\n')
 	@echo "kubeconfig configurations..."
 	@cd hack \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- alice oil capsule.clastix.io \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- alice oil projectcapsule.dev,capsule.clastix.io \
 		&& mv alice-oil.kubeconfig alice.kubeconfig \
 		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
 		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- bob gas capsule.clastix.io \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- bob gas projectcapsule.dev,capsule.clastix.io \
 		&& mv bob-gas.kubeconfig bob.kubeconfig \
 		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
 		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- joe gas capsule.clastix.io,foo.clastix.io \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- joe gas projectcapsule.dev,capsule.clastix.io,foo.clastix.io \
 		&& mv joe-gas.kubeconfig foo.clastix.io.kubeconfig \
 		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
 		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- dave soil capsule.clastix.io,bar.clastix.io \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- dave soil projectcapsule.dev,capsule.clastix.io,bar.clastix.io \
 		&& mv dave-soil.kubeconfig dave.kubeconfig \
 		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
 		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.server https://127.0.0.1:9001
@@ -219,8 +224,10 @@ else
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
-		--set "serviceMonitor.enabled=false"
+		--set "serviceMonitor.enabled=false" \
+		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 endif
+	@kubectl rollout restart ds capsule-proxy -n capsule-system || true
 
 rbac-fix:
 	@echo "RBAC customization..."
@@ -257,6 +264,11 @@ CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 CONTROLLER_GEN_VERSION = v0.8.0
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
+
+GINKGO         := $(shell pwd)/bin/ginkgo
+GINKGO_VERSION = v2.19.0
+ginkgo: ## Download ginkgo locally if necessary.
+	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION))
 
 MKCERT = $(shell pwd)/bin/mkcert
 MKCERT_VERSION = v1.4.4

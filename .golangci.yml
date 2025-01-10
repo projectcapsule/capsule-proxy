@@ -11,9 +11,17 @@ linters-settings:
     min-occurrences: 2
   cyclop:
     max-complexity: 17
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - revive
+      text: "^(dot-imports)"
 linters:
   enable-all: true
   disable:
+    - err113
+    - mnd
     - errchkjson
     - errname
     - forcetypeassert
@@ -27,14 +35,10 @@ linters:
     - nilerr
     - exhaustruct
     - depguard
-    # should be enabled
     - revive
-    - err113
-    - mnd
     - nilnil
     - wsl
     - perfsprint
-
-    # deprecated
     - exportloopref
     - execinquery
+    - forcetypeassert

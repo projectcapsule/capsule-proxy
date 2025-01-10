@@ -20,21 +20,26 @@ import (
 
 type list struct {
 	log logr.Logger
-	gk  schema.GroupKind
+	gk  schema.GroupVersionKind
 }
 
 func List() modules.Module {
 	return &list{
 		log: ctrl.Log.WithName("tenant_list"),
-		gk: schema.GroupKind{
-			Group: "capsule.clastix.io",
-			Kind:  "tenants",
+		gk: schema.GroupVersionKind{
+			Group:   "capsule.clastix.io",
+			Version: "*",
+			Kind:    "tenants",
 		},
 	}
 }
 
-func (l list) GroupKind() schema.GroupKind {
+func (l list) GroupVersionKind() schema.GroupVersionKind {
 	return l.gk
+}
+
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk.GroupKind()
 }
 
 func (l list) Path() string {
@@ -62,7 +67,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, _ request.Request) (sel
 	}
 
 	if err != nil {
-		return nil, errors.NewBadRequest(err, l.gk)
+		return nil, errors.NewBadRequest(err, l.GroupKind())
 	}
 
 	return labels.NewSelector().Add(*r), nil

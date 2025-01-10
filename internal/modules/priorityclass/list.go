@@ -22,22 +22,27 @@ import (
 type list struct {
 	client client.Reader
 	log    logr.Logger
-	gk     schema.GroupKind
+	gk     schema.GroupVersionKind
 }
 
 func List(client client.Reader) modules.Module {
 	return &list{
 		client: client,
 		log:    ctrl.Log.WithName("priorityclass_list"),
-		gk: schema.GroupKind{
-			Group: schedulingv1.GroupName,
-			Kind:  "priorityclasses",
+		gk: schema.GroupVersionKind{
+			Group:   schedulingv1.GroupName,
+			Version: "*",
+			Kind:    "priorityclasses",
 		},
 	}
 }
 
-func (l list) GroupKind() schema.GroupKind {
+func (l list) GroupVersionKind() schema.GroupVersionKind {
 	return l.gk
+}
+
+func (l list) GroupKind() schema.GroupKind {
+	return l.gk.GroupKind()
 }
 
 func (l list) Path() string {
@@ -56,16 +61,17 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 		return utils.HandleListSelector(selectorsMatch)
 	}
 
+	// Regex Deprecated, Therefor handeled last
 	sc := &schedulingv1.PriorityClassList{}
 	if err = l.client.List(httpRequest.Context(), sc); err != nil {
-		return nil, errors.NewBadRequest(err, l.gk)
+		return nil, errors.NewBadRequest(err, l.GroupKind())
 	}
 
 	var r *labels.Requirement
 
 	if r, err = getPriorityClassSelector(sc, exactMatch, regexMatch); err != nil {
 		if !allowed {
-			return nil, errors.NewNotAllowed(l.gk)
+			return nil, errors.NewNotAllowed(l.GroupKind())
 		}
 
 		r, _ = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 )
@@ -52,6 +53,31 @@ func NewProxyTenant(ownerName string, ownerKind capsulev1beta2.OwnerKind, tenant
 	return &ProxyTenant{
 		Tenant:           tenant,
 		ProxySetting:     proxySettings,
+		ClusterResources: tenantClusterResources,
+	}
+}
+
+// This Function returns a ProxyTenant struct for GlobalProxySettings. These Settings are currently not bound to a tenant and therefor
+// an empty tenant and empty ProxySettings are returned.
+func NewClusterProxy(ownerName string, ownerKind capsulev1beta2.OwnerKind, owners []v1beta1.GlobalSubjectSpec) *ProxyTenant {
+	var tenantClusterResources []v1beta1.ClusterResource
+
+	for _, global := range owners {
+		for _, subject := range global.Subjects {
+			if subject.Name == ownerName && subject.Kind == ownerKind {
+				tenantClusterResources = global.ClusterResources
+			}
+		}
+	}
+
+	return &ProxyTenant{
+		Tenant: capsulev1beta2.Tenant{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "global",
+			},
+			Spec: capsulev1beta2.TenantSpec{},
+		},
+		ProxySetting:     defaultProxySettings(),
 		ClusterResources: tenantClusterResources,
 	}
 }

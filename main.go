@@ -174,6 +174,7 @@ First match is used and can be specified multiple times as comma separated value
 	mgr, err = ctrl.NewManager(config, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: ":8081",
+		PprofBindAddress:       ":8082",
 	})
 	if err != nil {
 		log.Error(err, "cannot create new Manager")
@@ -208,6 +209,10 @@ First match is used and can be specified multiple times as comma separated value
 		&tenant.NamespacesReference{Obj: &capsulev1beta2.Tenant{}},
 		&tenant.OwnerReference{},
 		&indexer.ProxySetting{},
+	}
+	// Optional Indexers
+	if gates.Enabled(features.ProxyClusterScoped) {
+		indexers = append(indexers, &indexer.GlobalProxySetting{})
 	}
 
 	for _, fieldIndex := range indexers {
