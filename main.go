@@ -24,6 +24,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
@@ -32,10 +34,19 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/webhooks"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver"
 )
 
-//nolint:funlen,cyclop,maintidx,gocognit
+// WebhookType defines the available webhook names.
+type WebhookType enumflag.Flag
+
+const (
+	WebhookWatchdog WebhookType = iota
+	WebhookLabler
+)
+
+//nolint:funlen,gocyclo,cyclop,maintidx,gocognit
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
@@ -52,10 +63,12 @@ func main() {
 		certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp string
 		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups                            []string
 		listeningPort                                                                              uint
-		bindSsl, disableCaching                                                                    bool
+		bindSsl, disableCaching, enablePprof                                                       bool
 		rolebindingsResyncPeriod                                                                   time.Duration
 		clientConnectionQPS                                                                        float32
 		clientConnectionBurst                                                                      int32
+		webhookPort                                                                                int
+		hooks                                                                                      []WebhookType
 	)
 
 	gates := featuregate.NewFeatureGate()
@@ -66,12 +79,12 @@ func main() {
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
 		},
-		features.SkipImpersonationReview: {
+		features.ProxyClusterScoped: {
 			Default:       false,
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
 		},
-		features.ProxyClusterScoped: {
+		features.SkipImpersonationReview: {
 			Default:       false,
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
@@ -88,6 +101,12 @@ func main() {
 		request.TLSCertificate: {request.TLSCertificate.String()},
 	}
 
+	WebhookTypeStrings := map[WebhookType][]string{
+		WebhookWatchdog: {"Watchdog"},
+		WebhookLabler:   {"Labler"},
+	}
+
+	flag.IntVar(&webhookPort, "webhook-port", 9443, "The port the webhook server binds to.")
 	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
@@ -95,6 +114,7 @@ func main() {
 	flag.StringVar(&impersonationGroupsRegexp, "impersonation-group-regexp", "", "Regular expression to match the groups which are considered for impersonation")
 	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
+	flag.BoolVar(&enablePprof, "enable-pprof", false, "Enables Pprof endpoint for profiling (not recommend in production)")
 	flag.BoolVar(&bindSsl, "enable-ssl", true, "Enable the bind on HTTPS for secure communication (default: true)")
 	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
 	flag.StringVar(&keyPath, "ssl-key-path", "", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
@@ -105,6 +125,11 @@ First match is used and can be specified multiple times as comma separated value
 	flag.BoolVar(&disableCaching, "disable-caching", false, "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)")
 	flag.Float32Var(&clientConnectionQPS, "client-connection-qps", 20.0, "QPS to use for interacting with kubernetes apiserver.")
 	flag.Int32Var(&clientConnectionBurst, "client-connection-burst", 30, "Burst to use for interacting with kubernetes apiserver.")
+	flag.Var(
+		enumflag.NewSlice(&hooks, "string", WebhookTypeStrings, enumflag.EnumCaseInsensitive),
+		"webhooks",
+		"Comma-separated list of webhooks to enable. Available options: Watchdog, Labler",
+	)
 	gates.AddFlag(flag.CommandLine)
 
 	opts := zap.Options{
@@ -171,11 +196,24 @@ First match is used and can be specified multiple times as comma separated value
 	config.QPS = clientConnectionQPS
 	config.Burst = int(clientConnectionBurst)
 
-	mgr, err = ctrl.NewManager(config, ctrl.Options{
+	// Base Config
+	ctrlConfig := ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: ":8081",
-		PprofBindAddress:       ":8082",
-	})
+	}
+
+	if len(hooks) > 0 {
+		ctrlConfig.WebhookServer = ctrlwebhook.NewServer(ctrlwebhook.Options{
+			Port: webhookPort,
+		})
+	}
+
+	// Conditional config
+	if enablePprof {
+		ctrlConfig.PprofBindAddress = ":8082"
+	}
+
+	mgr, err = ctrl.NewManager(config, ctrlConfig)
 	if err != nil {
 		log.Error(err, "cannot create new Manager")
 		os.Exit(1)
@@ -272,6 +310,19 @@ First match is used and can be specified multiple times as comma separated value
 		}
 	}
 
+	// Webhook Reconciler
+	if len(hooks) > 0 {
+		if containsWebhook(WebhookWatchdog, hooks) {
+			mgr.GetWebhookServer().Register("/mutate/watchdog", &admission.Webhook{
+				Handler: &webhooks.WatchdogWebhook{
+					Decoder: admission.NewDecoder(mgr.GetScheme()),
+					Client:  mgr.GetClient(),
+					Log:     logger.WithName("Webhooks.Watchdog"),
+				},
+			})
+		}
+	}
+
 	if err = mgr.Add(r); err != nil {
 		log.Error(err, "cannot add NameSpaceFilter as Runnable")
 		os.Exit(1)
@@ -293,4 +344,14 @@ First match is used and can be specified multiple times as comma separated value
 		log.Error(err, "cannot start the Manager")
 		os.Exit(1)
 	}
+}
+
+func containsWebhook(target WebhookType, enabledWebhooks []WebhookType) bool {
+	for _, webhook := range enabledWebhooks {
+		if webhook == target {
+			return true
+		}
+	}
+
+	return false
 }
