@@ -106,18 +106,19 @@ helm-docs: docker
 helm-lint: docker
 	@docker run -v "$(SRC_ROOT):/workdir" --entrypoint /bin/sh quay.io/helmpack/chart-testing:v3.3.1 -c "cd /workdir; ct lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug"
 
-helm-test: helm-controller-version ct ko-build-all helm-create helm-install helm-destroy
+helm-test: helm-controller-version ct helm-create helm-install helm-destroy
 
-helm-install:
-	@kubectl apply --server-side=true -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.2/cert-manager.yaml
-	@make install-capsule
-	@kubectl apply --server-side=true -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.58.0/bundle.yaml
+helm-test-ct: helm-load-image
 	@$(CT) install --config $(SRC_ROOT)/.github/configs/ct.yaml --namespace=capsule-system --all --debug
+
+helm-install: install-dependencies helm-test-ct
 
 helm-create: kind
 	@$(KIND) create cluster --wait=60s --name capsule-charts
-	@$(KIND) load docker-image --name capsule-charts $(CAPSULE_PROXY_IMG):$(VERSION)
 	@kubectl create ns capsule-system
+
+helm-load-image: kind helm-controller-version ko-build-all
+	@$(KIND) load docker-image --name capsule-charts $(CAPSULE_PROXY_IMG):$(VERSION)
 
 helm-destroy: kind
 	@$(KIND) delete cluster --name capsule-charts
@@ -142,15 +143,10 @@ e2e-build: kind
 	@echo "Building kubernetes env using Kind $${KIND_K8S_VERSION:-v1.27.0}..."
 	@$(KIND) create cluster --name capsule --image kindest/node:$${KIND_K8S_VERSION:-v1.27.0} --config ./e2e/kind.yaml --wait=120s \
 		&& kubectl taint nodes capsule-worker2 key1=value1:NoSchedule
-	@helm repo add bitnami https://charts.bitnami.com/bitnami
-	@helm repo update
-	@helm upgrade --install --namespace metrics-system --create-namespace metrics-server bitnami/metrics-server \
-		--set apiService.create=true --set "extraArgs[0]=--kubelet-insecure-tls=true" --version 6.2.9
 	@echo "Waiting for metrics-server pod to be ready for listing metrics"
-	@kubectl --namespace metrics-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/instance=metrics-server
 
 .PHONY: e2e-install
-e2e-install: install-capsule install-capsule-proxy rbac-fix
+e2e-install: install-capsule install-dependencies install-capsule-proxy rbac-fix
 
 .PHONY: e2e-load-image
 e2e-load-image: kind ko-build-all
@@ -184,12 +180,14 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "image.tag=$(VERSION)" \
 		--set "options.enableSSL=false" \
 		--set "options.logLevel=10" \
+		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
 		--set "options.generateCertificates=false" \
+		--set "webhooks.enabled=true" \
 		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 else
 	@echo "Running in HTTPS mode"
@@ -220,14 +218,27 @@ else
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=$(VERSION)" \
 		--set "options.logLevel=10" \
+		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
 		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
+		--set "webhooks.enabled=true" \
 		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 endif
 	@kubectl rollout restart ds capsule-proxy -n capsule-system || true
+
+install-dependencies: install-capsule
+	@kubectl apply --server-side=true -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.58.0/bundle.yaml
+	@helm repo add cert-manager https://charts.jetstack.io
+	@helm repo add bitnami https://charts.bitnami.com/bitnami
+	@helm repo update	
+	@helm upgrade --install cert-manager cert-manager/cert-manager --namespace cert-manager --create-namespace --version 1.16.2 --set crds.enabled=true 
+	@helm upgrade --install --namespace metrics-system --create-namespace metrics-server bitnami/metrics-server \
+		--set apiService.create=true --set "extraArgs[0]=--kubelet-insecure-tls=true" --version 6.2.9
+	@kubectl --namespace metrics-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/instance=metrics-server
+
 
 rbac-fix:
 	@echo "RBAC customization..."

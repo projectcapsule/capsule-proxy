@@ -1,0 +1,67 @@
+{{- if $.Values.webhooks.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}-webhook-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}-webhook-ca
+spec:
+  isCA: true
+  commonName: {{ include "capsule-proxy.fullname" . }}-webhook-ca
+  secretName: {{ include "capsule-proxy.fullname" . }}-webhook-ca
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name:  {{ include "capsule-proxy.fullname" . }}-webhook-issuer
+    kind: Issuer
+    group: cert-manager.io
+---  
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}-webhook
+spec:
+  ca:
+    secretName: {{ include "capsule-proxy.fullname" . }}-webhook-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}-webhook-cert
+spec:
+  {{- with .Values.webhooks.certificate.fields }}
+    {{ toYaml . | nindent 2 }}
+  {{- end }}
+  dnsNames:
+  {{- range $dns := .Values.webhooks.certificate.dnsNames }}
+  - {{ $dns | quote }}
+  {{- end }}
+  - {{ include "capsule-proxy.fullname" . }}-webhook-service
+  - {{ include "capsule-proxy.fullname" . }}-webhook-service.{{ .Release.Namespace }}.svc
+  {{- with .Values.webhooks.certificate.ipAddresses }}
+  ipAddresses:
+    {{- range $ip := . }}
+  - {{ $ip }}
+    {{- end }}
+  {{- end }}
+  {{- with .Values.webhooks.certificate.uris }}
+  uris:
+    {{- range $uri := . }}
+  - {{ $uri }}
+    {{- end }}
+  {{- end }}
+  issuerRef:
+    kind: "Issuer"
+    name: {{ include "capsule-proxy.fullname" . }}-webhook
+  secretName: {{ include "capsule-proxy.fullname" . }}-webhook-cert
+  subject:
+    organizations:
+      - projectcapsule.dev
+{{- end }}

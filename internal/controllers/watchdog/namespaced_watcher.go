@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	log2 "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -83,20 +84,47 @@ func (c *NamespacedWatcher) SetupWithManager(mgr manager.Manager, gvk metav1.Gro
 	c.object = obj.DeepCopy()
 
 	return controllerruntime.NewControllerManagedBy(mgr).
-		For(&obj, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			ns := corev1.Namespace{}
-			_ = c.Client.Get(context.Background(), types.NamespacedName{Name: object.GetNamespace()}, &ns)
-
-			tenancy := false
-			for _, objectRef := range ns.ObjectMeta.OwnerReferences {
-				if capsuleutils.IsTenantOwnerReference(objectRef) {
-					tenancy = true
-
-					break
+		For(&obj, builder.WithPredicates(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				ns := &corev1.Namespace{}
+				err := c.Client.Get(context.Background(), types.NamespacedName{Name: e.Object.GetNamespace()}, ns)
+				if err != nil {
+					return false
 				}
-			}
 
-			return tenancy
-		}))).
+				// Check for Tenant OwnerReferences
+				for _, ownerRef := range ns.ObjectMeta.OwnerReferences {
+					if capsuleutils.IsTenantOwnerReference(ownerRef) {
+						return true
+					}
+				}
+
+				return false
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				ns := &corev1.Namespace{}
+				err := c.Client.Get(context.Background(), types.NamespacedName{Name: e.ObjectNew.GetNamespace()}, ns)
+				if err != nil {
+					return false
+				}
+
+				// Check for Tenant OwnerReferences
+				for _, ownerRef := range ns.ObjectMeta.OwnerReferences {
+					if capsuleutils.IsTenantOwnerReference(ownerRef) {
+						return true
+					}
+				}
+
+				return false
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				// Ignore delete events
+				return false
+			},
+			GenericFunc: func(e event.GenericEvent) bool {
+				// Ignore generic events
+				return false
+			},
+		})).
 		Complete(c)
 }
