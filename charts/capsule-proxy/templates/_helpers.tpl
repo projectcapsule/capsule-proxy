@@ -100,3 +100,31 @@ Render the CLI flag --host values for the self-signed certificate generator
 {{- $values = append $values $fullname -}}
 {{ join "," $values }}
 {{- end -}}
+
+
+
+{{/*
+Capsule Webhook service (Called with $.Path)
+
+*/}}
+{{- define "capsule-proxy.webhooks.service" -}}
+  {{- include "capsule-proxy.webhooks.cabundle" $.ctx | nindent 0 }}
+  {{- if $.ctx.Values.webhooks.service.url }}
+url: {{ printf "%s/%s" (trimSuffix "/" $.ctx.Values.webhooks.service.url ) (trimPrefix "/" (required "Path is required for the function" $.path)) }}
+  {{- else }}
+service:
+  name: {{ default (printf "%s-webhook-service" (include "capsule-proxy.fullname" $.ctx)) $.ctx.Values.webhooks.service.name }}
+  namespace: {{ default $.ctx.Release.Namespace $.ctx.Values.webhooks.service.namespace }}
+  port: {{ default 443 $.ctx.Values.webhooks.service.port }}
+  path: {{ required "Path is required for the function" $.path }}
+  {{- end }}
+{{- end }}
+
+{{/*
+Capsule Webhook endpoint CA Bundle
+*/}}
+{{- define "capsule-proxy.webhooks.cabundle" -}}
+  {{- if $.Values.webhooks.service.caBundle -}}
+caBundle: {{ $.Values.webhooks.service.caBundle -}}
+  {{- end -}}
+{{- end -}}

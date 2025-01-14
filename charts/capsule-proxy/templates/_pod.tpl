@@ -34,6 +34,13 @@ spec:
       secretName: {{ .Values.options.certificateVolumeName | default  (include "capsule-proxy.fullname" .) }}
       defaultMode: 420
   {{- end }}
+  {{- if .Values.webhooks.enabled }}
+  - name: webhook
+    secret:
+      secretName: {{ include "capsule-proxy.fullname" . }}-webhook-cert
+      defaultMode: 420
+  {{- end }}
+
   {{- with .Values.topologySpreadConstraints }}
   topologySpreadConstraints: {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -45,6 +52,7 @@ spec:
     imagePullPolicy: {{ .Values.image.pullPolicy }}
     args:
     - --listening-port={{ .Values.options.listeningPort }}
+    - --webhook-port={{ .Values.options.webhookPort }}
     - --capsule-configuration-name={{ .Values.options.capsuleConfigurationName }}
     {{- range .Values.options.ignoredUserGroups }}
     - --ignored-user-group={{ . }}
@@ -61,6 +69,12 @@ spec:
     {{- end }}
     - --client-connection-qps={{ .Values.options.clientConnectionQPS }}
     - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
+    - --enable-pprof={{ .Values.options.pprof }}
+    {{- if .Values.webhooks.enabled }}
+      {{- if .Values.webhooks.watchdog.enabled }}
+    - --webhooks=watchdog
+      {{- end }}
+    {{- end }}
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -83,9 +97,16 @@ spec:
     - name: probe
       containerPort: 8081
       protocol: TCP
+    {{- if .Values.options.pprof }}
     - name: pprof
       containerPort: 8082
       protocol: TCP
+    {{- end }}
+    {{- if .Values.webhooks.enabled }}
+    - name: webhook
+      containerPort: {{ .Values.options.webhookPort }}
+      protocol: TCP
+    {{- end }}
     {{- if .Values.livenessProbe.enabled }}
     livenessProbe:
       {{- toYaml (omit .Values.livenessProbe "enabled") | nindent 6 }}
@@ -103,6 +124,11 @@ spec:
     {{- if .Values.options.enableSSL }}
     - mountPath: {{ .Values.options.SSLDirectory }}
       name: certs
+    {{- end }}
+    {{- if .Values.webhooks.enabled }}
+    - mountPath: /tmp/k8s-webhook-server/serving-certs
+      name: webhook
+      readOnly: true
     {{- end }}
   {{- with .Values.nodeSelector }}
   nodeSelector:

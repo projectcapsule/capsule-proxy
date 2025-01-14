@@ -17,9 +17,8 @@ global:
         pullPolicy: IfNotPresent
         # -- Set the image tag of the helm chart job
         tag: ""
-      # -- Annotations to add to the certgen job.
-      annotations:
-        "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+      # -- Annotations
+      annotations: {}
       # -- Set the restartPolicy
       restartPolicy: Never
       # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
@@ -273,6 +272,10 @@ options:
   clientConnectionQPS: 20
   # -- Burst to use for interacting with kubernetes API Server.
   clientConnectionBurst: 30
+  # -- Enable Pprof for profiling
+  pprof: false
+  # -- Webhook port
+  webhookPort: 9443
   # -- A list of extra arguments to add to the capsule-proxy.
   extraArgs: []
   # -"--feature-gates=ProxyClusterScoped=true"
@@ -306,6 +309,63 @@ certManager:
       privateKey:
         rotationPolicy: 'Always'
       # renewBefore: '24h'
+
+webhooks:
+  # -- Enable the usage of mutating and validating webhooks
+  enabled: false
+
+  # Configure custom webhook service
+  service:
+    # -- The URL where the capsule webhook services are running (Overwrites cluster scoped service definition)
+    url: ""
+    # -- CABundle for the webhook service
+    caBundle: ""
+    # -- Custom service name for the webhook service
+    name: ""
+    # -- Custom service namespace for the webhook service
+    namespace: ""
+    # -- Custom service port for the webhook service
+    port:
+
+  # Requires cert-manager
+  certificate:
+    # -- Additional DNS Names to include in certificate
+    dnsNames: []
+    # -- Additional IP Addresses to include in certificate
+    ipAddresses: []
+    # -- Additional URIs to include in certificate
+    uris: []
+    # -- Additional fields to include in certificate
+    fields:
+      privateKey:
+        rotationPolicy: 'Always'
+
+  watchdog:
+    # -- Enable Watchdog Webhook
+    enabled: true
+    # -- Timeout in seconds for mutating webhooks
+    timeoutSeconds: 3s
+    # We don't want to disturb operations if this webhook is not available
+    # watchdog will eventually add the label in the background
+    # -- Ignore failures from the webhook
+    failurePolicy: 'Ignore'
+    # -- Rules for which Objects and Actions this webhook should be called
+    rules:
+    - apiGroups:
+      - "*"
+      apiVersions:
+      - "*"
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - "*"
+      scope: "Namespaced"
+    # -- Selects only namespaced items which are within a tenant
+    namespaceSelector:
+      matchExpressions:
+        - key: capsule.clastix.io/tenant
+          operator: Exists
 
 # ServiceAccount
 serviceAccount:

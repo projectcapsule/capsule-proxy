@@ -104,7 +104,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.certs.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
 | global.jobs.certs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
 | global.jobs.kubectl.affinity | object | `{}` | Set affinity rules |
-| global.jobs.kubectl.annotations | object | `{"helm.sh/hook-delete-policy":"before-hook-creation,hook-succeeded"}` | Annotations to add to the certgen job. |
+| global.jobs.kubectl.annotations | object | `{}` | Annotations |
 | global.jobs.kubectl.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the helm chart job |
 | global.jobs.kubectl.image.registry | string | `"docker.io"` | Set the image repository of the helm chart job |
 | global.jobs.kubectl.image.repository | string | `"clastix/kubectl"` | Set the image repository of the helm chart job |
@@ -184,7 +184,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
 | options.logLevel | string | `"4"` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
 | options.oidcUsernameClaim | string | `"preferred_username"` | Specify if capsule-proxy will use SSL |
+| options.pprof | bool | `false` | Enable Pprof for profiling |
 | options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174) |
+| options.webhookPort | int | `9443` | Webhook port |
 
 ### Cert-Manager Parameters
 
@@ -202,6 +204,26 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
 | certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
 | certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
+
+### Webhook Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| webhooks.certificate.dnsNames | list | `[]` | Additional DNS Names to include in certificate |
+| webhooks.certificate.fields | object | `{"privateKey":{"rotationPolicy":"Always"}}` | Additional fields to include in certificate |
+| webhooks.certificate.ipAddresses | list | `[]` | Additional IP Addresses to include in certificate |
+| webhooks.certificate.uris | list | `[]` | Additional URIs to include in certificate |
+| webhooks.enabled | bool | `false` | Enable the usage of mutating and validating webhooks |
+| webhooks.service.caBundle | string | `""` | CABundle for the webhook service |
+| webhooks.service.name | string | `""` | Custom service name for the webhook service |
+| webhooks.service.namespace | string | `""` | Custom service namespace for the webhook service |
+| webhooks.service.port | string | `nil` | Custom service port for the webhook service |
+| webhooks.service.url | string | `""` | The URL where the capsule webhook services are running (Overwrites cluster scoped service definition) |
+| webhooks.watchdog.enabled | bool | `true` | Enable Watchdog Webhook |
+| webhooks.watchdog.failurePolicy | string | `"Ignore"` | Ignore failures from the webhook |
+| webhooks.watchdog.namespaceSelector | object | `{"matchExpressions":[{"key":"capsule.clastix.io/tenant","operator":"Exists"}]}` | Selects only namespaced items which are within a tenant |
+| webhooks.watchdog.rules | list | `[{"apiGroups":["*"],"apiVersions":["*"],"operations":["CREATE","UPDATE"],"resources":["*"],"scope":"Namespaced"}]` | Rules for which Objects and Actions this webhook should be called |
+| webhooks.watchdog.timeoutSeconds | string | `"3s"` | Timeout in seconds for mutating webhooks |
 
 ### Service Parameters
 

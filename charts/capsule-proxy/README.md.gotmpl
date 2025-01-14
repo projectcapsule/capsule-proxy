@@ -101,7 +101,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 {{- range .Values }}
-  {{- if not (or (hasPrefix "certManager" .Key)  (hasPrefix "global" .Key) (hasPrefix "options" .Key) (hasPrefix "service." .Key) (hasPrefix "ingress" .Key) (hasPrefix "autoscaling" .Key) (hasPrefix "serviceMonitor" .Key) )  }}
+  {{- if not (or (hasPrefix "certManager" .Key) (hasPrefix "webhooks" .Key) (hasPrefix "global" .Key) (hasPrefix "options" .Key) (hasPrefix "service." .Key) (hasPrefix "ingress" .Key) (hasPrefix "autoscaling" .Key) (hasPrefix "serviceMonitor" .Key) )  }}
 | {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
   {{- end }}
 {{- end }}
@@ -125,6 +125,16 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 |-----|------|---------|-------------|
 {{- range .Values }}
   {{- if hasPrefix "certManager" .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+### Webhook Parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "webhooks." .Key }}
 | {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
   {{- end }}
 {{- end }}
