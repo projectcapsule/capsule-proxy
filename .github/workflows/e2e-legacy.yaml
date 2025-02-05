@@ -38,10 +38,10 @@ jobs:
     runs-on: ubuntu-18.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2
         with:
           fetch-depth: 0
-      - uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814
+      - uses: azure/setup-helm@124c6d88e7a75334a4fad6d0905089d6d714d088
         with:
           version: 3.3.4
       - name: Installing BATS
