@@ -35,7 +35,7 @@ jobs:
         k8s-version: [ 'v1.16.15', 'v1.17.11', 'v1.18.8', 'v1.19.4', 'v1.20.7', 'v1.21.2', 'v1.22.0' ]
         capsule-proxy-mode: [ 'https', 'http' ]
         test-clients: [ 'kubectl', 'curl' ]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@85e6279cec87321a52edac9c87bce653a07cf6c2
