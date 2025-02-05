@@ -15,7 +15,7 @@ require (
 	github.com/projectcapsule/capsule v0.7.2
 	github.com/prometheus/client_golang v1.20.5
 	github.com/prometheus/client_model v0.6.1
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	github.com/thediveo/enumflag v0.10.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.34.0
