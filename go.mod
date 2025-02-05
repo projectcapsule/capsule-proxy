@@ -2,7 +2,7 @@ module github.com/projectcapsule/capsule-proxy
 
 go 1.23.0
 
-toolchain go1.23.3
+toolchain go1.23.6
 
 require (
 	github.com/go-logr/logr v1.4.2
