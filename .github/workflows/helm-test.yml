@@ -10,6 +10,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  linter-artifacthub:
+    runs-on: ubuntu-latest
+    container:
+      image: artifacthub/ah
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Run ah lint
+        working-directory: ./charts/
+        run: ah lint
   lint:
     runs-on: ubuntu-20.04
     steps:
@@ -39,6 +50,17 @@ jobs:
             exit 1
           else
             echo -e '\033[0;32mDocumentation up to date\033[0m ✔'
+          fi
+      - name: Run schema-testing (helm-schema)
+        id: helm-schema
+        run: |
+          make helm-schema
+          if [[ $(git diff --stat) != '' ]]; then
+            echo -e '\033[0;31mSchema outdated! (Run make helm-schema locally and commit)\033[0m ❌'
+            git diff --color
+            exit 1
+          else
+            echo -e '\033[0;32mSchema up to date\033[0m ✔'
           fi
       - name: Run chart-testing (install)
         run: make helm-test

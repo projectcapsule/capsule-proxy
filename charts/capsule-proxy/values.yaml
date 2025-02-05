@@ -54,13 +54,13 @@ global:
     certs:
       image:
         # -- Set the image repository of the post install certgen job
-        registry: docker.io
+        registry: registry.k8s.io
         # -- Set the image repository of the post install certgen job
-        repository: jettech/kube-webhook-certgen
+        repository: ingress-nginx/kube-webhook-certgen
         # -- Set the image pull policy of the post install certgen job
         pullPolicy: IfNotPresent
         # -- Set the image tag of the post install certgen job
-        tag: "v1.3.0"
+        tag: "v1.4.3"
       # -- Annotations to add to the certgen job.
       annotations: {}
       # -- Set the restartPolicy
@@ -390,9 +390,9 @@ autoscaling:
   # -- Set the maxReplicas for capsule-proxy hpa.
   maxReplicas: 3
   # -- Set the targetCPUUtilizationPercentage for capsule-proxy hpa.
-  targetCPUUtilizationPercentage:
+  targetCPUUtilizationPercentage: 0
   # -- Set the targetMemoryUtilizationPercentage for capsule-proxy hpa.
-  targetMemoryUtilizationPercentage:
+  targetMemoryUtilizationPercentage: 0
   # -- Custom [metrics-objects](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/#autoscaling-on-multiple-metrics-and-custom-metrics) for capsule-proxy hpa
   metrics: []
   # - type: Pods

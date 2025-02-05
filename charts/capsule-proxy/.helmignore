@@ -25,3 +25,4 @@
 /*.tgz
 ci/
 *.gotmpl
+.schema.yaml
