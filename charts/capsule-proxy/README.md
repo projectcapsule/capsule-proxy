@@ -37,7 +37,7 @@ The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on you
         $ helm upgrade capsule-proxy projectcapsule/capsule-proxy -n capsule-system
 
 5. Uninstall the Chart
-  
+
         $ helm uninstall capsule-proxy -n capsule-system
 
 ## Upgrading the Chart
@@ -67,7 +67,7 @@ The `--values` option is the preferred method because it allows you to keep your
 
 Specify your overrides file when you install the chart:
 
-        $ helm install capsule-proxy projectcapsule/capsule-proxy --values myvalues.yaml -n capsule-system 
+        $ helm install capsule-proxy projectcapsule/capsule-proxy --values myvalues.yaml -n capsule-system
 
 The values in your overrides file `myvalues.yaml` will override their counterparts in the chart’s values.yaml file. Any values in `values.yaml` that weren’t overridden will keep their defaults.
 
@@ -91,9 +91,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.certs.affinity | object | `{}` | Set affinity rules |
 | global.jobs.certs.annotations | object | `{}` | Annotations to add to the certgen job. |
 | global.jobs.certs.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
-| global.jobs.certs.image.registry | string | `"docker.io"` | Set the image repository of the post install certgen job |
-| global.jobs.certs.image.repository | string | `"jettech/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
-| global.jobs.certs.image.tag | string | `"v1.3.0"` | Set the image tag of the post install certgen job |
+| global.jobs.certs.image.registry | string | `"registry.k8s.io"` | Set the image repository of the post install certgen job |
+| global.jobs.certs.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
+| global.jobs.certs.image.tag | string | `"v1.4.3"` | Set the image tag of the post install certgen job |
 | global.jobs.certs.nodeSelector | object | `{}` | Set the node selector |
 | global.jobs.certs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | global.jobs.certs.priorityClassName | string | `""` | Set a pod priorityClassName |
@@ -259,8 +259,8 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | autoscaling.maxReplicas | int | `3` | Set the maxReplicas for capsule-proxy hpa. |
 | autoscaling.metrics | list | `[]` | Custom [metrics-objects](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/#autoscaling-on-multiple-metrics-and-custom-metrics) for capsule-proxy hpa |
 | autoscaling.minReplicas | int | `1` | Set the minReplicas for capsule-proxy hpa. |
-| autoscaling.targetCPUUtilizationPercentage | string | `nil` | Set the targetCPUUtilizationPercentage for capsule-proxy hpa. |
-| autoscaling.targetMemoryUtilizationPercentage | string | `nil` | Set the targetMemoryUtilizationPercentage for capsule-proxy hpa. |
+| autoscaling.targetCPUUtilizationPercentage | int | `0` | Set the targetCPUUtilizationPercentage for capsule-proxy hpa. |
+| autoscaling.targetMemoryUtilizationPercentage | int | `0` | Set the targetMemoryUtilizationPercentage for capsule-proxy hpa. |
 
 ### ServiceMonitor Parameters
 

@@ -33,9 +33,7 @@ annotations:
     - name: Documentation
       url: https://projectcapsule.dev/
   artifacthub.io/changes: |
+    - kind: changed
+      description: cert-job image from docker.io/jettech/kube-webhook-certgen to registry.k8s.io/ingress-nginx/kube-webhook-certgen (.Values.global.jobs.certs.image)
     - kind: added
-      description: Upgrading k8s.io packages to v1.31.2
-    - kind: added
-      description: Support for bearer tokens in WebSocket protocols
-    - kind: fix
-      description: Support ServiceAccount bound token expiration
+      description: Webhook values

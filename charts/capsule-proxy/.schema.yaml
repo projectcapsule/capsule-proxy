@@ -1,0 +1,6 @@
+input:
+  - ci/cert-manager-values.yaml
+  - ci/backwards-values.yaml
+  - ci/deploy-values.yaml
+  - ci/ds-values.yaml
+  - ci/webhook-values.yaml

@@ -17,6 +17,9 @@ IMG_BASE        ?= $(REPOSITORY)
 IMG             ?= $(IMG_BASE):$(VERSION)
 CAPSULE_PROXY_IMG     ?= $(REGISTRY)/$(IMG_BASE)
 
+## Tool Binaries
+KUBECTL ?= kubectl
+HELM ?= helm
 
 OS := $(shell uname)
 SRC_ROOT = $(shell git rev-parse --show-toplevel)
@@ -105,6 +108,9 @@ helm-docs: docker
 .PHONY: helm-lint
 helm-lint: docker
 	@docker run -v "$(SRC_ROOT):/workdir" --entrypoint /bin/sh quay.io/helmpack/chart-testing:v3.3.1 -c "cd /workdir; ct lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug"
+
+helm-schema: helm-plugin-schema
+	cd charts/capsule-proxy && $(HELM) schema
 
 helm-test: helm-controller-version ct helm-create helm-install helm-destroy
 
@@ -233,8 +239,8 @@ install-dependencies: install-capsule
 	@kubectl apply --server-side=true -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.58.0/bundle.yaml
 	@helm repo add cert-manager https://charts.jetstack.io
 	@helm repo add bitnami https://charts.bitnami.com/bitnami
-	@helm repo update	
-	@helm upgrade --install cert-manager cert-manager/cert-manager --namespace cert-manager --create-namespace --version 1.16.2 --set crds.enabled=true 
+	@helm repo update
+	@helm upgrade --install cert-manager cert-manager/cert-manager --namespace cert-manager --create-namespace --version 1.16.2 --set crds.enabled=true
 	@helm upgrade --install --namespace metrics-system --create-namespace metrics-server bitnami/metrics-server \
 		--set apiService.create=true --set "extraArgs[0]=--kubelet-insecure-tls=true" --version 6.2.9
 	@kubectl --namespace metrics-system wait --for=condition=ready --timeout=320s pod -l app.kubernetes.io/instance=metrics-server
@@ -266,6 +272,14 @@ install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/con
 .PHONY: uninstall
 uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	kubectl delete -f charts/capsule-proxy/crds
+
+####################
+# -- Helm Plugins
+####################
+
+HELM_SCHEMA_VERSION   := ""
+helm-plugin-schema:
+	$(HELM) plugin install https://github.com/losisin/helm-values-schema-json.git --version $(HELM_SCHEMA_VERSION) || true
 
 ####################
 # -- Tools
