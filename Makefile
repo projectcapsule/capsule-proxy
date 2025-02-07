@@ -246,6 +246,14 @@ rbac-fix:
 	@kubectl create clusterrolebinding capsule:selfsubjectaccessreviews --clusterrole=capsule-selfsubjectaccessreviews --group=capsule.clastix.io
 	@kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io
 
+# Run tests
+.PHONY: test
+test: test-clean generate manifests test-clean
+	@GO111MODULE=on go test -v ./... -coverprofile coverage.out
+
+.PHONY: test-clean
+test-clean: ## Clean tests cache
+	@go clean -testcache
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
