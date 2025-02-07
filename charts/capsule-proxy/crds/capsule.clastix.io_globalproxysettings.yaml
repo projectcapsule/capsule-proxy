@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: globalproxysettings.capsule.clastix.io
 spec:
   group: capsule.clastix.io
@@ -22,14 +21,19 @@ spec:
           API.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -37,10 +41,10 @@ spec:
             description: GlobalProxySettingsSpec defines the desired state of GlobalProxySettings.
             properties:
               rules:
-                description: Subjects that should receive additional permissions.
-                  The subjects are selected based on the oncoming requests. They don't
-                  have to relate to an existing tenant. However they must be part
-                  of the capsule-user groups.
+                description: |-
+                  Subjects that should receive additional permissions.
+                  The subjects are selected based on the oncoming requests. They don't have to relate to an existing tenant.
+                  However they must be part of the capsule-user groups.
                 items:
                   properties:
                     clusterResources:
@@ -75,17 +79,16 @@ spec:
                               type: string
                             type: array
                           selector:
-                            description: Select all cluster scoped resources with
-                              the given label selector. Defining a selector which
-                              does not match any resources is considered not selectable
-                              (eg. using operation NotExists).
+                            description: |-
+                              Select all cluster scoped resources with the given label selector.
+                              Defining a selector which does not match any resources is considered not selectable (eg. using operation NotExists).
                             properties:
                               matchExpressions:
                                 description: matchExpressions is a list of label selector
                                   requirements. The requirements are ANDed.
                                 items:
-                                  description: A label selector requirement is a selector
-                                    that contains values, a key, and an operator that
+                                  description: |-
+                                    A label selector requirement is a selector that contains values, a key, and an operator that
                                     relates the key and values.
                                   properties:
                                     key:
@@ -93,17 +96,16 @@ spec:
                                         applies to.
                                       type: string
                                     operator:
-                                      description: operator represents a key's relationship
-                                        to a set of values. Valid operators are In,
-                                        NotIn, Exists and DoesNotExist.
+                                      description: |-
+                                        operator represents a key's relationship to a set of values.
+                                        Valid operators are In, NotIn, Exists and DoesNotExist.
                                       type: string
                                     values:
-                                      description: values is an array of string values.
-                                        If the operator is In or NotIn, the values
-                                        array must be non-empty. If the operator is
-                                        Exists or DoesNotExist, the values array must
-                                        be empty. This array is replaced during a
-                                        strategic merge patch.
+                                      description: |-
+                                        values is an array of string values. If the operator is In or NotIn,
+                                        the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                        the values array must be empty. This array is replaced during a strategic
+                                        merge patch.
                                       items:
                                         type: string
                                       type: array
@@ -117,13 +119,13 @@ spec:
                               matchLabels:
                                 additionalProperties:
                                   type: string
-                                description: matchLabels is a map of {key,value} pairs.
-                                  A single {key,value} in the matchLabels map is equivalent
-                                  to an element of matchExpressions, whose key field
-                                  is "key", the operator is "In", and the values array
-                                  contains only "value". The requirements are ANDed.
+                                description: |-
+                                  matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                  map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                  operator is "In", and the values array contains only "value". The requirements are ANDed.
                                 type: object
                             type: object
+                            x-kubernetes-map-type: atomic
                         required:
                         - apiGroups
                         - operations
@@ -132,10 +134,10 @@ spec:
                         type: object
                       type: array
                     subjects:
-                      description: Subjects that should receive additional permissions.
-                        The subjects are selected based on the oncoming requests.
-                        They don't have to relate to an existing tenant. However they
-                        must be part of the capsule-user groups.
+                      description: |-
+                        Subjects that should receive additional permissions.
+                        The subjects are selected based on the oncoming requests. They don't have to relate to an existing tenant.
+                        However they must be part of the capsule-user groups.
                       items:
                         properties:
                           kind:
@@ -167,9 +169,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

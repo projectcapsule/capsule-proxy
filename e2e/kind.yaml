@@ -1,8 +1,8 @@
 apiVersion: kind.x-k8s.io/v1alpha4
 kind: Cluster
-#networking:
-#  apiServerAddress: "127.0.0.1"
-#  apiServerPort: 6443
+# networking:
+#   apiServerAddress: "127.0.0.1"
+#   apiServerPort: 6443
 nodes:
   - role: control-plane
   - role: worker

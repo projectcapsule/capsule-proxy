@@ -20,8 +20,6 @@ issues:
 linters:
   enable-all: true
   disable:
-    - err113
-    - mnd
     - errchkjson
     - errname
     - forcetypeassert
