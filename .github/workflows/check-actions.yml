@@ -3,7 +3,8 @@ permissions: {}
 
 on:
   pull_request:
-    branches: [ "*" ]
+    branches:
+      - "*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,7 +19,7 @@ jobs:
       - name: Ensure SHA pinned actions
         uses: zgosalvez/github-actions-ensure-sha-pinned-actions@6ae615f6475d2ede5ad88bea6baa7a1d5e93ffaa # v3.0.19
         with:
-          # slsa-github-generator requires using a semver tag for reusable workflows. 
+          # slsa-github-generator requires using a semver tag for reusable workflows.
           # See: https://github.com/slsa-framework/slsa-github-generator#referencing-slsa-builders-and-generators
           allowlist: |
             slsa-framework/slsa-github-generator

@@ -61,6 +61,8 @@ With the new CRD management we can release update CRDs bundled with the chart. T
 
 ## Customize the installation
 
+> When using **OCI** we recommend our dedicated [OCI Repository]() for this chart
+
 There are two methods for specifying overrides of values during chart installation: `--values` and `--set`.
 
 The `--values` option is the preferred method because it allows you to keep your overrides in a YAML file, rather than specifying them all on the command line. Create a copy of the YAML file `values.yaml` and add your overrides to it.

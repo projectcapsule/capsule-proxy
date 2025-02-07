@@ -26,3 +26,4 @@
 ci/
 *.gotmpl
 .schema.yaml
+artifacthub-repo.yml

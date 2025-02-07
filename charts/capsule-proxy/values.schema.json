@@ -239,10 +239,18 @@
                     "properties": {
                         "certs": {
                             "properties": {
-                                "nodeSelector": {
+                                "resources": {
                                     "properties": {
-                                        "global-field": {
-                                            "type": "string"
+                                        "limits": {
+                                            "properties": {
+                                                "cpu": {
+                                                    "type": "number"
+                                                },
+                                                "memory": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -376,23 +384,6 @@
                     },
                     "type": "object"
                 },
-                "certs": {
-                    "properties": {
-                        "pullPolicy": {
-                            "type": "string"
-                        },
-                        "registry": {
-                            "type": "string"
-                        },
-                        "repository": {
-                            "type": "string"
-                        },
-                        "tag": {
-                            "type": "string"
-                        }
-                    },
-                    "type": "object"
-                },
                 "nodeSelector": {
                     "properties": {
                         "node-role.kubernetes.io/master": {
@@ -403,6 +394,22 @@
                 },
                 "priorityClassName": {
                     "type": "string"
+                },
+                "resources": {
+                    "properties": {
+                        "requests": {
+                            "properties": {
+                                "cpu": {
+                                    "type": "number"
+                                },
+                                "memory": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
                 },
                 "tolerations": {
                     "items": {
