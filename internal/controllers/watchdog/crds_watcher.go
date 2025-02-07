@@ -163,6 +163,7 @@ func (c *CRDWatcher) SetupWithManager(ctx context.Context, mgr manager.Manager) 
 	return ctrl.NewControllerManagedBy(mgr).
 		WatchesRawSource(source.Channel(c.requeue, &handler.EnqueueRequestForObject{})).
 		For(&apiextensionsv1.CustomResourceDefinition{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			//nolint:forcetypeassert
 			crd := object.(*apiextensionsv1.CustomResourceDefinition)
 
 			return crd.Spec.Scope == apiextensionsv1.NamespaceScoped

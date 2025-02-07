@@ -29,6 +29,7 @@ func (p ProxySetting) Field() string {
 
 func (p ProxySetting) Func() client.IndexerFunc {
 	return func(object client.Object) (owners []string) {
+		//nolint:forcetypeassert
 		proxySetting := object.(*v1beta1.ProxySetting)
 
 		for _, owner := range proxySetting.Spec.Subjects {

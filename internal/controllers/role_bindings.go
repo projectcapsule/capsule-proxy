@@ -75,8 +75,12 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 	}
 
 	for _, rb := range userRoleBindings {
-		rb := rb.(*rbacv1.RoleBinding)
-		namespaces.Insert(rb.GetNamespace())
+		rbt, ok := rb.(*rbacv1.RoleBinding)
+		if !ok {
+			return nil, fmt.Errorf("expected *rbacv1.RoleBinding but got %T", rb)
+		}
+
+		namespaces.Insert(rbt.GetNamespace())
 	}
 
 	for _, group := range groups {
@@ -86,8 +90,12 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 		}
 
 		for _, rb := range groupRoleBindings {
-			rb := rb.(*rbacv1.RoleBinding)
-			namespaces.Insert(rb.GetNamespace())
+			rbt, ok := rb.(*rbacv1.RoleBinding)
+			if !ok {
+				return nil, fmt.Errorf("expected *rbacv1.RoleBinding but got %T", rb)
+			}
+
+			namespaces.Insert(rbt.GetNamespace())
 		}
 	}
 
@@ -101,6 +109,7 @@ func (r *RoleBindingReflector) Start(ctx context.Context) error {
 }
 
 func OwnerRoleBindingsIndexFunc(obj interface{}) (result []string, err error) {
+	//nolint:forcetypeassert
 	rb := obj.(*rbacv1.RoleBinding)
 
 	for _, subject := range rb.Subjects {

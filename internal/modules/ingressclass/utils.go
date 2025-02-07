@@ -62,7 +62,7 @@ func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant
 		requirements = append(requirements, reqs...)
 	}
 
-	sort.SliceStable(exact, func(i, j int) bool {
+	sort.SliceStable(exact, func(i, _ int) bool {
 		return exact[i] < exact[0]
 	})
 

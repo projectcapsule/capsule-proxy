@@ -46,7 +46,7 @@ const (
 	WebhookLabler
 )
 
-//nolint:funlen,gocyclo,cyclop,maintidx,gocognit
+//nolint:funlen,gocyclo,cyclop,maintidx
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")

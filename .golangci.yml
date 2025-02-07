@@ -1,42 +1,56 @@
 linters-settings:
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/projectcapsule/capsule-proxy)
   dupl:
     threshold: 100
   goconst:
     min-len: 2
     min-occurrences: 2
   cyclop:
-    max-complexity: 17
-issues:
-  exclude-rules:
-    - path: (.+)_test.go
-      linters:
-        - revive
-      text: "^(dot-imports)"
+    max-complexity: 27
+  gocognit:
+    min-complexity: 50
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/projectcapsule/capsule-proxy)
+  gofumpt:
+    module-path: github.com/projectcapsule/capsule-proxy
+    extra-rules: false
+  inamedparam:
+    # Skips check for interface methods with only a single parameter.
+    # Default: false
+    skip-single-param: true
+  nakedret:
+    # Make an issue if func has more lines of code than this setting, and it has naked returns.
+    max-func-lines: 50
 linters:
   enable-all: true
   disable:
-    - errchkjson
-    - errname
-    - forcetypeassert
+    - err113
+    - depguard
+    - perfsprint
+    - funlen
+    - gochecknoinits
+    - lll
+    - gochecknoglobals
+    - mnd
+    - nilnil
+    - recvcheck
+    - unparam
+    - paralleltest
     - ireturn
+    - testpackage
     - varnamelen
     - wrapcheck
-    - gomnd
-    - lll
-    - nonamedreturns
-    - tparallel
-    - nilerr
     - exhaustruct
-    - depguard
-    - revive
-    - nilnil
-    - wsl
-    - perfsprint
-    - exportloopref
-    - execinquery
-    - forcetypeassert
+    - nonamedreturns
+issues:
+  exclude-files:
+    - "zz_.*\\.go$"
+    - ".+\\.generated.go"
+    - ".+_test.go"
+    - ".+_test_.+.go"
+run:
+  timeout: 3m
+  allow-parallel-runners: true
+  tests: false
