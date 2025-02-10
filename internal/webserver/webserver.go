@@ -300,10 +300,12 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
+
 			username, groups, err := proxyRequest.GetUserAndGroups()
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")
 			}
+
 			proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
 			if err != nil {
 				server.HandleError(writer, err, "cannot list Tenant resources")
@@ -311,15 +313,19 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 			var selector labels.Selector
 			selector, err = mod.Handle(proxyTenants, proxyRequest)
+
 			switch {
 			case err != nil:
 				var t moderrors.Error
 				if errors.As(err, &t) {
 					writer.Header().Set("Content-Type", "application/json")
+
 					b, _ := json.Marshal(t.Status())
 					_, _ = writer.Write(b)
+
 					panic(err.Error())
 				}
+
 				server.HandleError(writer, err, err.Error())
 			case selector == nil:
 				// if there's no selector, let it pass to the
@@ -336,7 +342,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.Use(handlers.RecoveryHandler())
 
-	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
+	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 		_, _ = writer.Write([]byte("ok"))
 	})

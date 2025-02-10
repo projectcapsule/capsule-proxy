@@ -59,7 +59,7 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (a
 		requirements = append(requirements, reqs...)
 	}
 
-	sort.SliceStable(exact, func(i, j int) bool {
+	sort.SliceStable(exact, func(i, _ int) bool {
 		return exact[i] < exact[0]
 	})
 

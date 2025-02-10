@@ -47,6 +47,7 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
 			}
+
 			log.V(10).Info("request groups", "groups", groups)
 
 			for _, group := range groups {

@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+//nolint:errname
 type badRequest struct {
 	message string
 	details *metav1.StatusDetails

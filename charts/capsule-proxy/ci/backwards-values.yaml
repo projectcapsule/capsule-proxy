@@ -1,0 +1,15 @@
+crds:
+  install: true
+  keep: false
+global:
+  jobs:
+    certs:
+      resources:
+        limits:
+          memory: 128Mi
+          cpu: 0.125
+jobs:
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 0.125

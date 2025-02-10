@@ -5,7 +5,6 @@ metadata:
   name: {{ include "capsule-proxy.crds.name" . }}
   namespace: {{ .Release.Namespace | quote }}
   annotations:
-    # create hook dependencies in the right order
     "helm.sh/hook-weight": "-1"
     {{- include "capsule-proxy.crds.annotations" . | nindent 4 }}
   labels:
@@ -40,7 +39,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.global.jobs.kubectl.topologySpreadConstraints }}
-      topologySpreadConstraints: 
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.global.jobs.kubectl.priorityClassName }}
@@ -49,7 +48,7 @@ spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
-      {{- end }}  
+      {{- end }}
       serviceAccountName: {{ include "capsule-proxy.crds.name" . }}
       containers:
       - name: crds-hook

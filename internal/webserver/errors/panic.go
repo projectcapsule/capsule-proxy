@@ -26,6 +26,7 @@ func HandleUnauthorized(w http.ResponseWriter, err error, message string) {
 
 	w.Header().Set("content-type", "application/json")
 
+	//nolint:errchkjson
 	b, _ := json.Marshal(status)
 	_, _ = w.Write(b)
 
@@ -45,6 +46,7 @@ func HandleError(w http.ResponseWriter, err error, message string) {
 
 	w.Header().Set("content-type", "application/json")
 
+	//nolint:errchkjson
 	b, _ := json.Marshal(status)
 	_, _ = w.Write(b)
 

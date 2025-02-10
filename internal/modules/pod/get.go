@@ -67,6 +67,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	var fieldSelector labels.Selector
 
+	//nolint:nilerr
 	if fieldSelector, err = labels.Parse(rawFieldSelector[0]); err != nil {
 		// not valid labels, offloading Kubernetes to deal with the failure
 		return nil, nil

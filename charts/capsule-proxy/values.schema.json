@@ -1,0 +1,645 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "affinity": {
+            "properties": {
+                "nodeAffinity": {
+                    "properties": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": {
+                            "items": {
+                                "properties": {
+                                    "preference": {
+                                        "properties": {
+                                            "matchExpressions": {
+                                                "items": {
+                                                    "properties": {
+                                                        "key": {
+                                                            "type": "string"
+                                                        },
+                                                        "operator": {
+                                                            "type": "string"
+                                                        },
+                                                        "values": {
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "weight": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "autoscaling": {
+            "properties": {
+                "annotations": {
+                    "properties": {
+                        "example": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "behavior": {
+                    "properties": {
+                        "scaleDown": {
+                            "properties": {
+                                "policies": {
+                                    "items": {
+                                        "properties": {
+                                            "periodSeconds": {
+                                                "type": "integer"
+                                            },
+                                            "type": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "labels": {
+                    "properties": {
+                        "example": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "maxReplicas": {
+                    "type": "integer"
+                },
+                "metrics": {
+                    "items": {
+                        "properties": {
+                            "pods": {
+                                "properties": {
+                                    "metric": {
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "target": {
+                                        "properties": {
+                                            "averageValue": {
+                                                "type": "string"
+                                            },
+                                            "type": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "type": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "minReplicas": {
+                    "type": "integer"
+                },
+                "targetCPUUtilizationPercentage": {
+                    "type": "integer"
+                }
+            },
+            "type": "object"
+        },
+        "certManager": {
+            "properties": {
+                "certificate": {
+                    "properties": {
+                        "dnsNames": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "fields": {
+                            "properties": {
+                                "privateKey": {
+                                    "properties": {
+                                        "rotationPolicy": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "renewBefore": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "ipAddresses": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "uris": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
+                },
+                "externalCA": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "secretName": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "generateCertificates": {
+                    "type": "boolean"
+                },
+                "issuer": {
+                    "properties": {
+                        "kind": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "crds": {
+            "properties": {
+                "install": {
+                    "type": "boolean"
+                },
+                "keep": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "daemonset": {
+            "properties": {
+                "hostNetwork": {
+                    "type": "boolean"
+                },
+                "hostPort": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "global": {
+            "properties": {
+                "jobs": {
+                    "properties": {
+                        "certs": {
+                            "properties": {
+                                "resources": {
+                                    "properties": {
+                                        "limits": {
+                                            "properties": {
+                                                "cpu": {
+                                                    "type": "number"
+                                                },
+                                                "memory": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "kubectl": {
+                            "properties": {
+                                "ttlSecondsAfterFinished": {
+                                    "type": "integer"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "imagePullSecrets": {
+            "type": "array"
+        },
+        "ingress": {
+            "properties": {
+                "annotations": {
+                    "properties": {
+                        "example": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "hosts": {
+                    "items": {
+                        "properties": {
+                            "host": {
+                                "type": "string"
+                            },
+                            "paths": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "ingressClassName": {
+                    "type": "string"
+                },
+                "labels": {
+                    "properties": {
+                        "example": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "tls": {
+                    "items": {
+                        "properties": {
+                            "hosts": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "secretName": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        },
+        "jobs": {
+            "properties": {
+                "affinity": {
+                    "properties": {
+                        "nodeAffinity": {
+                            "properties": {
+                                "preferredDuringSchedulingIgnoredDuringExecution": {
+                                    "items": {
+                                        "properties": {
+                                            "preference": {
+                                                "properties": {
+                                                    "matchExpressions": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "key": {
+                                                                    "type": "string"
+                                                                },
+                                                                "operator": {
+                                                                    "type": "string"
+                                                                },
+                                                                "values": {
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "type": "array"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "weight": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
+                "nodeSelector": {
+                    "properties": {
+                        "node-role.kubernetes.io/master": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "priorityClassName": {
+                    "type": "string"
+                },
+                "resources": {
+                    "properties": {
+                        "requests": {
+                            "properties": {
+                                "cpu": {
+                                    "type": "number"
+                                },
+                                "memory": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
+                "tolerations": {
+                    "items": {
+                        "properties": {
+                            "effect": {
+                                "type": "string"
+                            },
+                            "key": {
+                                "type": "string"
+                            },
+                            "operator": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "topologySpreadConstraints": {
+                    "items": {
+                        "properties": {
+                            "labelSelector": {
+                                "properties": {
+                                    "matchLabels": {
+                                        "properties": {
+                                            "app.kubernetes.io/name": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "maxSkew": {
+                                "type": "integer"
+                            },
+                            "topologyKey": {
+                                "type": "string"
+                            },
+                            "whenUnsatisfiable": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        },
+        "kind": {
+            "type": "string"
+        },
+        "nodeSelector": {
+            "properties": {
+                "node-role.kubernetes.io/master": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "options": {
+            "properties": {
+                "enableSSL": {
+                    "type": "boolean"
+                },
+                "generateCertificates": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "podAnnotations": {
+            "properties": {
+                "extra": {
+                    "type": "string"
+                },
+                "scheduler.alpha.kubernetes.io/critical-pod": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "podLabels": {
+            "properties": {
+                "extra": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "priorityClassName": {
+            "type": "string"
+        },
+        "rbac": {
+            "properties": {
+                "annotations": {
+                    "properties": {
+                        "extra": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "labels": {
+                    "properties": {
+                        "extra": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "replicaCount": {
+            "type": "integer"
+        },
+        "resources": {
+            "properties": {
+                "limits": {
+                    "properties": {
+                        "cpu": {
+                            "type": "string"
+                        },
+                        "memory": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "requests": {
+                    "properties": {
+                        "cpu": {
+                            "type": "string"
+                        },
+                        "memory": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "service": {
+            "properties": {
+                "annotations": {
+                    "properties": {
+                        "example": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "labels": {
+                    "properties": {
+                        "example": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "serviceMonitor": {
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "tolerations": {
+            "items": {
+                "properties": {
+                    "effect": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "operator": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "type": "array"
+        },
+        "topologySpreadConstraints": {
+            "items": {
+                "properties": {
+                    "labelSelector": {
+                        "properties": {
+                            "matchLabels": {
+                                "properties": {
+                                    "app.kubernetes.io/name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "maxSkew": {
+                        "type": "integer"
+                    },
+                    "topologyKey": {
+                        "type": "string"
+                    },
+                    "whenUnsatisfiable": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "type": "array"
+        },
+        "webhooks": {
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "type": "object"
+}

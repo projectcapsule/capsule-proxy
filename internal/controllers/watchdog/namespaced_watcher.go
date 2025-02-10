@@ -117,11 +117,11 @@ func (c *NamespacedWatcher) SetupWithManager(mgr manager.Manager, gvk metav1.Gro
 
 				return false
 			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
+			DeleteFunc: func(_ event.DeleteEvent) bool {
 				// Ignore delete events
 				return false
 			},
-			GenericFunc: func(e event.GenericEvent) bool {
+			GenericFunc: func(_ event.GenericEvent) bool {
 				// Ignore generic events
 				return false
 			},

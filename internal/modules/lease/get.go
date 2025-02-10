@@ -67,6 +67,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	name := mux.Vars(httpRequest)["name"]
 
 	node := &corev1.Node{}
+	//nolint:nilerr
 	if err = g.client.Get(httpRequest.Context(), types.NamespacedName{Name: name}, node); err != nil {
 		// offload failure to Kubernetes API due to missing RBAC
 		return nil, nil

@@ -1,14 +1,14 @@
 {{/* Backwards compatibility */}}
 {{- $Values := mergeOverwrite $.Values.global.jobs.certs $.Values.jobs -}}
 
-{{- if and .Values.options.enableSSL .Values.options.generateCertificates (not .Values.certManager.generateCertificates) -}}
+{{- if and .Values.options.enableSSL .Values.options.generateCertificates -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-certgen
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
-  {{- with .Values.global.jobs.annotations }}
+  {{- with $Values.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -40,7 +40,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with $Values.topologySpreadConstraints }}
-      topologySpreadConstraints: 
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with $Values.priorityClassName }}
@@ -73,6 +73,6 @@ spec:
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
-      {{- end }}        
+      {{- end }}
       serviceAccountName: {{ include "capsule-proxy.serviceAccountName" . }}
 {{- end }}

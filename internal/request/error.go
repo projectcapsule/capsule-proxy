@@ -3,6 +3,7 @@
 
 package request
 
+//nolint:errname
 type ErrUnauthorized struct {
 	message string
 }

@@ -37,7 +37,7 @@ The Capsule-proxy Chart can be used to instantly deploy the Capsule-proxy on you
         $ helm upgrade capsule-proxy projectcapsule/capsule-proxy -n capsule-system
 
 5. Uninstall the Chart
-   
+
         $ helm uninstall capsule-proxy -n capsule-system
 
 ## Upgrading the Chart
@@ -61,13 +61,15 @@ With the new CRD management we can release update CRDs bundled with the chart. T
 
 ## Customize the installation
 
+> When using **OCI** we recommend our dedicated [OCI Repository]() for this chart
+
 There are two methods for specifying overrides of values during chart installation: `--values` and `--set`.
 
 The `--values` option is the preferred method because it allows you to keep your overrides in a YAML file, rather than specifying them all on the command line. Create a copy of the YAML file `values.yaml` and add your overrides to it.
 
 Specify your overrides file when you install the chart:
 
-        $ helm install capsule-proxy projectcapsule/capsule-proxy --values myvalues.yaml -n capsule-system  
+        $ helm install capsule-proxy projectcapsule/capsule-proxy --values myvalues.yaml -n capsule-system
 
 The values in your overrides file `myvalues.yaml` will override their counterparts in the chart’s values.yaml file. Any values in `values.yaml` that weren’t overridden will keep their defaults.
 
