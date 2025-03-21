@@ -308,7 +308,7 @@ controller-gen:
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
 
 GINKGO         := $(LOCALBIN)/ginkgo
-GINKGO_VERSION := v2.22.2
+GINKGO_VERSION := v2.23.3
 GINKGO_LOOKUP  := onsi/ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	$(call go-install-tool,$(GINKGO),github.com/$(GINKGO_LOOKUP)/v2/ginkgo@$(GINKGO_VERSION))
