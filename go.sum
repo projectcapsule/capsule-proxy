@@ -157,6 +157,8 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/projectcapsule/capsule v0.7.3 h1:22/RSrSsH6TdnJ25I+I6U/PjeWCV4N5Ql3ELQnPzMas=
 github.com/projectcapsule/capsule v0.7.3/go.mod h1:/liOW6gKPRh8xzrV3FlnP1dXFzOvDGWXuDiaOoaWBdw=
+github.com/projectcapsule/capsule v0.7.4 h1:F0m19is1hFkp6K4aNz6g0ogjSkHYVyw6i22t6iZCBFk=
+github.com/projectcapsule/capsule v0.7.4/go.mod h1:/liOW6gKPRh8xzrV3FlnP1dXFzOvDGWXuDiaOoaWBdw=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3/go.mod h1:/TN21ttK/J9q6uSwhBd54HahCDft0ttaMvbicHlPoso=
 github.com/prometheus/client_golang v1.20.5 h1:cxppBPuYhUnsO6yo/aoRol4L7q7UFfdm+bR9r+8l63Y=
