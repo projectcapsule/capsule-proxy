@@ -19,7 +19,7 @@ require (
 	github.com/thediveo/enumflag v0.10.1
 	github.com/thediveo/enumflag/v2 v2.0.7
 	go.uber.org/zap v1.27.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	k8s.io/api v0.32.3
 	k8s.io/apiextensions-apiserver v0.32.3
 	k8s.io/apimachinery v0.32.3
