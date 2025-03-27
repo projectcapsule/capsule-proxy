@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +42,17 @@ func GetClusterScopeRequirements(gvk *schema.GroupVersionKind, proxyTenants []*t
 	}
 
 	return operations, requirements
+}
+
+func IsAllowed(operations []v1beta1.ClusterResourceOperation, request *http.Request) (ok bool) {
+	switch request.Method {
+	case http.MethodGet:
+		ok = slices.Contains(operations, v1beta1.ClusterResourceOperationList)
+	default:
+		break
+	}
+
+	return
 }
 
 func matchResource(gvk *schema.GroupVersionKind, cr v1beta1.ClusterResource) (match bool) {
