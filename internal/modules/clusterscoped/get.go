@@ -2,7 +2,6 @@ package clusterscoped
 
 import (
 	"context"
-	"slices"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
@@ -15,7 +14,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
@@ -65,7 +63,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	operations, requirements := utils.GetClusterScopeRequirements(gvk, proxyTenants)
 	if len(requirements) > 0 {
 		// Verify if the list operation is allowed
-		if slices.Contains(operations, v1beta1.ClusterResourceOperationList) {
+		if utils.IsAllowed(operations, httpRequest) {
 			return g.handleSelector(httpRequest.Context(), gvk, requirements, mux.Vars(httpRequest)["name"])
 		}
 
