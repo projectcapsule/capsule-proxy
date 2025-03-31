@@ -22,8 +22,9 @@ type ClusterResource struct {
 	Resources []string `json:"resources"`
 
 	// Operations which can be executed on the selected resources.
-	// +kubebuilder:default={List}
-	Operations []ClusterResourceOperation `json:"operations"`
+	// Deprecated: For all registered Routes only LIST ang GET requests will intercepted
+	// Other permissions must be implemented via kubernetes native RBAC
+	Operations []ClusterResourceOperation `json:"operations,omitempty"`
 
 	// Select all cluster scoped resources with the given label selector.
 	// Defining a selector which does not match any resources is considered not selectable (eg. using operation NotExists).

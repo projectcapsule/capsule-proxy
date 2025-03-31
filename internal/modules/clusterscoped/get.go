@@ -2,6 +2,7 @@ package clusterscoped
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
@@ -60,14 +61,15 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	operations, requirements := utils.GetClusterScopeRequirements(gvk, proxyTenants)
-	if len(requirements) > 0 {
-		// Verify if the list operation is allowed
-		if utils.IsAllowed(operations, httpRequest) {
-			return g.handleSelector(httpRequest.Context(), gvk, requirements, mux.Vars(httpRequest)["name"])
-		}
+	_, requirements := utils.GetClusterScopeRequirements(gvk, proxyTenants)
 
-		return nil, errors.NewNotAllowed(gvk.GroupKind())
+	if len(requirements) > 0 {
+		switch httpRequest.Method {
+		case http.MethodGet:
+			return g.handleSelector(httpRequest.Context(), gvk, requirements, mux.Vars(httpRequest)["name"])
+		default:
+			return nil, nil
+		}
 	}
 
 	return
