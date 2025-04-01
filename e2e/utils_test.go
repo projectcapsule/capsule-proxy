@@ -6,10 +6,16 @@ import (
 	"path/filepath"
 	"time"
 
+	. "github.com/onsi/gomega"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 const (
@@ -64,4 +70,41 @@ func loadKubeConfig(user string) (*kubernetes.Clientset, error) {
 	}
 
 	return clientset, nil
+}
+
+func NewNamespace(name string, labels ...map[string]string) *corev1.Namespace {
+	if len(name) == 0 {
+		name = rand.String(10)
+	}
+
+	var namespaceLabels map[string]string
+	if len(labels) > 0 {
+		namespaceLabels = labels[0]
+	}
+
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: namespaceLabels,
+		},
+	}
+}
+
+func NamespaceCreation(ns *corev1.Namespace, owner capsulev1beta2.OwnerSpec, timeout time.Duration) AsyncAssertion {
+	cs := ownerClient(owner)
+	return Eventually(func() (err error) {
+		_, err = cs.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+		return
+	}, timeout, defaultPollInterval)
+}
+
+func ownerClient(owner capsulev1beta2.OwnerSpec) (cs kubernetes.Interface) {
+	c, err := config.GetConfig()
+	Expect(err).ToNot(HaveOccurred())
+	c.Impersonate.Groups = []string{"projectcapsule.dev", owner.Name}
+	c.Impersonate.UserName = owner.Name
+	cs, err = kubernetes.NewForConfig(c)
+	Expect(err).ToNot(HaveOccurred())
+
+	return cs
 }

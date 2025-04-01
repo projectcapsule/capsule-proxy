@@ -61,10 +61,10 @@ spec:
                               type: string
                             type: array
                           operations:
-                            default:
-                            - List
-                            description: Operations which can be executed on the selected
-                              resources.
+                            description: |-
+                              Operations which can be executed on the selected resources.
+                              Deprecated: For all registered Routes only LIST ang GET requests will intercepted
+                              Other permissions must be implemented via kubernetes native RBAC
                             items:
                               enum:
                               - List
@@ -128,7 +128,6 @@ spec:
                             x-kubernetes-map-type: atomic
                         required:
                         - apiGroups
-                        - operations
                         - resources
                         - selector
                         type: object

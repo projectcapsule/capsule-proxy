@@ -34,3 +34,8 @@ repos:
     entry: make helm-lint
     language: system
     files: ^charts/
+  - id: golangci-lint
+    name: Execute golangci-lint
+    entry: make golint
+    language: system
+    files: \.go$

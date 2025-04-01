@@ -161,4 +161,49 @@ var _ = Describe("GlobalProxySettings", func() {
 			return listClusterRoles(bobClient)
 		}).Should(Equal(expectedRoles), "Bob should only have access to the specified cluster roles")
 	})
+
+	It("Should only allow listing clusterroles, but deny create, update, delete", func() {
+		roleToCreate := &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "unauthorized-clusterrole",
+				Labels: e2eLabels(),
+			},
+			Rules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{""},
+					Resources: []string{"pods"},
+					Verbs:     []string{"get"},
+				},
+			},
+		}
+
+		attemptCreate := func(clientset *kubernetes.Clientset) error {
+			_, err := clientset.RbacV1().ClusterRoles().Create(context.Background(), roleToCreate, metav1.CreateOptions{})
+			return err
+		}
+
+		attemptUpdate := func(clientset *kubernetes.Clientset) error {
+			role, err := clientset.RbacV1().ClusterRoles().Get(context.Background(), "tenant-viewer", metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			role.Annotations = map[string]string{"updated": "true"}
+			_, err = clientset.RbacV1().ClusterRoles().Update(context.Background(), role, metav1.UpdateOptions{})
+			return err
+		}
+
+		attemptDelete := func(clientset *kubernetes.Clientset) error {
+			return clientset.RbacV1().ClusterRoles().Delete(context.Background(), "tenant-viewer", metav1.DeleteOptions{})
+		}
+
+		By("Denying create/update/delete for Alice")
+		Expect(attemptCreate(aliceClient)).To(HaveOccurred(), "Alice should not be able to create ClusterRoles")
+		Expect(attemptUpdate(aliceClient)).To(HaveOccurred(), "Alice should not be able to update ClusterRoles")
+		Expect(attemptDelete(aliceClient)).To(HaveOccurred(), "Alice should not be able to delete ClusterRoles")
+
+		By("Denying create/update/delete for Bob")
+		Expect(attemptCreate(bobClient)).To(HaveOccurred(), "Bob should not be able to create ClusterRoles")
+		Expect(attemptUpdate(bobClient)).To(HaveOccurred(), "Bob should not be able to update ClusterRoles")
+		Expect(attemptDelete(bobClient)).To(HaveOccurred(), "Bob should not be able to delete ClusterRoles")
+	})
 })
