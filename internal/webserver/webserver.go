@@ -225,24 +225,12 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 
 //nolint:funlen
 func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
+	// We are using namespaces and tenants as default routes from the legacy
+	// system, as their outcome heavily relies on the tenants config/status
 	modList := []modules.Module{
 		namespace.Post(),
 		namespace.List(n.roleBindingsReflector),
 		namespace.Get(n.roleBindingsReflector, n.reader),
-		node.List(n.reader),
-		node.Get(n.reader),
-		ingressclass.List(n.reader),
-		ingressclass.Get(n.reader),
-		storageclass.Get(n.reader),
-		storageclass.List(n.reader),
-		priorityclass.List(n.reader),
-		priorityclass.Get(n.reader),
-		runtimeclass.Get(n.reader),
-		runtimeclass.List(n.reader),
-		persistentvolume.Get(n.reader),
-		persistentvolume.List(n.reader),
-		metric.Get(n.reader),
-		metric.List(n.reader),
 		tenants.List(),
 		tenants.Get(n.reader),
 	}
@@ -250,6 +238,8 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	// Discovery client
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie())
 
+	// When the ProxyClusterScoped flag is enabled
+	// we are no longer respecting legacy proxysettings
 	if n.gates.Enabled(features.ProxyClusterScoped) {
 		apis, err := serverPreferredResources(discoveryClient)
 		if err != nil {
@@ -263,6 +253,25 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 				modList = append(modList, clusterscoped.Get(discoveryClient, n.reader, n.writer, api.ResourcePath()))
 			}
 		}
+	} else {
+		// Adds all legacy routes
+		modList = append(modList, []modules.Module{
+			node.List(n.reader),
+			node.Get(n.reader),
+			ingressclass.List(n.reader),
+			ingressclass.Get(n.reader),
+			storageclass.Get(n.reader),
+			storageclass.List(n.reader),
+			priorityclass.List(n.reader),
+			priorityclass.Get(n.reader),
+			runtimeclass.Get(n.reader),
+			runtimeclass.List(n.reader),
+			persistentvolume.Get(n.reader),
+			persistentvolume.List(n.reader),
+			metric.Get(n.reader),
+			metric.List(n.reader),
+		}...,
+		)
 	}
 
 	// Get all API group resources

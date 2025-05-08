@@ -301,14 +301,14 @@ helm-doc:
 # -- Tools
 ####################
 CONTROLLER_GEN         := $(LOCALBIN)/controller-gen
-CONTROLLER_GEN_VERSION ?= v0.17.1
+CONTROLLER_GEN_VERSION ?= v0.17.3
 CONTROLLER_GEN_LOOKUP  := kubernetes-sigs/controller-tools
 controller-gen:
 	@test -s $(CONTROLLER_GEN) && $(CONTROLLER_GEN) --version | grep -q $(CONTROLLER_GEN_VERSION) || \
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
 
 GINKGO         := $(LOCALBIN)/ginkgo
-GINKGO_VERSION := v2.22.2
+GINKGO_VERSION := v2.23.3
 GINKGO_LOOKUP  := onsi/ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	$(call go-install-tool,$(GINKGO),github.com/$(GINKGO_LOOKUP)/v2/ginkgo@$(GINKGO_VERSION))
@@ -327,7 +327,7 @@ ct:
 	$(call go-install-tool,$(CT),github.com/$(CT_LOOKUP)/v3/ct@$(CT_VERSION))
 
 KIND         := $(LOCALBIN)/kind
-KIND_VERSION := v0.26.0
+KIND_VERSION := v0.27.0
 KIND_LOOKUP  := kubernetes-sigs/kind
 kind:
 	@test -s $(KIND) && $(KIND) --version | grep -q $(KIND_VERSION) || \
@@ -341,7 +341,7 @@ ko:
 	$(call go-install-tool,$(KO),github.com/$(KO_LOOKUP)@$(KO_VERSION))
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := v1.63.4
+GOLANGCI_LINT_VERSION  := v1.64.8
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
 golangci-lint: ## Download golangci-lint locally if necessary.
 	@test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) -h | grep -q $(GOLANGCI_LINT_VERSION) || \
