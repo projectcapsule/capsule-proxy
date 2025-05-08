@@ -44,11 +44,9 @@ release:
 
     - `ghcr.io/projectcapsule/charts/{{ .ProjectName }}:{{ .Version }}`
 
-    **Kubernetes compatibility**
-
     > [!IMPORTANT]
     > **Kubernetes compatibility**
-    > 
+    >
     > Note that the Capsule project offers support only for the latest minor version of Kubernetes.
     > Backwards compatibility with older versions of Kubernetes and OpenShift is [offered by supporters](https://projectcapsule.dev/support/).
     >
