@@ -1,56 +1,79 @@
-linters-settings:
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  cyclop:
-    max-complexity: 27
-  gocognit:
-    min-complexity: 50
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/projectcapsule/capsule-proxy)
-  gofumpt:
-    module-path: github.com/projectcapsule/capsule-proxy
-    extra-rules: false
-  inamedparam:
-    # Skips check for interface methods with only a single parameter.
-    # Default: false
-    skip-single-param: true
-  nakedret:
-    # Make an issue if func has more lines of code than this setting, and it has naked returns.
-    max-func-lines: 50
+version: "2"
+run:
+  tests: false
+  allow-parallel-runners: true
 linters:
-  enable-all: true
+  default: all
   disable:
-    - err113
     - depguard
-    - perfsprint
+    - err113
+    - exhaustruct
     - funlen
-    - gochecknoinits
-    - lll
     - gochecknoglobals
+    - gochecknoinits
+    - ireturn
+    - lll
     - mnd
     - nilnil
-    - recvcheck
-    - unparam
+    - nonamedreturns
     - paralleltest
-    - ireturn
+    - perfsprint
+    - recvcheck
     - testpackage
+    - unparam
     - varnamelen
     - wrapcheck
-    - exhaustruct
-    - nonamedreturns
-issues:
-  exclude-files:
-    - "zz_.*\\.go$"
-    - ".+\\.generated.go"
-    - ".+_test.go"
-    - ".+_test_.+.go"
-run:
-  timeout: 3m
-  allow-parallel-runners: true
-  tests: false
+  settings:
+    cyclop:
+      max-complexity: 27
+    dupl:
+      threshold: 100
+    gocognit:
+      min-complexity: 50
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    inamedparam:
+      skip-single-param: true
+    nakedret:
+      max-func-lines: 50
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - zz_.*\.go$
+      - .+\.generated.go
+      - .+_test.go
+      - .+_test_.+.go
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/projectcapsule/capsule-proxy)
+    gofumpt:
+      module-path: github.com/projectcapsule/capsule-proxy
+      extra-rules: false
+  exclusions:
+    generated: lax
+    paths:
+      - zz_.*\.go$
+      - .+\.generated.go
+      - .+_test.go
+      - .+_test_.+.go
+      - third_party$
+      - builtin$
+      - examples$

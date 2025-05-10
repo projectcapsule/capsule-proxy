@@ -34,19 +34,19 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (a
 			continue
 		}
 
-		if len(sc.SelectorAllowedListSpec.Exact) > 0 {
-			exact = append(exact, sc.SelectorAllowedListSpec.Exact...)
+		if len(sc.Exact) > 0 {
+			exact = append(exact, sc.Exact...)
 		}
 
 		if len(sc.Default) > 0 {
 			exact = append(exact, sc.Default)
 		}
 
-		if r := sc.SelectorAllowedListSpec.Regex; len(r) > 0 {
+		if r := sc.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}
 
-		selector, err := metav1.LabelSelectorAsSelector(&sc.SelectorAllowedListSpec.LabelSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&sc.LabelSelector)
 		if err != nil {
 			continue
 		}
