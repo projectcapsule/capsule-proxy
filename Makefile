@@ -320,7 +320,7 @@ mkcert: ## Download mkcert locally if necessary.
 	$(call go-install-tool,$(MKCERT),filippo.io/mkcert@$(MKCERT_VERSION))
 
 CT         := $(LOCALBIN)/ct
-CT_VERSION := v3.12.0
+CT_VERSION := v3.13.0
 CT_LOOKUP  := helm/chart-testing
 ct:
 	@test -s $(CT) && $(CT) version | grep -q $(CT_VERSION) || \
