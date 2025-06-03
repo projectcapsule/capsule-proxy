@@ -487,9 +487,6 @@
             "properties": {
                 "extra": {
                     "type": "string"
-                },
-                "scheduler.alpha.kubernetes.io/critical-pod": {
-                    "type": "string"
                 }
             },
             "type": "object"

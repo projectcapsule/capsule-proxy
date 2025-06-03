@@ -78,8 +78,12 @@ spec:
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+    env:
+    - name: NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
     {{- with .Values.env }}
-    env: 
       {{- toYaml . | nindent 4 }}
     {{- end }}
     ports:
