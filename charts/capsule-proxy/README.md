@@ -183,6 +183,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.extraArgs | list | `[]` | A list of extra arguments to add to the capsule-proxy. |
 | options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
+| options.leaderElection | bool | `false` | Set leader election to true if you are running n-replicas |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
 | options.logLevel | string | `"4"` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
 | options.oidcUsernameClaim | string | `"preferred_username"` | Specify if capsule-proxy will use SSL |

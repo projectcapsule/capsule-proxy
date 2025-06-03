@@ -70,6 +70,7 @@ spec:
     - --client-connection-qps={{ .Values.options.clientConnectionQPS }}
     - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
     - --enable-pprof={{ .Values.options.pprof }}
+    - --enable-leader-election={{ .Values.options.leaderElection }}
     {{- if .Values.webhooks.enabled }}
       {{- if .Values.webhooks.watchdog.enabled }}
     - --webhooks=watchdog
