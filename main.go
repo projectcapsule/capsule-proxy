@@ -24,6 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -58,17 +59,17 @@ func main() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
 	var (
-		err                                                                                        error
-		mgr                                                                                        ctrl.Manager
-		certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp string
-		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups                            []string
-		listeningPort                                                                              uint
-		bindSsl, disableCaching, enablePprof                                                       bool
-		rolebindingsResyncPeriod                                                                   time.Duration
-		clientConnectionQPS                                                                        float32
-		clientConnectionBurst                                                                      int32
-		webhookPort                                                                                int
-		hooks                                                                                      []WebhookType
+		err                                                                                                     error
+		mgr                                                                                                     ctrl.Manager
+		certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr string
+		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups                                         []string
+		listeningPort                                                                                           uint
+		bindSsl, disableCaching, enablePprof, enableLeaderElection                                              bool
+		rolebindingsResyncPeriod                                                                                time.Duration
+		clientConnectionQPS                                                                                     float32
+		clientConnectionBurst                                                                                   int32
+		webhookPort                                                                                             int
+		hooks                                                                                                   []WebhookType
 	)
 
 	gates := featuregate.NewFeatureGate()
@@ -107,6 +108,10 @@ func main() {
 	}
 
 	flag.IntVar(&webhookPort, "webhook-port", 9443, "The port the webhook server binds to.")
+	flag.BoolVar(&enableLeaderElection, "enable-leader-election", true,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
@@ -198,8 +203,13 @@ First match is used and can be specified multiple times as comma separated value
 
 	// Base Config
 	ctrlConfig := ctrl.Options{
-		Scheme:                 scheme,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
 		HealthProbeBindAddress: ":8081",
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "42dadw1.proxy.projectcapsule.dev",
 	}
 
 	if len(hooks) > 0 {
