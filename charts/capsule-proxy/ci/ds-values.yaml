@@ -17,7 +17,6 @@ certManager:
     name: "" #  Name of the ClusterIssuer
 replicaCount: 1
 podAnnotations:
-  scheduler.alpha.kubernetes.io/critical-pod: ''
   extra: annotation
 podLabels:
   extra: label
