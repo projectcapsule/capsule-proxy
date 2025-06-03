@@ -113,6 +113,74 @@ type kubeFilter struct {
 	writer                client.Writer
 }
 
+//nolint:funlen
+func (n *kubeFilter) Start(ctx context.Context) error {
+	r := mux.NewRouter()
+	r.Use(handlers.RecoveryHandler())
+
+	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte("ok"))
+	})
+
+	root := r.PathPrefix("").Subrouter()
+	n.registerModules(ctx, root)
+	root.Use(
+		n.reverseProxyMiddleware,
+		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
+		middleware.CheckJWTMiddleware(n.writer),
+	)
+	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		n.impersonateHandler(writer, request)
+	})
+
+	var srv *http.Server
+
+	go func() {
+		var err error
+
+		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
+
+		if n.serverOptions.IsListeningTLS() {
+			tlsConfig := &tls.Config{
+				MinVersion: tls.VersionTLS12,
+				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
+			}
+
+			for _, authType := range n.authTypes {
+				if authType == req.TLSCertificate {
+					tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
+
+					break
+				}
+			}
+
+			srv = &http.Server{
+				Handler:           r,
+				Addr:              addr,
+				TLSConfig:         tlsConfig,
+				ReadHeaderTimeout: 5 * time.Second,
+			}
+			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
+		} else {
+			srv = &http.Server{
+				Handler:           r,
+				Addr:              addr,
+				ReadHeaderTimeout: 5 * time.Second,
+			}
+			err = srv.ListenAndServe()
+		}
+
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	<-ctx.Done()
+
+	return srv.Shutdown(ctx)
+}
+
 func (n *kubeFilter) LivenessProbe(*http.Request) error {
 	return nil
 }
@@ -156,6 +224,17 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 	}
 
 	return nil
+}
+
+func (n *kubeFilter) BearerToken() string {
+	if time.Now().After(n.bearerTokenExpirationTime) {
+		n.log.V(5).Info("Token expired. Reading new token from file", "token", n.bearerToken, "token file", n.bearerTokenFile)
+		token, _ := os.ReadFile(n.bearerTokenFile)
+		n.bearerToken = string(token)
+		n.bearerTokenExpirationTime = bearerExpirationTime(string(token))
+	}
+
+	return n.bearerToken
 }
 
 func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
@@ -346,74 +425,6 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	}
 }
 
-//nolint:funlen
-func (n *kubeFilter) Start(ctx context.Context) error {
-	r := mux.NewRouter()
-	r.Use(handlers.RecoveryHandler())
-
-	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, _ *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-		_, _ = writer.Write([]byte("ok"))
-	})
-
-	root := r.PathPrefix("").Subrouter()
-	n.registerModules(ctx, root)
-	root.Use(
-		n.reverseProxyMiddleware,
-		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckJWTMiddleware(n.writer),
-	)
-	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		n.impersonateHandler(writer, request)
-	})
-
-	var srv *http.Server
-
-	go func() {
-		var err error
-
-		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
-
-		if n.serverOptions.IsListeningTLS() {
-			tlsConfig := &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
-			}
-
-			for _, authType := range n.authTypes {
-				if authType == req.TLSCertificate {
-					tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
-
-					break
-				}
-			}
-
-			srv = &http.Server{
-				Handler:           r,
-				Addr:              addr,
-				TLSConfig:         tlsConfig,
-				ReadHeaderTimeout: 5 * time.Second,
-			}
-			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
-		} else {
-			srv = &http.Server{
-				Handler:           r,
-				Addr:              addr,
-				ReadHeaderTimeout: 5 * time.Second,
-			}
-			err = srv.ListenAndServe()
-		}
-
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	<-ctx.Done()
-
-	return srv.Shutdown(ctx)
-}
-
 func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
 		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulev1beta2.ServiceAccountOwner, username)
@@ -545,17 +556,6 @@ func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
 	}
 
 	request.Header.Del(connectionHeaderName)
-}
-
-func (n *kubeFilter) BearerToken() string {
-	if time.Now().After(n.bearerTokenExpirationTime) {
-		n.log.V(5).Info("Token expired. Reading new token from file", "token", n.bearerToken, "token file", n.bearerTokenFile)
-		token, _ := os.ReadFile(n.bearerTokenFile)
-		n.bearerToken = string(token)
-		n.bearerTokenExpirationTime = bearerExpirationTime(string(token))
-	}
-
-	return n.bearerToken
 }
 
 func bearerExpirationTime(tokenString string) time.Time {
