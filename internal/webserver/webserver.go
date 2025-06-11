@@ -59,7 +59,14 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
 )
 
-func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, gates featuregate.FeatureGate, rbReflector *controllers.RoleBindingReflector, clientOverride client.Reader, client client.Client) (Filter, error) {
+func NewKubeFilter(
+	opts options.ListenerOpts,
+	srv options.ServerOptions,
+	gates featuregate.FeatureGate,
+	rbReflector *controllers.RoleBindingReflector,
+	clientOverride client.Reader,
+	mgr ctrl.Manager,
+) (Filter, error) {
 	reverseProxy := httputil.NewSingleHostReverseProxy(opts.KubernetesControlPlaneURL())
 	reverseProxy.FlushInterval = time.Millisecond * 100
 
@@ -71,10 +78,11 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, gates f
 	reverseProxy.Transport = reverseProxyTransport
 
 	return &kubeFilter{
+		mgr:                        mgr,
 		gates:                      gates,
 		reader:                     clientOverride,
-		writer:                     client,
-		managerReader:              client,
+		writer:                     mgr.GetClient(),
+		managerReader:              mgr.GetClient(),
 		allowedPaths:               sets.New("/api", "/apis", "/version"),
 		authTypes:                  opts.AuthTypes(),
 		ignoredUserGroups:          sets.New(opts.IgnoredGroupNames()...),
@@ -93,6 +101,7 @@ func NewKubeFilter(opts options.ListenerOpts, srv options.ServerOptions, gates f
 }
 
 type kubeFilter struct {
+	mgr                        ctrl.Manager
 	allowedPaths               sets.Set[string]
 	authTypes                  []req.AuthType
 	ignoredUserGroups          sets.Set[string]
@@ -113,11 +122,86 @@ type kubeFilter struct {
 	writer                client.Writer
 }
 
+//nolint:funlen
+func (n *kubeFilter) Start(ctx context.Context) error {
+	r := mux.NewRouter()
+	r.Use(handlers.RecoveryHandler())
+
+	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte("ok"))
+	})
+
+	root := r.PathPrefix("").Subrouter()
+	n.registerModules(ctx, root)
+	root.Use(
+		n.reverseProxyMiddleware,
+		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
+		middleware.CheckJWTMiddleware(n.writer),
+	)
+	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		n.impersonateHandler(writer, request)
+	})
+
+	var srv *http.Server
+
+	go func() {
+		var err error
+
+		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
+
+		if n.serverOptions.IsListeningTLS() {
+			tlsConfig := &tls.Config{
+				MinVersion: tls.VersionTLS12,
+				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
+			}
+
+			for _, authType := range n.authTypes {
+				if authType == req.TLSCertificate {
+					tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
+
+					break
+				}
+			}
+
+			srv = &http.Server{
+				Handler:           r,
+				Addr:              addr,
+				TLSConfig:         tlsConfig,
+				ReadHeaderTimeout: 5 * time.Second,
+			}
+			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
+		} else {
+			srv = &http.Server{
+				Handler:           r,
+				Addr:              addr,
+				ReadHeaderTimeout: 5 * time.Second,
+			}
+			err = srv.ListenAndServe()
+		}
+
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	<-ctx.Done()
+
+	return srv.Shutdown(ctx)
+}
+
 func (n *kubeFilter) LivenessProbe(*http.Request) error {
 	return nil
 }
 
 func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
+	select {
+	case <-n.mgr.Elected():
+		// OK, we're the leader..
+	default:
+		return nil
+	}
+
 	scheme := "http"
 	clt := &http.Client{}
 
@@ -156,6 +240,17 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 	}
 
 	return nil
+}
+
+func (n *kubeFilter) BearerToken() string {
+	if time.Now().After(n.bearerTokenExpirationTime) {
+		n.log.V(5).Info("Token expired. Reading new token from file", "token", n.bearerToken, "token file", n.bearerTokenFile)
+		token, _ := os.ReadFile(n.bearerTokenFile)
+		n.bearerToken = string(token)
+		n.bearerTokenExpirationTime = bearerExpirationTime(string(token))
+	}
+
+	return n.bearerToken
 }
 
 func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
@@ -225,24 +320,12 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 
 //nolint:funlen
 func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
+	// We are using namespaces and tenants as default routes from the legacy
+	// system, as their outcome heavily relies on the tenants config/status
 	modList := []modules.Module{
 		namespace.Post(),
 		namespace.List(n.roleBindingsReflector),
 		namespace.Get(n.roleBindingsReflector, n.reader),
-		node.List(n.reader),
-		node.Get(n.reader),
-		ingressclass.List(n.reader),
-		ingressclass.Get(n.reader),
-		storageclass.Get(n.reader),
-		storageclass.List(n.reader),
-		priorityclass.List(n.reader),
-		priorityclass.Get(n.reader),
-		runtimeclass.Get(n.reader),
-		runtimeclass.List(n.reader),
-		persistentvolume.Get(n.reader),
-		persistentvolume.List(n.reader),
-		metric.Get(n.reader),
-		metric.List(n.reader),
 		tenants.List(),
 		tenants.Get(n.reader),
 	}
@@ -250,6 +333,8 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	// Discovery client
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie())
 
+	// When the ProxyClusterScoped flag is enabled
+	// we are no longer respecting legacy proxysettings
 	if n.gates.Enabled(features.ProxyClusterScoped) {
 		apis, err := serverPreferredResources(discoveryClient)
 		if err != nil {
@@ -263,6 +348,25 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 				modList = append(modList, clusterscoped.Get(discoveryClient, n.reader, n.writer, api.ResourcePath()))
 			}
 		}
+	} else {
+		// Adds all legacy routes
+		modList = append(modList, []modules.Module{
+			node.List(n.reader),
+			node.Get(n.reader),
+			ingressclass.List(n.reader),
+			ingressclass.Get(n.reader),
+			storageclass.Get(n.reader),
+			storageclass.List(n.reader),
+			priorityclass.List(n.reader),
+			priorityclass.Get(n.reader),
+			runtimeclass.Get(n.reader),
+			runtimeclass.List(n.reader),
+			persistentvolume.Get(n.reader),
+			persistentvolume.List(n.reader),
+			metric.Get(n.reader),
+			metric.List(n.reader),
+		}...,
+		)
 	}
 
 	// Get all API group resources
@@ -335,74 +439,6 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			}
 		})
 	}
-}
-
-//nolint:funlen
-func (n *kubeFilter) Start(ctx context.Context) error {
-	r := mux.NewRouter()
-	r.Use(handlers.RecoveryHandler())
-
-	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, _ *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-		_, _ = writer.Write([]byte("ok"))
-	})
-
-	root := r.PathPrefix("").Subrouter()
-	n.registerModules(ctx, root)
-	root.Use(
-		n.reverseProxyMiddleware,
-		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckJWTMiddleware(n.writer),
-	)
-	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		n.impersonateHandler(writer, request)
-	})
-
-	var srv *http.Server
-
-	go func() {
-		var err error
-
-		addr := fmt.Sprintf("0.0.0.0:%d", n.serverOptions.ListeningPort())
-
-		if n.serverOptions.IsListeningTLS() {
-			tlsConfig := &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
-			}
-
-			for _, authType := range n.authTypes {
-				if authType == req.TLSCertificate {
-					tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
-
-					break
-				}
-			}
-
-			srv = &http.Server{
-				Handler:           r,
-				Addr:              addr,
-				TLSConfig:         tlsConfig,
-				ReadHeaderTimeout: 5 * time.Second,
-			}
-			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
-		} else {
-			srv = &http.Server{
-				Handler:           r,
-				Addr:              addr,
-				ReadHeaderTimeout: 5 * time.Second,
-			}
-			err = srv.ListenAndServe()
-		}
-
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	<-ctx.Done()
-
-	return srv.Shutdown(ctx)
 }
 
 func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
@@ -536,17 +572,6 @@ func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
 	}
 
 	request.Header.Del(connectionHeaderName)
-}
-
-func (n *kubeFilter) BearerToken() string {
-	if time.Now().After(n.bearerTokenExpirationTime) {
-		n.log.V(5).Info("Token expired. Reading new token from file", "token", n.bearerToken, "token file", n.bearerTokenFile)
-		token, _ := os.ReadFile(n.bearerTokenFile)
-		n.bearerToken = string(token)
-		n.bearerTokenExpirationTime = bearerExpirationTime(string(token))
-	}
-
-	return n.bearerToken
 }
 
 func bearerExpirationTime(tokenString string) time.Time {

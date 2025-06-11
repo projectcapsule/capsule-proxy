@@ -70,6 +70,7 @@ spec:
     - --client-connection-qps={{ .Values.options.clientConnectionQPS }}
     - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
     - --enable-pprof={{ .Values.options.pprof }}
+    - --enable-leader-election={{ .Values.options.leaderElection }}
     {{- if .Values.webhooks.enabled }}
       {{- if .Values.webhooks.watchdog.enabled }}
     - --webhooks=watchdog
@@ -78,8 +79,12 @@ spec:
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+    env:
+    - name: NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
     {{- with .Values.env }}
-    env: 
       {{- toYaml . | nindent 4 }}
     {{- end }}
     ports:
