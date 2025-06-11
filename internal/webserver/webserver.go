@@ -282,7 +282,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 	request.URL.RawQuery = q.Encode()
 
 	if len(n.BearerToken()) > 0 {
-		n.log.V(4).Info("Updating the token", "token", n.BearerToken())
+		n.log.V(10).Info("Updating the token", "token", n.BearerToken())
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.BearerToken()))
 	}
 }
