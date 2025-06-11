@@ -39,6 +39,9 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+license-header: nwa
+	$(NWA)
+
 ####################
 # -- Docker
 ####################
@@ -339,6 +342,13 @@ KO_LOOKUP    := google/ko
 ko:
 	@test -s $(KO) && $(KO) -h | grep -q $(KO_VERSION) || \
 	$(call go-install-tool,$(KO),github.com/$(KO_LOOKUP)@$(KO_VERSION))
+
+NWA           := $(LOCALBIN)/nwa
+NWA_VERSION   := v0.7.3
+NWA_LOOKUP    := B1NARY-GR0UP/nwa
+nwa:
+	@test -s $(NWA) && $(NWA) -h | grep -q $(NWA_VERSION) || \
+	$(call go-install-tool,$(NWA),github.com/$(NWA_LOOKUP)@$(NWA_VERSION))
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
 GOLANGCI_LINT_VERSION  := v2.1.6

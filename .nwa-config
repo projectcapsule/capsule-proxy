@@ -1,0 +1,12 @@
+nwa:
+  cmd: "update"
+  holder: "Project Capsule Authors."
+  year: "2020-2025"
+  spdxids: "Apache-2.0"
+  path:
+    - "internal/**/*.go"
+    - "api/**/*.go"
+    - "main.go"
+  mute: false
+  verbose: true
+  fuzzy: false
