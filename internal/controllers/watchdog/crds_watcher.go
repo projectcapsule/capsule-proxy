@@ -33,9 +33,58 @@ type resourceManager struct {
 type watchMap map[string]resourceManager
 
 type CRDWatcher struct {
-	Client   client.Client
-	watchMap watchMap
-	requeue  chan event.GenericEvent
+	Client         client.Client
+	watchMap       watchMap
+	requeue        chan event.GenericEvent
+	LeaderElection bool
+}
+
+func (c *CRDWatcher) NeedLeaderElection() bool {
+	return c.LeaderElection
+}
+
+func (c *CRDWatcher) keyFunction(group, kind string) string {
+	return fmt.Sprintf("%s-%s", group, kind)
+}
+
+func (c *CRDWatcher) register(ctx context.Context, group string, versions []string, kind string) error {
+	mgr, _ := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme: c.Client.Scheme(),
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
+	})
+
+	watchedVersions := sets.New[string]()
+
+	for _, v := range versions {
+		watchedVersions.Insert(v)
+
+		gvk := metav1.GroupVersionKind{
+			Group:   group,
+			Version: v,
+			Kind:    kind,
+		}
+		//nolint:contextcheck
+		if err := (&NamespacedWatcher{Client: c.Client, LeaderElection: c.LeaderElection}).SetupWithManager(mgr, gvk); err != nil {
+			return err
+		}
+	}
+
+	scopedCtx, scopedCancelFn := context.WithCancel(ctx)
+
+	go func() {
+		if err := mgr.Start(scopedCtx); err != nil {
+			scopedCancelFn()
+		}
+	}()
+
+	c.watchMap[c.keyFunction(group, kind)] = resourceManager{
+		cancelFn:        scopedCancelFn,
+		watchedVersions: watchedVersions,
+	}
+
+	return nil
 }
 
 func (c *CRDWatcher) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {

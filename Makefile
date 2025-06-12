@@ -307,7 +307,7 @@ helm-doc:
 # -- Tools
 ####################
 CONTROLLER_GEN         := $(LOCALBIN)/controller-gen
-CONTROLLER_GEN_VERSION ?= v0.17.1
+CONTROLLER_GEN_VERSION ?= v0.18.0
 CONTROLLER_GEN_LOOKUP  := kubernetes-sigs/controller-tools
 controller-gen:
 	@test -s $(CONTROLLER_GEN) && $(CONTROLLER_GEN) --version | grep -q $(CONTROLLER_GEN_VERSION) || \
@@ -326,14 +326,14 @@ mkcert: ## Download mkcert locally if necessary.
 	$(call go-install-tool,$(MKCERT),filippo.io/mkcert@$(MKCERT_VERSION))
 
 CT         := $(LOCALBIN)/ct
-CT_VERSION := v3.12.0
+CT_VERSION := v3.13.0
 CT_LOOKUP  := helm/chart-testing
 ct:
 	@test -s $(CT) && $(CT) version | grep -q $(CT_VERSION) || \
 	$(call go-install-tool,$(CT),github.com/$(CT_LOOKUP)/v3/ct@$(CT_VERSION))
 
 KIND         := $(LOCALBIN)/kind
-KIND_VERSION := v0.27.0
+KIND_VERSION := v0.28.0
 KIND_LOOKUP  := kubernetes-sigs/kind
 kind:
 	@test -s $(KIND) && $(KIND) --version | grep -q $(KIND_VERSION) || \

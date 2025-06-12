@@ -28,9 +28,14 @@ import (
 )
 
 type NamespacedWatcher struct {
-	Client client.Client
+	Client         client.Client
+	LeaderElection bool
 
 	object *unstructured.Unstructured
+}
+
+func (c *NamespacedWatcher) NeedLeaderElection() bool {
+	return c.LeaderElection
 }
 
 func (c *NamespacedWatcher) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
