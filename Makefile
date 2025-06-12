@@ -111,7 +111,7 @@ helm-lint: ct
 	@$(CT) lint --config .github/configs/ct.yaml --validate-yaml=false --all --debug
 
 helm-schema: helm-plugin-schema
-	cd charts/capsule-proxy && $(HELM) schema
+	cd charts/capsule-proxy && $(HELM) schema --use-helm-docs
 
 helm-test: helm-create helm-install helm-destroy
 
