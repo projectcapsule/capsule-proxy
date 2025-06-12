@@ -39,8 +39,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-license-header: nwa
-	$(NWA)
+license-headers: nwa
+	$(NWA) config
 
 ####################
 # -- Docker
@@ -268,6 +268,9 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 golint: golangci-lint ## Linting the code according to the styling guide.
 	$(GOLANGCI_LINT) run -c .golangci.yml
+
+golint-fix: golangci-lint ## Linting the code according to the styling guide.
+	$(GOLANGCI_LINT) run -c .golangci.yml --fix
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
