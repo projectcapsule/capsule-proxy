@@ -30,9 +30,14 @@ type resourceManager struct {
 type watchMap map[string]resourceManager
 
 type CRDWatcher struct {
-	Client   client.Client
-	watchMap watchMap
-	requeue  chan event.GenericEvent
+	Client         client.Client
+	watchMap       watchMap
+	requeue        chan event.GenericEvent
+	LeaderElection bool
+}
+
+func (c *CRDWatcher) NeedLeaderElection() bool {
+	return c.LeaderElection
 }
 
 func (c *CRDWatcher) keyFunction(group, kind string) string {
@@ -58,7 +63,7 @@ func (c *CRDWatcher) register(ctx context.Context, group string, versions []stri
 			Kind:    kind,
 		}
 		//nolint:contextcheck
-		if err := (&NamespacedWatcher{Client: c.Client}).SetupWithManager(mgr, gvk); err != nil {
+		if err := (&NamespacedWatcher{Client: c.Client, LeaderElection: c.LeaderElection}).SetupWithManager(mgr, gvk); err != nil {
 			return err
 		}
 	}

@@ -122,6 +122,12 @@ type kubeFilter struct {
 	writer                client.Writer
 }
 
+// NeedLeaderElection starts the proxy (webserver) independently of controller manager
+// This allows distributing the load among all pods, even if they are not leaders.
+func (n *kubeFilter) NeedLeaderElection() bool {
+	return false
+}
+
 //nolint:funlen
 func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
@@ -195,13 +201,6 @@ func (n *kubeFilter) LivenessProbe(*http.Request) error {
 }
 
 func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
-	select {
-	case <-n.mgr.Elected():
-		// OK, we're the leader..
-	default:
-		return nil
-	}
-
 	scheme := "http"
 	clt := &http.Client{}
 
@@ -282,7 +281,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 	request.URL.RawQuery = q.Encode()
 
 	if len(n.BearerToken()) > 0 {
-		n.log.V(4).Info("Updating the token", "token", n.BearerToken())
+		n.log.V(10).Info("Updating the token", "token", n.BearerToken())
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.BearerToken()))
 	}
 }

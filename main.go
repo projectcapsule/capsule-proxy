@@ -213,7 +213,7 @@ First match is used and can be specified multiple times as comma separated value
 			BindAddress: metricsAddr,
 		},
 		HealthProbeBindAddress:  ":8081",
-		LeaderElection:          enableLeaderElection,
+		LeaderElection:          false,
 		LeaderElectionNamespace: namespace,
 		LeaderElectionID:        "42dadw1.proxy.projectcapsule.dev",
 	}
@@ -312,22 +312,9 @@ First match is used and can be specified multiple times as comma separated value
 		os.Exit(1)
 	}
 
-	// Start the proxy (webserver) independently of controller manager
-	// This allows to distribute the load among all pods, even if they are not leaders
-	if enableLeaderElection {
-		go func() {
-			log.Info("Starting the Proxy independently of manager")
-
-			if err := r.Start(ctx); err != nil {
-				log.Error(err, "Proxy failed")
-				os.Exit(1)
-			}
-		}()
-	} else {
-		if err = mgr.Add(r); err != nil {
-			log.Error(err, "cannot add NameSpaceFilter as Runnable")
-			os.Exit(1)
-		}
+	if err = mgr.Add(r); err != nil {
+		log.Error(err, "cannot add NameSpaceFilter as Runnable")
+		os.Exit(1)
 	}
 
 	if err = (&controllers.CapsuleConfiguration{
@@ -340,7 +327,7 @@ First match is used and can be specified multiple times as comma separated value
 	}
 
 	if gates.Enabled(features.ProxyAllNamespaced) {
-		if err = (&watchdog.CRDWatcher{Client: mgr.GetClient()}).SetupWithManager(ctx, mgr); err != nil {
+		if err = (&watchdog.CRDWatcher{Client: mgr.GetClient(), LeaderElection: enableLeaderElection}).SetupWithManager(ctx, mgr); err != nil {
 			log.Error(err, "cannot start watchdog.CRDWatcher controller for features.ProxyAllNamespaced")
 			os.Exit(1)
 		}
