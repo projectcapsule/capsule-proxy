@@ -1,6 +1,5 @@
 // Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
-
 package watchdog
 
 import (
@@ -28,9 +27,14 @@ import (
 )
 
 type NamespacedWatcher struct {
-	Client client.Client
+	Client         client.Client
+	LeaderElection bool
 
 	object *unstructured.Unstructured
+}
+
+func (c *NamespacedWatcher) NeedLeaderElection() bool {
+	return c.LeaderElection
 }
 
 func (c *NamespacedWatcher) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
