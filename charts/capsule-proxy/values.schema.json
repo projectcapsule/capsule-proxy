@@ -733,7 +733,7 @@
                 },
                 "nodePort": {
                     "description": "Specifies the node port number (only for `NodePort` service type).",
-                    "type": "integer"
+                    "type": "string"
                 },
                 "port": {
                     "description": "Specifies the service port number.",

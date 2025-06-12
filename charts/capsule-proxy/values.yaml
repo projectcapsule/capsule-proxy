@@ -424,7 +424,7 @@ service:
   # -- Specifies the service port name.
   portName: proxy
   # -- Specifies the node port number (only for `NodePort` service type).
-  nodePort: 0
+  nodePort: ""
   #  Add these labels to have capsule-proxy show up in `kubectl cluster-info`
   #  kubernetes.io/cluster-service: "true"
   #  kubernetes.io/name: "Capsule Proxy"

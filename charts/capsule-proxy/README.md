@@ -234,7 +234,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 |-----|------|---------|-------------|
 | service.annotations | object | `{}` | Annotations to add to the service. |
 | service.labels | object | `{}` | Labels to add to the service. |
-| service.nodePort | int | `0` | Specifies the node port number (only for `NodePort` service type). |
+| service.nodePort | string | `""` | Specifies the node port number (only for `NodePort` service type). |
 | service.port | int | `9001` | Specifies the service port number. |
 | service.portName | string | `"proxy"` | Specifies the service port name. |
 | service.type | string | `"ClusterIP"` | Specifies the service type should be created (`ClusterIP`, `NodePort`or `LoadBalancer`) |
