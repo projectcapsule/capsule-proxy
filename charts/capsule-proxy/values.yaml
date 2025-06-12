@@ -243,7 +243,7 @@ options:
   # -- Set leader election to true if you are running n-replicas
   leaderElection: false
   # -- Set the log verbosity of the capsule-proxy with a value from 1 to 10
-  logLevel: '4'
+  logLevel: 4
   # -- Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups
   capsuleConfigurationName: default
   # -- Define which groups must be ignored while proxying requests
@@ -424,7 +424,7 @@ service:
   # -- Specifies the service port name.
   portName: proxy
   # -- Specifies the node port number (only for `NodePort` service type).
-  nodePort:
+  nodePort: 0
   #  Add these labels to have capsule-proxy show up in `kubectl cluster-info`
   #  kubernetes.io/cluster-service: "true"
   #  kubernetes.io/name: "Capsule Proxy"

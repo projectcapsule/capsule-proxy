@@ -564,7 +564,7 @@
                 },
                 "logLevel": {
                     "description": "Set the log verbosity of the capsule-proxy with a value from 1 to 10",
-                    "type": "string"
+                    "type": "integer"
                 },
                 "oidcUsernameClaim": {
                     "description": "Specify if capsule-proxy will use SSL",
@@ -733,7 +733,7 @@
                 },
                 "nodePort": {
                     "description": "Specifies the node port number (only for `NodePort` service type).",
-                    "type": "null"
+                    "type": "integer"
                 },
                 "port": {
                     "description": "Specifies the service port number.",
