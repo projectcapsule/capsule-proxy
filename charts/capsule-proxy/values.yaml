@@ -60,7 +60,7 @@ global:
         # -- Set the image pull policy of the post install certgen job
         pullPolicy: IfNotPresent
         # -- Set the image tag of the post install certgen job
-        tag: "v1.4.3"
+        tag: "v1.5.3"
       # -- Annotations to add to the certgen job.
       annotations: {}
       # -- Set the restartPolicy
@@ -240,6 +240,8 @@ volumeMounts: []
 options:
   # -- Set the listening port of the capsule-proxy
   listeningPort: 9001
+  # -- Set leader election to true if you are running n-replicas
+  leaderElection: false
   # -- Set the log verbosity of the capsule-proxy with a value from 1 to 10
   logLevel: '4'
   # -- Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups

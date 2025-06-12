@@ -6,7 +6,7 @@ rbac:
     extra: annotation
   labels:
     extra: label
-kind: DaemonSet
+kind: Deployment
 imagePullSecrets: []
 certManager:
   generateCertificates: true
@@ -19,7 +19,6 @@ certManager:
     name: "" #  Name of the ClusterIssuer
 replicaCount: 1
 podAnnotations:
-  scheduler.alpha.kubernetes.io/critical-pod: ''
   extra: annotation
 podLabels:
   extra: label
@@ -44,7 +43,7 @@ autoscaling:
     example: annotation
   labels:
     example: label
-  minReplicas: 1
+  minReplicas: 3
   maxReplicas: 5
   targetCPUUtilizationPercentage: 80
   metrics:
@@ -64,19 +63,11 @@ autoscaling:
       - type: Percent
         value: 10
         periodSeconds: 60
-nodeSelector:
-  node-role.kubernetes.io/master: ""
-tolerations:
-  - key: CriticalAddonsOnly
-    operator: Exists
-  - effect: NoSchedule
-    key: node-role.kubernetes.io/master
 service:
   annotations:
     example: annotation
   labels:
     example: label
-# Ingress
 ingress:
   enabled: true
   ingressClassName: "nginx"
