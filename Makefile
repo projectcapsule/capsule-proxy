@@ -111,7 +111,7 @@ helm-lint: ct
 	@$(CT) lint --config .github/configs/ct.yaml --validate-yaml=false --all --debug
 
 helm-schema: helm-plugin-schema
-	cd charts/capsule-proxy && $(HELM) schema
+	cd charts/capsule-proxy && $(HELM) schema --use-helm-docs
 
 helm-test: helm-create helm-install helm-destroy
 
@@ -181,7 +181,6 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
-		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
@@ -219,7 +218,6 @@ else
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
-		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
