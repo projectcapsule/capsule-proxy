@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package priorityclass
@@ -34,19 +34,19 @@ func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (al
 			continue
 		}
 
-		if len(pc.SelectorAllowedListSpec.Exact) > 0 {
-			exact = append(exact, pc.SelectorAllowedListSpec.Exact...)
+		if len(pc.Exact) > 0 {
+			exact = append(exact, pc.Exact...)
 		}
 
 		if len(pc.Default) > 0 {
 			exact = append(exact, pc.Default)
 		}
 
-		if r := pc.SelectorAllowedListSpec.Regex; len(r) > 0 {
+		if r := pc.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}
 
-		selector, err := metav1.LabelSelectorAsSelector(&pc.SelectorAllowedListSpec.LabelSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&pc.LabelSelector)
 		if err != nil {
 			continue
 		}

@@ -1,3 +1,6 @@
+// Copyright 2020-2025 Project Capsule Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package watchdog
 
 import (
@@ -36,52 +39,50 @@ type CRDWatcher struct {
 	LeaderElection bool
 }
 
+func (c *CRDWatcher) SetupWithManager(ctx context.Context, mgr manager.Manager) error {
+	c.watchMap = make(map[string]resourceManager)
+	c.requeue = make(chan event.GenericEvent)
+
+	apis, err := API(mgr.GetConfig())
+	if err != nil {
+		return err
+	}
+
+	bundleGroupAndKind := map[string]sets.Set[string]{}
+
+	for _, api := range apis {
+		slashedName := fmt.Sprintf("%s/%s", api.Group, api.Kind)
+
+		if _, ok := bundleGroupAndKind[slashedName]; !ok {
+			bundleGroupAndKind[slashedName] = sets.Set[string]{}
+		}
+
+		bundleGroupAndKind[slashedName].Insert(api.Version)
+	}
+
+	for group, versions := range bundleGroupAndKind {
+		parts := strings.Split(group, "/")
+
+		apiGroup, apiKind := parts[0], parts[1]
+
+		if registerErr := c.register(ctx, apiGroup, versions.UnsortedList(), apiKind); registerErr != nil {
+			return errors.Wrap(registerErr, "cannot register watcher prior to start-up")
+		}
+	}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		WatchesRawSource(source.Channel(c.requeue, &handler.EnqueueRequestForObject{})).
+		For(&apiextensionsv1.CustomResourceDefinition{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			//nolint:forcetypeassert
+			crd := object.(*apiextensionsv1.CustomResourceDefinition)
+
+			return crd.Spec.Scope == apiextensionsv1.NamespaceScoped
+		}))).
+		Complete(c)
+}
+
 func (c *CRDWatcher) NeedLeaderElection() bool {
 	return c.LeaderElection
-}
-
-func (c *CRDWatcher) keyFunction(group, kind string) string {
-	return fmt.Sprintf("%s-%s", group, kind)
-}
-
-func (c *CRDWatcher) register(ctx context.Context, group string, versions []string, kind string) error {
-	mgr, _ := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: c.Client.Scheme(),
-		Metrics: metricsserver.Options{
-			BindAddress: "0",
-		},
-	})
-
-	watchedVersions := sets.New[string]()
-
-	for _, v := range versions {
-		watchedVersions.Insert(v)
-
-		gvk := metav1.GroupVersionKind{
-			Group:   group,
-			Version: v,
-			Kind:    kind,
-		}
-		//nolint:contextcheck
-		if err := (&NamespacedWatcher{Client: c.Client, LeaderElection: c.LeaderElection}).SetupWithManager(mgr, gvk); err != nil {
-			return err
-		}
-	}
-
-	scopedCtx, scopedCancelFn := context.WithCancel(ctx)
-
-	go func() {
-		if err := mgr.Start(scopedCtx); err != nil {
-			scopedCancelFn()
-		}
-	}()
-
-	c.watchMap[c.keyFunction(group, kind)] = resourceManager{
-		cancelFn:        scopedCancelFn,
-		watchedVersions: watchedVersions,
-	}
-
-	return nil
 }
 
 func (c *CRDWatcher) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -134,44 +135,46 @@ func (c *CRDWatcher) Reconcile(ctx context.Context, request reconcile.Request) (
 	return reconcile.Result{}, nil
 }
 
-func (c *CRDWatcher) SetupWithManager(ctx context.Context, mgr manager.Manager) error {
-	c.watchMap = make(map[string]resourceManager)
-	c.requeue = make(chan event.GenericEvent)
+func (c *CRDWatcher) keyFunction(group, kind string) string {
+	return fmt.Sprintf("%s-%s", group, kind)
+}
 
-	apis, err := API(mgr.GetConfig())
-	if err != nil {
-		return err
-	}
+func (c *CRDWatcher) register(ctx context.Context, group string, versions []string, kind string) error {
+	mgr, _ := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme: c.Client.Scheme(),
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
+	})
 
-	bundleGroupAndKind := map[string]sets.Set[string]{}
+	watchedVersions := sets.New[string]()
 
-	for _, api := range apis {
-		slashedName := fmt.Sprintf("%s/%s", api.Group, api.Kind)
+	for _, v := range versions {
+		watchedVersions.Insert(v)
 
-		if _, ok := bundleGroupAndKind[slashedName]; !ok {
-			bundleGroupAndKind[slashedName] = sets.Set[string]{}
+		gvk := metav1.GroupVersionKind{
+			Group:   group,
+			Version: v,
+			Kind:    kind,
 		}
-
-		bundleGroupAndKind[slashedName].Insert(api.Version)
-	}
-
-	for group, versions := range bundleGroupAndKind {
-		parts := strings.Split(group, "/")
-
-		apiGroup, apiKind := parts[0], parts[1]
-
-		if registerErr := c.register(ctx, apiGroup, versions.UnsortedList(), apiKind); registerErr != nil {
-			return errors.Wrap(err, "cannot register watcher prior to start-up")
+		//nolint:contextcheck
+		if err := (&NamespacedWatcher{Client: c.Client, LeaderElection: c.LeaderElection}).SetupWithManager(mgr, gvk); err != nil {
+			return err
 		}
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
-		WatchesRawSource(source.Channel(c.requeue, &handler.EnqueueRequestForObject{})).
-		For(&apiextensionsv1.CustomResourceDefinition{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			//nolint:forcetypeassert
-			crd := object.(*apiextensionsv1.CustomResourceDefinition)
+	scopedCtx, scopedCancelFn := context.WithCancel(ctx)
 
-			return crd.Spec.Scope == apiextensionsv1.NamespaceScoped
-		}))).
-		Complete(c)
+	go func() {
+		if err := mgr.Start(scopedCtx); err != nil {
+			scopedCancelFn()
+		}
+	}()
+
+	c.watchMap[c.keyFunction(group, kind)] = resourceManager{
+		cancelFn:        scopedCancelFn,
+		watchedVersions: watchedVersions,
+	}
+
+	return nil
 }
