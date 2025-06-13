@@ -181,7 +181,6 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
-		--set "service.nodePort=''" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
@@ -219,7 +218,6 @@ else
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
-		--set "service.nodePort=''" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
