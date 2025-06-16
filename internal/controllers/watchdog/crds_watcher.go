@@ -16,6 +16,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -52,7 +53,6 @@ func (c *CRDWatcher) SetupWithManager(ctx context.Context, mgr manager.Manager) 
 
 	for _, api := range apis {
 		slashedName := fmt.Sprintf("%s/%s", api.Group, api.Kind)
-
 		if _, ok := bundleGroupAndKind[slashedName]; !ok {
 			bundleGroupAndKind[slashedName] = sets.Set[string]{}
 		}
@@ -140,7 +140,11 @@ func (c *CRDWatcher) keyFunction(group, kind string) string {
 }
 
 func (c *CRDWatcher) register(ctx context.Context, group string, versions []string, kind string) error {
+	skipControllerNameValidation := true
 	mgr, _ := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Controller: controllerconfig.Controller{
+			SkipNameValidation: &skipControllerNameValidation,
+		},
 		Scheme: c.Client.Scheme(),
 		Metrics: metricsserver.Options{
 			BindAddress: "0",
