@@ -114,7 +114,7 @@ helm-lint: ct
 	@$(CT) lint --config .github/configs/ct.yaml --validate-yaml=false --all --debug
 
 helm-schema: helm-plugin-schema
-	cd charts/capsule-proxy && $(HELM) schema
+	cd charts/capsule-proxy && $(HELM) schema --use-helm-docs
 
 helm-test: helm-create helm-install helm-destroy
 
@@ -184,7 +184,6 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
-		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
@@ -222,7 +221,6 @@ else
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "service.type=NodePort" \
-		--set "service.nodePort=" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
@@ -333,7 +331,7 @@ ct:
 	$(call go-install-tool,$(CT),github.com/$(CT_LOOKUP)/v3/ct@$(CT_VERSION))
 
 KIND         := $(LOCALBIN)/kind
-KIND_VERSION := v0.28.0
+KIND_VERSION := v0.29.0
 KIND_LOOKUP  := kubernetes-sigs/kind
 kind:
 	@test -s $(KIND) && $(KIND) --version | grep -q $(KIND_VERSION) || \

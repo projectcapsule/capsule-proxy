@@ -5,6 +5,8 @@ kind: DaemonSet
 daemonset:
   hostNetwork: true
   hostPort: true
+service:
+  nodePort: 30901
 imagePullSecrets: []
 certManager:
   generateCertificates: true

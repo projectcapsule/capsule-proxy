@@ -95,7 +95,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.certs.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
 | global.jobs.certs.image.registry | string | `"registry.k8s.io"` | Set the image repository of the post install certgen job |
 | global.jobs.certs.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
-| global.jobs.certs.image.tag | string | `"v1.5.3"` | Set the image tag of the post install certgen job |
+| global.jobs.certs.image.tag | string | `"v1.5.4"` | Set the image tag of the post install certgen job |
 | global.jobs.certs.nodeSelector | object | `{}` | Set the node selector |
 | global.jobs.certs.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | global.jobs.certs.priorityClassName | string | `""` | Set a pod priorityClassName |
@@ -185,7 +185,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
 | options.leaderElection | bool | `false` | Set leader election to true if you are running n-replicas |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
-| options.logLevel | string | `"4"` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
+| options.logLevel | int | `4` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
 | options.oidcUsernameClaim | string | `"preferred_username"` | Specify if capsule-proxy will use SSL |
 | options.pprof | bool | `false` | Enable Pprof for profiling |
 | options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174) |
@@ -234,7 +234,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 |-----|------|---------|-------------|
 | service.annotations | object | `{}` | Annotations to add to the service. |
 | service.labels | object | `{}` | Labels to add to the service. |
-| service.nodePort | string | `nil` | Specifies the node port number (only for `NodePort` service type). |
+| service.nodePort | int | `0` | Specifies the node port number (only for `NodePort` service type). |
 | service.port | int | `9001` | Specifies the service port number. |
 | service.portName | string | `"proxy"` | Specifies the service port name. |
 | service.type | string | `"ClusterIP"` | Specifies the service type should be created (`ClusterIP`, `NodePort`or `LoadBalancer`) |
