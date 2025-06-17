@@ -39,6 +39,9 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+license-headers: nwa
+	$(NWA) config
+
 ####################
 # -- Docker
 ####################
@@ -264,6 +267,9 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 golint: golangci-lint ## Linting the code according to the styling guide.
 	$(GOLANGCI_LINT) run -c .golangci.yml
 
+golint-fix: golangci-lint ## Linting the code according to the styling guide.
+	$(GOLANGCI_LINT) run -c .golangci.yml --fix
+
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	kubectl apply -f charts/capsule-proxy/crds
@@ -338,12 +344,19 @@ ko:
 	@test -s $(KO) && $(KO) -h | grep -q $(KO_VERSION) || \
 	$(call go-install-tool,$(KO),github.com/$(KO_LOOKUP)@$(KO_VERSION))
 
+NWA           := $(LOCALBIN)/nwa
+NWA_VERSION   := v0.7.3
+NWA_LOOKUP    := B1NARY-GR0UP/nwa
+nwa:
+	@test -s $(NWA) && $(NWA) -h | grep -q $(NWA_VERSION) || \
+	$(call go-install-tool,$(NWA),github.com/$(NWA_LOOKUP)@$(NWA_VERSION))
+
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := v1.64.8
+GOLANGCI_LINT_VERSION  := v2.1.6
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
 golangci-lint: ## Download golangci-lint locally if necessary.
 	@test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) -h | grep -q $(GOLANGCI_LINT_VERSION) || \
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/$(GOLANGCI_LINT_LOOKUP)/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION))
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/$(GOLANGCI_LINT_LOOKUP)/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION))
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
