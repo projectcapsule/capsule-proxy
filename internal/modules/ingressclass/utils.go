@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package ingressclass
@@ -37,19 +37,19 @@ func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant
 			continue
 		}
 
-		if len(ic.SelectorAllowedListSpec.Exact) > 0 {
-			exact = append(exact, ic.SelectorAllowedListSpec.Exact...)
+		if len(ic.Exact) > 0 {
+			exact = append(exact, ic.Exact...)
 		}
 
 		if len(ic.Default) > 0 {
 			exact = append(exact, ic.Default)
 		}
 
-		if r := ic.SelectorAllowedListSpec.Regex; len(r) > 0 {
+		if r := ic.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}
 
-		selector, err := metav1.LabelSelectorAsSelector(&ic.SelectorAllowedListSpec.LabelSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&ic.LabelSelector)
 		if err != nil {
 			continue
 		}
