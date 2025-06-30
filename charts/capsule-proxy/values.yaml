@@ -60,7 +60,7 @@ global:
         # -- Set the image pull policy of the post install certgen job
         pullPolicy: IfNotPresent
         # -- Set the image tag of the post install certgen job
-        tag: "v1.5.4"
+        tag: "v1.6.0"
       # -- Annotations to add to the certgen job.
       annotations: {}
       # -- Set the restartPolicy
