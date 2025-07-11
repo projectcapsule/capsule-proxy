@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package request
@@ -66,7 +66,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 						Groups: groups,
 					},
 				}
-				if err = h.client.Create(h.Request.Context(), ac); err != nil {
+				if err = h.client.Create(h.Context(), ac); err != nil {
 					return "", nil, err
 				}
 
@@ -95,7 +95,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 					Groups: groups,
 				},
 			}
-			if err = h.client.Create(h.Request.Context(), ac); err != nil {
+			if err = h.client.Create(h.Context(), ac); err != nil {
 				return "", nil, err
 			}
 
@@ -139,7 +139,7 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 		},
 	}
 
-	if err = h.client.Create(h.Request.Context(), tr); err != nil {
+	if err = h.client.Create(h.Context(), tr); err != nil {
 		return "", nil, fmt.Errorf("cannot create TokenReview")
 	}
 
