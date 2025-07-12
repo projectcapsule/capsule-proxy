@@ -5,6 +5,8 @@ run:
 linters:
   default: all
   disable:
+    - revive
+    - noinlineerr
     - depguard
     - err113
     - exhaustruct

@@ -415,6 +415,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			}
 
 			var selector labels.Selector
+
 			selector, err = mod.Handle(proxyTenants, proxyRequest)
 
 			switch {
@@ -578,6 +579,7 @@ func bearerExpirationTime(tokenString string) time.Time {
 	claims, _ := token.Claims.(jwt.MapClaims)
 
 	var mil int64
+
 	switch iat := claims["exp"].(type) {
 	case float64:
 		mil = int64(iat)

@@ -74,6 +74,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	}
 
 	var r *labels.Requirement
+
 	r, err = getPriorityClassSelector(sc, exactMatch, regexMatch)
 
 	switch {

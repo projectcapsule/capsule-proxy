@@ -51,7 +51,8 @@ type GlobalProxySettings struct {
 type GlobalProxySettingsList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []GlobalProxySettings `json:"items"`
+
+	Items []GlobalProxySettings `json:"items"`
 }
 
 //nolint:gochecknoinits
