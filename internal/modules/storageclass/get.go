@@ -74,6 +74,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	}
 
 	var r *labels.Requirement
+
 	r, err = getStorageClassSelector(sc, exactMatch, regexMatch)
 
 	switch {

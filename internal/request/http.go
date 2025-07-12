@@ -19,6 +19,7 @@ import (
 
 type http struct {
 	*h.Request
+
 	authTypes                  []AuthType
 	usernameClaimField         string
 	ignoredImpersonationGroups []string

@@ -23,6 +23,7 @@ func init() {
 
 type httpResponseWriter struct {
 	http.ResponseWriter
+
 	statusCode int
 }
 

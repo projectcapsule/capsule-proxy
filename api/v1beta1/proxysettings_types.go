@@ -43,7 +43,8 @@ type ProxySetting struct {
 type ProxySettingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ProxySetting `json:"items"`
+
+	Items []ProxySetting `json:"items"`
 }
 
 //nolint:gochecknoinits

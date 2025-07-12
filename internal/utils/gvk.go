@@ -12,6 +12,7 @@ import (
 
 type ProxyGroupVersionKind struct {
 	schema.GroupVersionKind
+
 	// This must be used for path-based routing by the webserver filter.
 	URLName string
 }
