@@ -21,8 +21,9 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   serviceAccountName: {{ include "capsule-proxy.serviceAccountName" . }}
-  securityContext:
-    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  {{- if .Values.podSecurityContext.enabled }}
+  securityContext: {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 4 }}
+  {{- end }}
   priorityClassName: {{ .Values.priorityClassName }}
   volumes:
   {{- with .Values.volumes }}
@@ -46,8 +47,9 @@ spec:
   {{- end }}
   containers:
   - name: {{ .Chart.Name }}
-    securityContext:
-      {{- toYaml .Values.securityContext | nindent 6 }}
+    {{- if .Values.securityContext.enabled }}
+    securityContext: {{- omit .Values.securityContext "enabled" | toYaml | nindent 6 }}
+    {{- end }}
     image: {{ include "capsule-proxy.fullyQualifiedDockerImage" . }}
     imagePullPolicy: {{ .Values.image.pullPolicy }}
     args:
