@@ -25,10 +25,12 @@ global:
       ttlSecondsAfterFinished: 60
       # -- Security context for the job pods.
       podSecurityContext:
+        enabled: false
         seccompProfile:
           type: "RuntimeDefault"
       # -- Security context for the job containers.
       securityContext:
+        enabled: false
         allowPrivilegeEscalation: false
         capabilities:
           drop:
@@ -69,10 +71,12 @@ global:
       ttlSecondsAfterFinished: 60
       # -- Security context for the job pods.
       podSecurityContext:
+        enabled: true
         seccompProfile:
           type: "RuntimeDefault"
       # -- Security context for the job containers.
       securityContext:
+        enabled: true
         allowPrivilegeEscalation: false
         capabilities:
           drop:
@@ -205,10 +209,12 @@ livenessProbe:
 priorityClassName: ""
 # -- Security context for the capsule-proxy pod.
 podSecurityContext:
+  enabled: true
   seccompProfile:
     type: "RuntimeDefault"
 # -- Security context for the capsule-proxy container.
 securityContext:
+  enabled: true
   allowPrivilegeEscalation: false
   capabilities:
     drop:
