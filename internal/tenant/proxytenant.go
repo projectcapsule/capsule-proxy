@@ -65,7 +65,7 @@ func NewClusterProxy(ownerName string, ownerKind capsulev1beta2.OwnerKind, owner
 	for _, global := range owners {
 		for _, subject := range global.Subjects {
 			if subject.Name == ownerName && subject.Kind == ownerKind {
-				tenantClusterResources = global.ClusterResources
+				tenantClusterResources = append(tenantClusterResources, global.ClusterResources...)
 			}
 		}
 	}
