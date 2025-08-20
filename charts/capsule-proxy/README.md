@@ -178,7 +178,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.certificateVolumeName | string | `""` | Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate. |
 | options.clientConnectionBurst | int | `30` | Burst to use for interacting with kubernetes API Server. |
 | options.clientConnectionQPS | int | `20` | QPS to use for interacting with Kubernetes API Server. |
-| options.disableCaching | bool | `false` | Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector |
+| options.disableCaching | bool | `false` | Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector. |
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
 | options.extraArgs | list | `[]` | A list of extra arguments to add to the capsule-proxy. |
 | options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
@@ -188,6 +188,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.logLevel | int | `4` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
 | options.oidcUsernameClaim | string | `"preferred_username"` | Specify if capsule-proxy will use SSL |
 | options.pprof | bool | `false` | Enable Pprof for profiling |
+| options.roleBindingReflector | bool | `false` | Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user. |
 | options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174) |
 | options.webhookPort | int | `9443` | Webhook port |
 
