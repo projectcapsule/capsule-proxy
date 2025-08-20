@@ -272,8 +272,10 @@ options:
   certificateVolumeName: ""
   # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174)
   rolebindingsResyncPeriod: 10h
-  # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector
+  # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector.
   disableCaching: false
+  # -- Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.
+  roleBindingReflector: false
   # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
   authPreferredTypes: "BearerToken,TLSCertificate"
   # -- QPS to use for interacting with Kubernetes API Server.

@@ -64,7 +64,7 @@ func main() {
 		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr string
 		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups                                                    []string
 		listeningPort                                                                                                      uint
-		bindSsl, disableCaching, enablePprof, enableLeaderElection                                                         bool
+		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                   bool
 		rolebindingsResyncPeriod                                                                                           time.Duration
 		clientConnectionQPS                                                                                                float32
 		clientConnectionBurst                                                                                              int32
@@ -119,6 +119,7 @@ func main() {
 	flag.StringVar(&impersonationGroupsRegexp, "impersonation-group-regexp", "", "Regular expression to match the groups which are considered for impersonation")
 	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
+	flag.BoolVar(&roleBindingReflector, "enable-reflector", false, "Enable rolebinding reflector. The reflector allows to list the namespaces, where a rolebinding mentions a user")
 	flag.BoolVar(&enablePprof, "enable-pprof", false, "Enables Pprof endpoint for profiling (not recommend in production)")
 	flag.BoolVar(&bindSsl, "enable-ssl", true, "Enable the bind on HTTPS for secure communication (default: true)")
 	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
@@ -237,7 +238,7 @@ First match is used and can be specified multiple times as comma separated value
 
 	var rbReflector *controllers.RoleBindingReflector
 
-	if !disableCaching {
+	if !disableCaching && roleBindingReflector {
 		log.Info("Creating the Rolebindings reflector")
 
 		if rbReflector, err = controllers.NewRoleBindingReflector(config, rolebindingsResyncPeriod); err != nil {
@@ -252,7 +253,7 @@ First match is used and can be specified multiple times as comma separated value
 			os.Exit(1)
 		}
 	} else {
-		log.Info("Cache is disabled, cannot create Rolebindings reflector")
+		log.Info("Rolebinding reflector disabled")
 	}
 
 	ctx := ctrl.SetupSignalHandler()

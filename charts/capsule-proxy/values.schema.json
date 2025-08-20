@@ -547,7 +547,7 @@
                     "type": "integer"
                 },
                 "disableCaching": {
-                    "description": "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector",
+                    "description": "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector.",
                     "type": "boolean"
                 },
                 "enableSSL": {
@@ -584,6 +584,10 @@
                 },
                 "pprof": {
                     "description": "Enable Pprof for profiling",
+                    "type": "boolean"
+                },
+                "roleBindingReflector": {
+                    "description": "Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.",
                     "type": "boolean"
                 },
                 "rolebindingsResyncPeriod": {
