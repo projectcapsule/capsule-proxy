@@ -18,7 +18,7 @@ IMG             ?= $(IMG_BASE):$(VERSION)
 CAPSULE_PROXY_IMG     ?= $(REGISTRY)/$(IMG_BASE)
 
 ## Kubernetes Version Support
-KUBERNETES_SUPPORTED_VERSION ?= "v1.33.0"
+KUBERNETES_SUPPORTED_VERSION ?= "v1.34.0"
 
 ## Tool Binaries
 KUBECTL ?= kubectl
