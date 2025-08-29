@@ -12,7 +12,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.25.2
 	github.com/onsi/gomega v1.38.2
 	github.com/pkg/errors v0.9.1
-	github.com/projectcapsule/capsule v0.10.5
+	github.com/projectcapsule/capsule v0.10.8
 	github.com/prometheus/client_golang v1.23.0
 	github.com/prometheus/client_model v0.6.2
 	github.com/spf13/pflag v1.0.7
@@ -27,7 +27,7 @@ require (
 	k8s.io/client-go v0.34.0
 	k8s.io/component-base v0.34.0
 	k8s.io/kubectl v0.34.0
-	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
+	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
 	sigs.k8s.io/controller-runtime v0.22.0
 )
 
