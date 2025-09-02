@@ -21,9 +21,9 @@ global:
       podLabels: {}
       # -- Annotations to add to the job pod
       podAnnotations: {}
-      # -- Labels to add to the job pod.
+      # -- Labels to add to the job.
       labels: {}
-      # -- Annotations to add to the job pod.
+      # -- Annotations to add to the job.
       annotations: {}
       # -- Set the restartPolicy
       restartPolicy: Never

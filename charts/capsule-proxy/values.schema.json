@@ -282,7 +282,7 @@
                                     "type": "object"
                                 },
                                 "annotations": {
-                                    "description": "Annotations to add to the job pod.",
+                                    "description": "Annotations to add to the job.",
                                     "type": "object"
                                 },
                                 "image": {
@@ -307,7 +307,7 @@
                                     }
                                 },
                                 "labels": {
-                                    "description": "Labels to add to the job pod.",
+                                    "description": "Labels to add to the job.",
                                     "type": "object"
                                 },
                                 "nodeSelector": {
