@@ -17,7 +17,13 @@ global:
         pullPolicy: IfNotPresent
         # -- Set the image tag of the helm chart job
         tag: ""
-      # -- Annotations
+      # -- Labels to add to the job pod
+      podLabels: {}
+      # -- Annotations to add to the job pod
+      podAnnotations: {}
+      # -- Labels to add to the job pod.
+      labels: {}
+      # -- Annotations to add to the job pod.
       annotations: {}
       # -- Set the restartPolicy
       restartPolicy: Never
@@ -207,11 +213,13 @@ livenessProbe:
 # priorityClassName: system-node-critical
 # -- Specifies PriorityClass of the capsule-proxy pod.
 priorityClassName: ""
+
 # -- Security context for the capsule-proxy pod.
 podSecurityContext:
   enabled: true
   seccompProfile:
     type: "RuntimeDefault"
+
 # -- Security context for the capsule-proxy container.
 securityContext:
   enabled: true
@@ -234,6 +242,7 @@ resources:
     cpu: 200m
     # -- Set the memory limits assigned to the controller.
     memory: 128Mi
+
 # -- Additional environment variables
 env: []
 # -- Additional volumes

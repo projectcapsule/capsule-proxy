@@ -7,17 +7,30 @@ metadata:
   annotations:
     "helm.sh/hook-weight": "-1"
     {{- include "capsule-proxy.crds.annotations" . | nindent 4 }}
+    {{- with .Values.global.jobs.kubectl.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   labels:
     app.kubernetes.io/component: {{ include "capsule-proxy.crds.component" . | quote }}
     {{- include "capsule-proxy.labels" . | nindent 4 }}
+    {{- with .Values.global.jobs.kubectl.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   ttlSecondsAfterFinished: {{ .Values.global.jobs.kubectl.ttlSecondsAfterFinished }}
   template:
     metadata:
       name: "{{ include "capsule-proxy.crds.name" . }}"
+      {{- with .Values.global.jobs.kubectl.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         app.kubernetes.io/component: {{ include "capsule-proxy.crds.component" . | quote }}
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
+        {{- with .Values.global.jobs.kubectl.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       restartPolicy: {{ $.Values.global.jobs.kubectl.restartPolicy }}
       {{- if $.Values.global.jobs.kubectl.podSecurityContext.enabled }}
