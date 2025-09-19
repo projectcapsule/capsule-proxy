@@ -329,6 +329,35 @@ certManager:
         rotationPolicy: 'Always'
       # renewBefore: '24h'
 
+# -- Array of additional resources to be created alongside Capsule helm chart
+extraManifests: []
+  # - apiVersion: v1
+  #   kind: ConfigMap
+  #   metadata:
+  #     name: extra-configmap
+  #   data:
+  #     key: value
+  #
+  # - apiVersion: capsule.clastix.io/v1beta1
+  #   kind: GlobalProxySettings
+  #   metadata:
+  #     name: global-proxy-settings
+  #   spec:
+  #     rules:
+  #     - subjects:
+  #       - kind: User
+  #         name: alice
+  #       clusterResources:
+  #       - apiGroups:
+  #         - "*"
+  #         resources:
+  #         - "*"
+  #         operations:
+  #         - List
+  #         selector:
+  #           matchLabels:
+  #             app.kubernetes.io/type: dev
+
 webhooks:
   # -- Enable the usage of mutating and validating webhooks
   enabled: false
