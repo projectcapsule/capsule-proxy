@@ -1,0 +1,21 @@
+# -- Array of additional resources to be created alongside Capsule helm chart
+extraManifests:
+  - apiVersion: capsule.clastix.io/v1beta1
+    kind: GlobalProxySettings
+    metadata:
+      name: global-proxy-settings
+    spec:
+      rules:
+      - subjects:
+        - kind: User
+          name: alice
+        clusterResources:
+        - apiGroups:
+          - "*"
+          resources:
+          - "*"
+          operations:
+          - List
+          selector:
+            matchLabels:
+              app.kubernetes.io/type: dev
