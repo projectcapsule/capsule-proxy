@@ -154,6 +154,10 @@
             "description": "Additional environment variables",
             "type": "array"
         },
+        "extraManifests": {
+            "description": "Array of additional resources to be created alongside Capsule helm chart",
+            "type": "array"
+        },
         "global": {
             "type": "object",
             "properties": {
