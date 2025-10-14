@@ -4,6 +4,7 @@
 
 {{- define "capsule-proxy.crds.annotations" -}}
 "helm.sh/hook": "pre-install,pre-upgrade"
+"argocd.argoproj.io/hook": "PreSync"
 "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
   {{- with $.Values.global.jobs.annotations }}
     {{- . | toYaml | nindent 0 }}
