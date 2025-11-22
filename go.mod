@@ -18,7 +18,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/thediveo/enumflag v0.10.1
 	github.com/thediveo/enumflag/v2 v2.0.7
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.43.0
 	k8s.io/api v0.34.0
 	k8s.io/apiextensions-apiserver v0.34.0
