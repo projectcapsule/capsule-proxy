@@ -8,11 +8,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/http/httputil"
 	"net/textproto"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,10 +24,17 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/authorization"
+	"github.com/projectcapsule/capsule-proxy/internal/utils"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	"golang.org/x/net/http/httpguts"
 	authenticationv1 "k8s.io/api/authentication/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/runtime/serializer/protobuf"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/client-go/discovery"
@@ -141,6 +151,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
 	root.Use(
+		n.AuthorizationMiddleware,
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 		middleware.CheckJWTMiddleware(n.writer),
@@ -258,6 +269,60 @@ func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 
 		n.log.V(5).Info("debugging request", "uri", request.RequestURI, "method", request.Method)
 		n.reverseProxy.ServeHTTP(writer, request)
+	})
+}
+
+func (n *kubeFilter) AuthorizationMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if !slices.Contains(authorization.Paths, request.URL.Path) {
+			next.ServeHTTP(writer, request)
+			return
+		}
+
+		w := httptest.NewRecorder()
+		next.ServeHTTP(w, request)
+		body, err := io.ReadAll(w.Result().Body)
+		if err != nil {
+			n.log.Error(err, "cannot read response body")
+			return
+		}
+
+		scheme := runtime.NewScheme()
+		protoEncoder := protobuf.NewSerializer(scheme, scheme)
+		corev1.AddToScheme(scheme)
+		authorizationv1.AddToScheme(scheme)
+		codecFactory := serializer.NewCodecFactory(scheme)
+		universalDecoder := codecFactory.UniversalDeserializer()
+
+		obj, gvk, err := universalDecoder.Decode(body, nil, nil)
+		if err != nil {
+			n.log.Error(err, "cannot decode authorization object")
+		}
+		err = authorization.MutateAuthorization(&obj, *gvk)
+		if err != nil {
+			n.log.Error(err, "cannot mutate authorization object")
+		}
+		if request.Header.Get("Content-Type") == "application/json" {
+			body, err = utils.JsonEncode(obj, scheme)
+			if err != nil {
+				n.log.Error(err, "cannot marshal Authorization object to json")
+			}
+		} else if request.Header.Get("Content-Type") == "application/vnd.kubernetes.protobuf" {
+			body, err = runtime.Encode(protoEncoder, obj)
+			if err != nil {
+				n.log.Error(err, "cannot marshal Authorization object to protobuf")
+			}
+		}
+		for k, v := range w.Result().Header {
+			if k == "Content-Length" {
+				continue
+			}
+			for _, sv := range v {
+				writer.Header().Add(k, sv)
+			}
+		}
+		writer.WriteHeader(w.Result().StatusCode)
+		writer.Write(body)
 	})
 }
 
