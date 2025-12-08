@@ -287,6 +287,18 @@ func (n *kubeFilter) AuthorizationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
+
+		username, groups, err := proxyRequest.GetUserAndGroups()
+		if err != nil {
+			server.HandleError(writer, err, "cannot retrieve user and group from the request")
+		}
+
+		proxyTenants, err := n.getTenantsForOwner(context.Background(), username, groups)
+		if err != nil {
+			server.HandleError(writer, err, "cannot list Tenant resources")
+		}
+
 		scheme := runtime.NewScheme()
 		protoEncoder := protobuf.NewSerializer(scheme, scheme)
 		corev1.AddToScheme(scheme)
@@ -298,7 +310,7 @@ func (n *kubeFilter) AuthorizationMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			n.log.Error(err, "cannot decode authorization object")
 		}
-		err = authorization.MutateAuthorization(&obj, *gvk)
+		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, &obj, *gvk)
 		if err != nil {
 			n.log.Error(err, "cannot mutate authorization object")
 		}
