@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +23,7 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (a
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsulev1beta2.StorageClassesProxy); !ok {
+		if ok := pt.RequestAllowed(req, capsuleapi.StorageClassesProxy); !ok {
 			continue
 		}
 
@@ -42,6 +42,7 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (a
 			exact = append(exact, sc.Default)
 		}
 
+		//nolint:staticcheck
 		if r := sc.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}

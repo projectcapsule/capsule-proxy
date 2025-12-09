@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -43,7 +43,7 @@ func GetNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*label
 
 func GetNodeSelectors(request *http.Request, proxyTenants []*tenant.ProxyTenant) (selectors []map[string]string) {
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(request, capsulev1beta2.NodesProxy); ok {
+		if ok := pt.RequestAllowed(request, capsuleapi.NodesProxy); ok {
 			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 		}
 	}

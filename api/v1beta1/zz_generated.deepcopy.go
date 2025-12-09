@@ -8,7 +8,7 @@
 package v1beta1
 
 import (
-	"github.com/projectcapsule/capsule/api/v1beta2"
+	"github.com/projectcapsule/capsule/pkg/api"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -175,7 +175,7 @@ func (in *OwnerSpec) DeepCopyInto(out *OwnerSpec) {
 	*out = *in
 	if in.ProxyOperations != nil {
 		in, out := &in.ProxyOperations, &out.ProxyOperations
-		*out = make([]v1beta2.ProxySettings, len(*in))
+		*out = make([]api.ProxySettings, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

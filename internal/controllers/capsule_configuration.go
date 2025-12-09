@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -26,6 +27,7 @@ type CapsuleConfiguration struct {
 }
 
 //nolint:gochecknoglobals
+var CapsuleUsers sets.Set[string]
 var CapsuleUserGroups sets.Set[string]
 
 func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
@@ -57,7 +59,26 @@ func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.
 		panic(err)
 	}
 
-	CapsuleUserGroups = sets.New(capsuleConfig.Spec.UserGroups...)
+	//nolint:staticcheck
+	allGroups := append(
+		append([]string{}, capsuleConfig.Spec.UserGroups...), // copy to avoid aliasing
+		capsuleConfig.Spec.Users.GetByKinds(
+			[]capsuleapi.OwnerKind{capsuleapi.GroupOwner},
+		)...,
+	)
+
+	CapsuleUserGroups = sets.New[string](allGroups...)
+
+	//nolint:staticcheck
+	allUsers := append(
+		append([]string{}, capsuleConfig.Spec.UserNames...), // copy base slice
+		capsuleConfig.Spec.Users.GetByKinds([]capsuleapi.OwnerKind{
+			capsuleapi.UserOwner,
+			capsuleapi.ServiceAccountOwner,
+		})...,
+	)
+
+	CapsuleUsers = sets.New[string](allUsers...)
 
 	return reconcile.Result{}, nil
 }
