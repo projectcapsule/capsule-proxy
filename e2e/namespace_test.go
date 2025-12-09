@@ -63,17 +63,6 @@ var _ = Describe("Namespaces", func() {
 					},
 				},
 			},
-
-			Owners: capsulev1beta2.OwnerListSpec{
-				{
-					Name: "bob",
-					Kind: "User",
-				},
-				{
-					Name: "alice",
-					Kind: "User",
-				},
-			},
 		},
 	}
 
