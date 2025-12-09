@@ -42,7 +42,7 @@ func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (al
 			exact = append(exact, pc.Default)
 		}
 
-		// nolint:staticcheck
+		//nolint:staticcheck
 		if r := pc.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}

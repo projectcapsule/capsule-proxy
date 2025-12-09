@@ -42,7 +42,7 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (a
 			exact = append(exact, sc.Default)
 		}
 
-		// nolint:staticcheck
+		//nolint:staticcheck
 		if r := sc.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}

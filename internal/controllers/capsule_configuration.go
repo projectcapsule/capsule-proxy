@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
-
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -60,8 +59,9 @@ func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.
 		panic(err)
 	}
 
+	//nolint:staticcheck
 	allGroups := append(
-		capsuleConfig.Spec.UserGroups,
+		append([]string{}, capsuleConfig.Spec.UserGroups...), // copy to avoid aliasing
 		capsuleConfig.Spec.Users.GetByKinds(
 			[]capsuleapi.OwnerKind{capsuleapi.GroupOwner},
 		)...,
@@ -69,8 +69,9 @@ func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.
 
 	CapsuleUserGroups = sets.New[string](allGroups...)
 
+	//nolint:staticcheck
 	allUsers := append(
-		capsuleConfig.Spec.UserNames,
+		append([]string{}, capsuleConfig.Spec.UserNames...), // copy base slice
 		capsuleConfig.Spec.Users.GetByKinds([]capsuleapi.OwnerKind{
 			capsuleapi.UserOwner,
 			capsuleapi.ServiceAccountOwner,

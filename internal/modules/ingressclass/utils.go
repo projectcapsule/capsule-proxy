@@ -45,7 +45,7 @@ func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant
 			exact = append(exact, ic.Default)
 		}
 
-		// nolint:staticcheck
+		//nolint:staticcheck
 		if r := ic.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}
