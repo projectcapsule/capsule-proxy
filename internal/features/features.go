@@ -5,7 +5,7 @@ package features
 
 const (
 	// ProxyAllNamespaced allows to proxy all the Namespaced objects
-	// for all tenant users
+	// for all tenant users (DEPRECATED)
 	//
 	// When enabled, it will discover apis and ensure labels are set
 	// for resources in all tenant namespaces resulting in increased memory

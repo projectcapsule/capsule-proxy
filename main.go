@@ -26,16 +26,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
-	"github.com/projectcapsule/capsule-proxy/internal/controllers/watchdog"
 	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
-	"github.com/projectcapsule/capsule-proxy/internal/webhooks"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver"
 )
 
@@ -47,7 +44,7 @@ const (
 	WebhookLabler
 )
 
-//nolint:funlen,gocyclo,cyclop,maintidx
+//nolint:funlen,cyclop,maintidx
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
@@ -102,11 +99,6 @@ func main() {
 		request.TLSCertificate: {request.TLSCertificate.String()},
 	}
 
-	WebhookTypeStrings := map[WebhookType][]string{
-		WebhookWatchdog: {"Watchdog"},
-		WebhookLabler:   {"Labler"},
-	}
-
 	flag.IntVar(&webhookPort, "webhook-port", 9443, "The port the webhook server binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
@@ -131,11 +123,6 @@ First match is used and can be specified multiple times as comma separated value
 	flag.BoolVar(&disableCaching, "disable-caching", false, "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)")
 	flag.Float32Var(&clientConnectionQPS, "client-connection-qps", 20.0, "QPS to use for interacting with kubernetes apiserver.")
 	flag.Int32Var(&clientConnectionBurst, "client-connection-burst", 30, "Burst to use for interacting with kubernetes apiserver.")
-	flag.Var(
-		enumflag.NewSlice(&hooks, "string", WebhookTypeStrings, enumflag.EnumCaseInsensitive),
-		"webhooks",
-		"Comma-separated list of webhooks to enable. Available options: Watchdog, Labler",
-	)
 	gates.AddFlag(flag.CommandLine)
 
 	opts := zap.Options{
@@ -327,26 +314,6 @@ First match is used and can be specified multiple times as comma separated value
 		os.Exit(1)
 	}
 
-	if gates.Enabled(features.ProxyAllNamespaced) {
-		if err = (&watchdog.CRDWatcher{Client: mgr.GetClient(), LeaderElection: enableLeaderElection}).SetupWithManager(ctx, mgr); err != nil {
-			log.Error(err, "cannot start watchdog.CRDWatcher controller for features.ProxyAllNamespaced")
-			os.Exit(1)
-		}
-	}
-
-	// Webhook Reconciler
-	if len(hooks) > 0 {
-		if containsWebhook(WebhookWatchdog, hooks) {
-			mgr.GetWebhookServer().Register("/mutate/watchdog", &admission.Webhook{
-				Handler: &webhooks.WatchdogWebhook{
-					Decoder: admission.NewDecoder(mgr.GetScheme()),
-					Client:  mgr.GetClient(),
-					Log:     logger.WithName("Webhooks.Watchdog"),
-				},
-			})
-		}
-	}
-
 	if err = mgr.AddHealthzCheck("healthz", r.LivenessProbe); err != nil {
 		log.Error(err, "cannot create healthcheck probe")
 		os.Exit(1)
@@ -363,14 +330,4 @@ First match is used and can be specified multiple times as comma separated value
 		log.Error(err, "cannot start the Manager")
 		os.Exit(1)
 	}
-}
-
-func containsWebhook(target WebhookType, enabledWebhooks []WebhookType) bool {
-	for _, webhook := range enabledWebhooks {
-		if webhook == target {
-			return true
-		}
-	}
-
-	return false
 }
