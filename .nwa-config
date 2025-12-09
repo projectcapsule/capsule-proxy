@@ -1,0 +1,15 @@
+nwa:
+  cmd: "update"
+  holder: "Project Capsule Authors"
+  year: "2020-2025"
+  spdxids: "Apache-2.0"
+  skip:
+    - "e2e/**/*.go"
+    - "e2e-legacy/**/*.go"
+  path:
+    - "internal/**/*.go"
+    - "api/**/*.go"
+    - "main.go"
+  mute: false
+  verbose: true
+  fuzzy: false

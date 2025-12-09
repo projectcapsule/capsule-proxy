@@ -1,10 +1,12 @@
+// Copyright 2020-2025 Project Capsule Authors
+// SPDX-License-Identifier: Apache-2.0
 package watchdog
 
 import (
 	"context"
 
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
-	capsuleutils "github.com/projectcapsule/capsule/pkg/utils"
+	capsuleutils "github.com/projectcapsule/capsule/pkg/utils/tenant"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,9 +27,14 @@ import (
 )
 
 type NamespacedWatcher struct {
-	Client client.Client
+	Client         client.Client
+	LeaderElection bool
 
 	object *unstructured.Unstructured
+}
+
+func (c *NamespacedWatcher) NeedLeaderElection() bool {
+	return c.LeaderElection
 }
 
 func (c *NamespacedWatcher) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {

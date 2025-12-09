@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package runtimeclass
@@ -6,7 +6,7 @@ package runtimeclass
 import (
 	"net/http"
 
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -17,7 +17,7 @@ func getRuntimeClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (all
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsulev1beta2.RuntimeClassesProxy); ok {
+		if ok := pt.RequestAllowed(req, capsuleapi.RuntimeClassesProxy); ok {
 			allowed = true
 
 			rc := pt.Tenant.Spec.RuntimeClasses

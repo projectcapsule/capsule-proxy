@@ -17,7 +17,13 @@ global:
         pullPolicy: IfNotPresent
         # -- Set the image tag of the helm chart job
         tag: ""
-      # -- Annotations
+      # -- Labels to add to the job pod
+      podLabels: {}
+      # -- Annotations to add to the job pod
+      podAnnotations: {}
+      # -- Labels to add to the job.
+      labels: {}
+      # -- Annotations to add to the job.
       annotations: {}
       # -- Set the restartPolicy
       restartPolicy: Never
@@ -25,10 +31,12 @@ global:
       ttlSecondsAfterFinished: 60
       # -- Security context for the job pods.
       podSecurityContext:
+        enabled: false
         seccompProfile:
           type: "RuntimeDefault"
       # -- Security context for the job containers.
       securityContext:
+        enabled: false
         allowPrivilegeEscalation: false
         capabilities:
           drop:
@@ -60,7 +68,7 @@ global:
         # -- Set the image pull policy of the post install certgen job
         pullPolicy: IfNotPresent
         # -- Set the image tag of the post install certgen job
-        tag: "v1.4.3"
+        tag: "v1.6.2"
       # -- Annotations to add to the certgen job.
       annotations: {}
       # -- Set the restartPolicy
@@ -69,10 +77,12 @@ global:
       ttlSecondsAfterFinished: 60
       # -- Security context for the job pods.
       podSecurityContext:
+        enabled: true
         seccompProfile:
           type: "RuntimeDefault"
       # -- Security context for the job containers.
       securityContext:
+        enabled: true
         allowPrivilegeEscalation: false
         capabilities:
           drop:
@@ -203,12 +213,16 @@ livenessProbe:
 # priorityClassName: system-node-critical
 # -- Specifies PriorityClass of the capsule-proxy pod.
 priorityClassName: ""
+
 # -- Security context for the capsule-proxy pod.
 podSecurityContext:
+  enabled: true
   seccompProfile:
     type: "RuntimeDefault"
+
 # -- Security context for the capsule-proxy container.
 securityContext:
+  enabled: true
   allowPrivilegeEscalation: false
   capabilities:
     drop:
@@ -228,6 +242,7 @@ resources:
     cpu: 200m
     # -- Set the memory limits assigned to the controller.
     memory: 128Mi
+
 # -- Additional environment variables
 env: []
 # -- Additional volumes
@@ -240,8 +255,10 @@ volumeMounts: []
 options:
   # -- Set the listening port of the capsule-proxy
   listeningPort: 9001
+  # -- Set leader election to true if you are running n-replicas
+  leaderElection: false
   # -- Set the log verbosity of the capsule-proxy with a value from 1 to 10
-  logLevel: '4'
+  logLevel: 4
   # -- Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups
   capsuleConfigurationName: default
   # -- Define which groups must be ignored while proxying requests
@@ -264,8 +281,10 @@ options:
   certificateVolumeName: ""
   # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174)
   rolebindingsResyncPeriod: 10h
-  # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector
+  # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector.
   disableCaching: false
+  # -- Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.
+  roleBindingReflector: false
   # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
   authPreferredTypes: "BearerToken,TLSCertificate"
   # -- QPS to use for interacting with Kubernetes API Server.
@@ -422,7 +441,7 @@ service:
   # -- Specifies the service port name.
   portName: proxy
   # -- Specifies the node port number (only for `NodePort` service type).
-  nodePort:
+  nodePort: 0
   #  Add these labels to have capsule-proxy show up in `kubectl cluster-info`
   #  kubernetes.io/cluster-service: "true"
   #  kubernetes.io/name: "Capsule Proxy"

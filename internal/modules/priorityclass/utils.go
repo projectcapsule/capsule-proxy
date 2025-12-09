@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package priorityclass
@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +23,7 @@ func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (al
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsulev1beta2.PriorityClassesProxy); !ok {
+		if ok := pt.RequestAllowed(req, capsuleapi.PriorityClassesProxy); !ok {
 			continue
 		}
 
@@ -34,19 +34,20 @@ func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (al
 			continue
 		}
 
-		if len(pc.SelectorAllowedListSpec.Exact) > 0 {
-			exact = append(exact, pc.SelectorAllowedListSpec.Exact...)
+		if len(pc.Exact) > 0 {
+			exact = append(exact, pc.Exact...)
 		}
 
 		if len(pc.Default) > 0 {
 			exact = append(exact, pc.Default)
 		}
 
-		if r := pc.SelectorAllowedListSpec.Regex; len(r) > 0 {
+		// nolint:staticcheck
+		if r := pc.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}
 
-		selector, err := metav1.LabelSelectorAsSelector(&pc.SelectorAllowedListSpec.LabelSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&pc.LabelSelector)
 		if err != nil {
 			continue
 		}

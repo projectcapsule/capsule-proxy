@@ -1,3 +1,6 @@
+// Copyright 2020-2025 Project Capsule Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 import (
@@ -9,6 +12,7 @@ import (
 
 type ProxyGroupVersionKind struct {
 	schema.GroupVersionKind
+
 	// This must be used for path-based routing by the webserver filter.
 	URLName string
 }

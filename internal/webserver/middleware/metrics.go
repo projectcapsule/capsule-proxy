@@ -1,4 +1,4 @@
-// Copyright 2022 Clastix Labs
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package middleware
@@ -23,6 +23,7 @@ func init() {
 
 type httpResponseWriter struct {
 	http.ResponseWriter
+
 	statusCode int
 }
 

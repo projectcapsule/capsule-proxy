@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package controllers
@@ -9,6 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -26,6 +28,7 @@ type CapsuleConfiguration struct {
 }
 
 //nolint:gochecknoglobals
+var CapsuleUsers sets.Set[string]
 var CapsuleUserGroups sets.Set[string]
 
 func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
@@ -57,7 +60,24 @@ func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.
 		panic(err)
 	}
 
-	CapsuleUserGroups = sets.New(capsuleConfig.Spec.UserGroups...)
+	allGroups := append(
+		capsuleConfig.Spec.UserGroups,
+		capsuleConfig.Spec.Users.GetByKinds(
+			[]capsuleapi.OwnerKind{capsuleapi.GroupOwner},
+		)...,
+	)
+
+	CapsuleUserGroups = sets.New[string](allGroups...)
+
+	allUsers := append(
+		capsuleConfig.Spec.UserNames,
+		capsuleConfig.Spec.Users.GetByKinds([]capsuleapi.OwnerKind{
+			capsuleapi.UserOwner,
+			capsuleapi.ServiceAccountOwner,
+		})...,
+	)
+
+	CapsuleUsers = sets.New[string](allUsers...)
 
 	return reconcile.Result{}, nil
 }
