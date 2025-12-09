@@ -193,7 +193,6 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.pprof | bool | `false` | Enable Pprof for profiling |
 | options.roleBindingReflector | bool | `false` | Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user. |
 | options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174) |
-| options.webhookPort | int | `9443` | Webhook port |
 
 ### Cert-Manager Parameters
 
@@ -226,11 +225,6 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | webhooks.service.namespace | string | `""` | Custom service namespace for the webhook service |
 | webhooks.service.port | string | `nil` | Custom service port for the webhook service |
 | webhooks.service.url | string | `""` | The URL where the capsule webhook services are running (Overwrites cluster scoped service definition) |
-| webhooks.watchdog.enabled | bool | `true` | Enable Watchdog Webhook |
-| webhooks.watchdog.failurePolicy | string | `"Ignore"` | Ignore failures from the webhook |
-| webhooks.watchdog.namespaceSelector | object | `{"matchExpressions":[{"key":"capsule.clastix.io/tenant","operator":"Exists"}]}` | Selects only namespaced items which are within a tenant |
-| webhooks.watchdog.rules | list | `[{"apiGroups":["*"],"apiVersions":["*"],"operations":["CREATE","UPDATE"],"resources":["*"],"scope":"Namespaced"}]` | Rules for which Objects and Actions this webhook should be called |
-| webhooks.watchdog.timeoutSeconds | string | `"3s"` | Timeout in seconds for mutating webhooks |
 
 ### Service Parameters
 
