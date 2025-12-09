@@ -35,20 +35,17 @@ import (
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
-	"github.com/projectcapsule/capsule-proxy/internal/controllers/watchdog"
 	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	moderrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/ingressclass"
-	"github.com/projectcapsule/capsule-proxy/internal/modules/lease"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/metric"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/namespace"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/namespaced"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/node"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/persistentvolume"
-	"github.com/projectcapsule/capsule-proxy/internal/modules/pod"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/priorityclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/runtimeclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/storageclass"
@@ -370,21 +367,14 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	}
 
 	// Get all API group resources
-	if n.gates.Enabled(features.ProxyAllNamespaced) {
-		apis, err := watchdog.API(ctrl.GetConfigOrDie())
-		if err != nil {
-			panic(err)
-		}
+	apis, err := discoverAPI(ctrl.GetConfigOrDie())
+	if err != nil {
+		panic(err)
+	}
 
-		for _, api := range apis {
-			n.log.V(6).Info("adding generic namespaced resource", "url", api.Path())
-			modList = append(modList, namespaced.CatchAll(n.reader, n.writer, api.Path()))
-		}
-	} else {
-		// Register legacy namespaced modules only when featureGate ProxyAllNamespaced is not active.
-		// This is to avoid registering the same resources twice and having different behaviors on these apis.
-		modList = append(modList, pod.Get(n.reader))
-		modList = append(modList, lease.Get(n.reader))
+	for _, api := range apis {
+		n.log.V(6).Info("adding generic namespaced resource", "url", api.Path())
+		modList = append(modList, namespaced.CatchAll(n.reader, n.writer, api.Path()))
 	}
 
 	for _, i := range modList {

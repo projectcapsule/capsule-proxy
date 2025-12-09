@@ -54,7 +54,6 @@ spec:
     imagePullPolicy: {{ .Values.image.pullPolicy }}
     args:
     - --listening-port={{ .Values.options.listeningPort }}
-    - --webhook-port={{ .Values.options.webhookPort }}
     - --capsule-configuration-name={{ .Values.options.capsuleConfigurationName }}
     {{- range .Values.options.ignoredUserGroups }}
     - --ignored-user-group={{ . }}
@@ -73,11 +72,6 @@ spec:
     - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
     - --enable-pprof={{ .Values.options.pprof }}
     - --enable-leader-election={{ .Values.options.leaderElection }}
-    {{- if .Values.webhooks.enabled }}
-      {{- if .Values.webhooks.watchdog.enabled }}
-    - --webhooks=watchdog
-      {{- end }}
-    {{- end }}
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -107,11 +101,6 @@ spec:
     {{- if .Values.options.pprof }}
     - name: pprof
       containerPort: 8082
-      protocol: TCP
-    {{- end }}
-    {{- if .Values.webhooks.enabled }}
-    - name: webhook
-      containerPort: {{ .Values.options.webhookPort }}
       protocol: TCP
     {{- end }}
     {{- if .Values.livenessProbe.enabled }}

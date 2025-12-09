@@ -292,7 +292,7 @@ $(LOCALBIN):
 
 HELM_SCHEMA_VERSION   := ""
 helm-plugin-schema:
-	@$(HELM) plugin install https://github.com/losisin/helm-values-schema-json.git --version $(HELM_SCHEMA_VERSION) || true
+	@$(HELM) plugin install https://github.com/losisin/helm-values-schema-json.git --verify=false --version $(HELM_SCHEMA_VERSION) || true
 
 HELM_DOCS         := $(LOCALBIN)/helm-docs
 HELM_DOCS_VERSION := v1.14.1
@@ -345,7 +345,7 @@ ko:
 	$(call go-install-tool,$(KO),github.com/$(KO_LOOKUP)@$(KO_VERSION))
 
 NWA           := $(LOCALBIN)/nwa
-NWA_VERSION   := v0.7.5
+NWA_VERSION   := v0.7.7
 NWA_LOOKUP    := B1NARY-GR0UP/nwa
 nwa:
 	@test -s $(NWA) && $(NWA) -h | grep -q $(NWA_VERSION) || \

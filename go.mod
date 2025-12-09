@@ -16,6 +16,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/thediveo/enumflag v0.10.1
 	go.uber.org/zap v1.27.1
+<<<<<<< HEAD
 	golang.org/x/net v0.48.0
 	k8s.io/api v0.34.2
 	k8s.io/apiextensions-apiserver v0.34.2
@@ -25,6 +26,17 @@ require (
 	k8s.io/component-base v0.34.2
 	k8s.io/kubectl v0.34.0
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
+=======
+	golang.org/x/net v0.43.0
+	k8s.io/api v0.34.1
+	k8s.io/apiextensions-apiserver v0.34.1
+	k8s.io/apimachinery v0.34.1
+	k8s.io/apiserver v0.34.1
+	k8s.io/client-go v0.34.1
+	k8s.io/component-base v0.34.1
+	k8s.io/kubectl v0.34.0
+	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
+>>>>>>> 75047eb50f227f8b24d8e44caa6b2827c4e13df3
 	sigs.k8s.io/controller-runtime v0.22.4
 )
 

@@ -605,10 +605,6 @@
                 "rolebindingsResyncPeriod": {
                     "description": "Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174)",
                     "type": "string"
-                },
-                "webhookPort": {
-                    "description": "Webhook port",
-                    "type": "integer"
                 }
             }
         },
@@ -936,79 +932,6 @@
                         },
                         "url": {
                             "description": "The URL where the capsule webhook services are running (Overwrites cluster scoped service definition)",
-                            "type": "string"
-                        }
-                    }
-                },
-                "watchdog": {
-                    "type": "object",
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable Watchdog Webhook",
-                            "type": "boolean"
-                        },
-                        "failurePolicy": {
-                            "description": "Ignore failures from the webhook",
-                            "type": "string"
-                        },
-                        "namespaceSelector": {
-                            "description": "Selects only namespaced items which are within a tenant",
-                            "type": "object",
-                            "properties": {
-                                "matchExpressions": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "key": {
-                                                "type": "string"
-                                            },
-                                            "operator": {
-                                                "type": "string"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        "rules": {
-                            "description": "Rules for which Objects and Actions this webhook should be called",
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "apiGroups": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "apiVersions": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "operations": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "resources": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "scope": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        },
-                        "timeoutSeconds": {
-                            "description": "Timeout in seconds for mutating webhooks",
                             "type": "string"
                         }
                     }
