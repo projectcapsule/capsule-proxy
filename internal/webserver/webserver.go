@@ -24,8 +24,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"github.com/projectcapsule/capsule-proxy/internal/authorization"
-	"github.com/projectcapsule/capsule-proxy/internal/utils"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	"golang.org/x/net/http/httpguts"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -43,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
+	"github.com/projectcapsule/capsule-proxy/internal/authorization"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers/watchdog"
 	"github.com/projectcapsule/capsule-proxy/internal/features"
@@ -65,6 +64,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/utils"
 	server "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
 )
@@ -87,6 +87,22 @@ func NewKubeFilter(
 
 	reverseProxy.Transport = reverseProxyTransport
 
+	scheme := runtime.NewScheme()
+	protoEncoder := protobuf.NewSerializer(scheme, scheme)
+
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot add corev1 to scheme")
+	}
+
+	err = authorizationv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot add authorizationv1 to scheme")
+	}
+
+	codecFactory := serializer.NewCodecFactory(scheme)
+	universalDecoder := codecFactory.UniversalDeserializer()
+
 	return &kubeFilter{
 		mgr:                        mgr,
 		gates:                      gates,
@@ -107,6 +123,9 @@ func NewKubeFilter(
 		serverOptions:              srv,
 		log:                        ctrl.Log.WithName("proxy"),
 		roleBindingsReflector:      rbReflector,
+		protoEncoder:               protoEncoder,
+		universalDecoder:           universalDecoder,
+		scheme:                     scheme,
 	}, nil
 }
 
@@ -130,6 +149,9 @@ type kubeFilter struct {
 
 	managerReader, reader client.Reader
 	writer                client.Writer
+	protoEncoder          *protobuf.Serializer
+	universalDecoder      runtime.Decoder
+	scheme                *runtime.Scheme
 }
 
 // NeedLeaderElection starts the proxy (webserver) independently of controller manager
@@ -151,7 +173,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
 	root.Use(
-		n.AuthorizationMiddleware,
+		n.authorizationMiddleware,
 		n.reverseProxyMiddleware,
 		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 		middleware.CheckJWTMiddleware(n.writer),
@@ -272,18 +294,21 @@ func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (n *kubeFilter) AuthorizationMiddleware(next http.Handler) http.Handler {
+func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if !slices.Contains(authorization.Paths, request.URL.Path) {
 			next.ServeHTTP(writer, request)
+
 			return
 		}
 
 		w := httptest.NewRecorder()
 		next.ServeHTTP(w, request)
+
 		body, err := io.ReadAll(w.Result().Body)
 		if err != nil {
 			n.log.Error(err, "cannot read response body")
+
 			return
 		}
 
@@ -294,47 +319,49 @@ func (n *kubeFilter) AuthorizationMiddleware(next http.Handler) http.Handler {
 			server.HandleError(writer, err, "cannot retrieve user and group from the request")
 		}
 
-		proxyTenants, err := n.getTenantsForOwner(context.Background(), username, groups)
+		proxyTenants, err := n.getTenantsForOwner(request.Context(), username, groups)
 		if err != nil {
 			server.HandleError(writer, err, "cannot list Tenant resources")
 		}
 
-		scheme := runtime.NewScheme()
-		protoEncoder := protobuf.NewSerializer(scheme, scheme)
-		corev1.AddToScheme(scheme)
-		authorizationv1.AddToScheme(scheme)
-		codecFactory := serializer.NewCodecFactory(scheme)
-		universalDecoder := codecFactory.UniversalDeserializer()
-
-		obj, gvk, err := universalDecoder.Decode(body, nil, nil)
+		obj, gvk, err := n.universalDecoder.Decode(body, nil, nil)
 		if err != nil {
 			n.log.Error(err, "cannot decode authorization object")
 		}
+
 		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, &obj, *gvk)
 		if err != nil {
 			n.log.Error(err, "cannot mutate authorization object")
 		}
+
 		if request.Header.Get("Content-Type") == "application/json" {
-			body, err = utils.JsonEncode(obj, scheme)
+			body, err = utils.JsonEncode(obj, n.scheme)
 			if err != nil {
 				n.log.Error(err, "cannot marshal Authorization object to json")
 			}
 		} else if request.Header.Get("Content-Type") == "application/vnd.kubernetes.protobuf" {
-			body, err = runtime.Encode(protoEncoder, obj)
+			body, err = runtime.Encode(n.protoEncoder, obj)
 			if err != nil {
 				n.log.Error(err, "cannot marshal Authorization object to protobuf")
 			}
 		}
+
 		for k, v := range w.Result().Header {
 			if k == "Content-Length" {
 				continue
 			}
+
 			for _, sv := range v {
 				writer.Header().Add(k, sv)
 			}
 		}
+
 		writer.WriteHeader(w.Result().StatusCode)
-		writer.Write(body)
+
+		write, err := writer.Write(body)
+		if err != nil {
+			n.log.Error(err, "cannot write mutated authorization object to response", "bytesWritten", write)
+		}
 	})
 }
 
