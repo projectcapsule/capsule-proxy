@@ -61,6 +61,7 @@ spec:
     - --zap-log-level={{ .Values.options.logLevel }}
     - --enable-ssl={{ .Values.options.enableSSL }}
     - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
+    - --enable-reflector={{ .Values.options.roleBindingReflector }}
     - --rolebindings-resync-period={{ .Values.options.rolebindingsResyncPeriod }}
     - --disable-caching={{ .Values.options.disableCaching }}
     - --auth-preferred-types={{ .Values.options.authPreferredTypes }}
