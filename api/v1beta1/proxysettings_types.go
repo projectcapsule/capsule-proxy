@@ -1,20 +1,20 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package v1beta1
 
 import (
-	"github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type OwnerSpec struct {
 	// Kind of tenant owner. Possible values are "User", "Group", and "ServiceAccount"
-	Kind v1beta2.OwnerKind `json:"kind"`
+	Kind capsuleapi.OwnerKind `json:"kind"`
 	// Name of tenant owner.
 	Name string `json:"name"`
 	// Proxy settings for tenant owner.
-	ProxyOperations []v1beta2.ProxySettings `json:"proxySettings,omitempty"`
+	ProxyOperations []capsuleapi.ProxySettings `json:"proxySettings,omitempty"`
 	// Cluster Resources for tenant Owner.
 	ClusterResources []ClusterResource `json:"clusterResources,omitempty"`
 }
@@ -43,7 +43,8 @@ type ProxySetting struct {
 type ProxySettingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ProxySetting `json:"items"`
+
+	Items []ProxySetting `json:"items"`
 }
 
 //nolint:gochecknoinits

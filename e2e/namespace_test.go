@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -21,10 +22,15 @@ var _ = Describe("Namespaces", func() {
 			Labels: e2eLabels(),
 		},
 		Spec: capsulev1beta2.TenantSpec{
-			Owners: capsulev1beta2.OwnerListSpec{
+			Owners: capsuleapi.OwnerListSpec{
 				{
-					Name: "alice",
-					Kind: "User",
+					CoreOwnerSpec: capsuleapi.CoreOwnerSpec{
+						UserSpec: capsuleapi.UserSpec{
+
+							Name: "alice",
+							Kind: "User",
+						},
+					},
 				},
 			},
 		},
@@ -37,14 +43,24 @@ var _ = Describe("Namespaces", func() {
 			Labels: e2eLabels(),
 		},
 		Spec: capsulev1beta2.TenantSpec{
-			Owners: capsulev1beta2.OwnerListSpec{
+			Owners: capsuleapi.OwnerListSpec{
 				{
-					Name: "bob",
-					Kind: "User",
+					CoreOwnerSpec: capsuleapi.CoreOwnerSpec{
+						UserSpec: capsuleapi.UserSpec{
+
+							Name: "alice",
+							Kind: "User",
+						},
+					},
 				},
 				{
-					Name: "alice",
-					Kind: "User",
+					CoreOwnerSpec: capsuleapi.CoreOwnerSpec{
+						UserSpec: capsuleapi.UserSpec{
+
+							Name: "bob",
+							Kind: "User",
+						},
+					},
 				},
 			},
 		},

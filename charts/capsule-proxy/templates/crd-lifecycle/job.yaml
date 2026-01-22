@@ -7,24 +7,40 @@ metadata:
   annotations:
     "helm.sh/hook-weight": "-1"
     {{- include "capsule-proxy.crds.annotations" . | nindent 4 }}
+    {{- with .Values.global.jobs.kubectl.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   labels:
     app.kubernetes.io/component: {{ include "capsule-proxy.crds.component" . | quote }}
     {{- include "capsule-proxy.labels" . | nindent 4 }}
+    {{- with .Values.global.jobs.kubectl.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
-  {{- if ge .Values.global.jobs.kubectl.ttlSecondsAfterFinished 0.0 }}
   ttlSecondsAfterFinished: {{ .Values.global.jobs.kubectl.ttlSecondsAfterFinished }}
-  {{- end }}
   template:
     metadata:
       name: "{{ include "capsule-proxy.crds.name" . }}"
+      annotations:
+        {{- with .Values.global.jobs.kubectl.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         app.kubernetes.io/component: {{ include "capsule-proxy.crds.component" . | quote }}
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
+        {{- with .Values.global.jobs.kubectl.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       restartPolicy: {{ $.Values.global.jobs.kubectl.restartPolicy }}
-      {{- with $.Values.global.jobs.kubectl.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
+      {{- if $.Values.global.jobs.kubectl.podSecurityContext.enabled }}
+      securityContext: {{- omit $.Values.global.jobs.kubectl.podSecurityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
       {{- with .Values.global.jobs.kubectl.nodeSelector }}
       nodeSelector:
@@ -54,9 +70,8 @@ spec:
       - name: crds-hook
         image: {{ include "capsule-proxy.kubectlFullyQualifiedDockerImage" . }}
         imagePullPolicy: {{ .Values.global.jobs.kubectl.image.pullPolicy }}
-        {{- with $.Values.global.jobs.kubectl.securityContext }}
-        securityContext:
-          {{- toYaml . | nindent 10 }}
+        {{- if .Values.global.jobs.kubectl.securityContext.enabled }}
+        securityContext: {{- omit .Values.global.jobs.kubectl.securityContext "enabled" | toYaml | nindent 10 }}
         {{- end }}
         command:
         - sh

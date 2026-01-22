@@ -1,16 +1,19 @@
+// Copyright 2020-2025 Project Capsule Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package namespaced
 
 import (
 	"fmt"
 	"strings"
 
+	capsulelabels "github.com/projectcapsule/capsule/pkg/api/meta"
 	v1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	capsulelabels "github.com/projectcapsule/capsule-proxy/internal/labels"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"

@@ -33,7 +33,5 @@ annotations:
     - name: Documentation
       url: https://projectcapsule.dev/
   artifacthub.io/changes: |
-    - kind: changed
-      description: cert-job image from docker.io/jettech/kube-webhook-certgen to registry.k8s.io/ingress-nginx/kube-webhook-certgen (.Values.global.jobs.certs.image)
     - kind: added
-      description: Webhook values
+      description: added toggles for podSecurityContexts and securityContexts

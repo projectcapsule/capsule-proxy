@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package middleware
@@ -43,7 +43,7 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			_, groups, err := req.NewHTTP(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview).GetUserAndGroups()
+			user, groups, err := req.NewHTTP(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview).GetUserAndGroups()
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
 			}
@@ -56,6 +56,12 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 
 					return
 				}
+			}
+
+			if controllers.CapsuleUsers.Has(user) {
+				next.ServeHTTP(writer, request)
+
+				return
 			}
 
 			log.V(5).Info("current user is not a Capsule one", "capsule-groups", controllers.CapsuleUserGroups)

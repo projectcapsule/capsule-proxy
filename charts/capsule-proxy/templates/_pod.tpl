@@ -21,8 +21,9 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   serviceAccountName: {{ include "capsule-proxy.serviceAccountName" . }}
-  securityContext:
-    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  {{- if .Values.podSecurityContext.enabled }}
+  securityContext: {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 4 }}
+  {{- end }}
   priorityClassName: {{ .Values.priorityClassName }}
   volumes:
   {{- with .Values.volumes }}
@@ -46,13 +47,13 @@ spec:
   {{- end }}
   containers:
   - name: {{ .Chart.Name }}
-    securityContext:
-      {{- toYaml .Values.securityContext | nindent 6 }}
+    {{- if .Values.securityContext.enabled }}
+    securityContext: {{- omit .Values.securityContext "enabled" | toYaml | nindent 6 }}
+    {{- end }}
     image: {{ include "capsule-proxy.fullyQualifiedDockerImage" . }}
     imagePullPolicy: {{ .Values.image.pullPolicy }}
     args:
     - --listening-port={{ .Values.options.listeningPort }}
-    - --webhook-port={{ .Values.options.webhookPort }}
     - --capsule-configuration-name={{ .Values.options.capsuleConfigurationName }}
     {{- range .Values.options.ignoredUserGroups }}
     - --ignored-user-group={{ . }}
@@ -60,6 +61,7 @@ spec:
     - --zap-log-level={{ .Values.options.logLevel }}
     - --enable-ssl={{ .Values.options.enableSSL }}
     - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}
+    - --enable-reflector={{ .Values.options.roleBindingReflector }}
     - --rolebindings-resync-period={{ .Values.options.rolebindingsResyncPeriod }}
     - --disable-caching={{ .Values.options.disableCaching }}
     - --auth-preferred-types={{ .Values.options.authPreferredTypes }}
@@ -70,16 +72,16 @@ spec:
     - --client-connection-qps={{ .Values.options.clientConnectionQPS }}
     - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
     - --enable-pprof={{ .Values.options.pprof }}
-    {{- if .Values.webhooks.enabled }}
-      {{- if .Values.webhooks.watchdog.enabled }}
-    - --webhooks=watchdog
-      {{- end }}
-    {{- end }}
+    - --enable-leader-election={{ .Values.options.leaderElection }}
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+    env:
+    - name: NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
     {{- with .Values.env }}
-    env: 
       {{- toYaml . | nindent 4 }}
     {{- end }}
     ports:
@@ -100,11 +102,6 @@ spec:
     {{- if .Values.options.pprof }}
     - name: pprof
       containerPort: 8082
-      protocol: TCP
-    {{- end }}
-    {{- if .Values.webhooks.enabled }}
-    - name: webhook
-      containerPort: {{ .Values.options.webhookPort }}
       protocol: TCP
     {{- end }}
     {{- if .Values.livenessProbe.enabled }}

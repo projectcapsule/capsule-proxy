@@ -35,7 +35,9 @@ spec:
     protocol: TCP
     targetPort: {{ .Values.options.listeningPort }}
     {{ if (and (eq .Values.service.type "NodePort") (not (empty .Values.service.nodePort))) }}
+      {{- if .Values.service.nodePort }}
     nodePort: {{.Values.service.nodePort}}
+      {{- end }}
     {{ end }}
   selector:
     {{- include "capsule-proxy.selectorLabels" . | nindent 4 }}

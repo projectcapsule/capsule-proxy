@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -24,17 +24,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
-	"github.com/projectcapsule/capsule-proxy/internal/controllers/watchdog"
 	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
-	"github.com/projectcapsule/capsule-proxy/internal/webhooks"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver"
 )
 
@@ -46,7 +44,7 @@ const (
 	WebhookLabler
 )
 
-//nolint:funlen,gocyclo,cyclop,maintidx
+//nolint:funlen,cyclop,maintidx
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
@@ -58,17 +56,17 @@ func main() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
 	var (
-		err                                                                                        error
-		mgr                                                                                        ctrl.Manager
-		certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp string
-		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups                            []string
-		listeningPort                                                                              uint
-		bindSsl, disableCaching, enablePprof                                                       bool
-		rolebindingsResyncPeriod                                                                   time.Duration
-		clientConnectionQPS                                                                        float32
-		clientConnectionBurst                                                                      int32
-		webhookPort                                                                                int
-		hooks                                                                                      []WebhookType
+		err                                                                                                                error
+		mgr                                                                                                                ctrl.Manager
+		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr string
+		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups                                                    []string
+		listeningPort                                                                                                      uint
+		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                   bool
+		rolebindingsResyncPeriod                                                                                           time.Duration
+		clientConnectionQPS                                                                                                float32
+		clientConnectionBurst                                                                                              int32
+		webhookPort                                                                                                        int
+		hooks                                                                                                              []WebhookType
 	)
 
 	gates := featuregate.NewFeatureGate()
@@ -101,12 +99,11 @@ func main() {
 		request.TLSCertificate: {request.TLSCertificate.String()},
 	}
 
-	WebhookTypeStrings := map[WebhookType][]string{
-		WebhookWatchdog: {"Watchdog"},
-		WebhookLabler:   {"Labler"},
-	}
-
 	flag.IntVar(&webhookPort, "webhook-port", 9443, "The port the webhook server binds to.")
+	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
 	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
 	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
@@ -114,6 +111,7 @@ func main() {
 	flag.StringVar(&impersonationGroupsRegexp, "impersonation-group-regexp", "", "Regular expression to match the groups which are considered for impersonation")
 	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
 	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
+	flag.BoolVar(&roleBindingReflector, "enable-reflector", false, "Enable rolebinding reflector. The reflector allows to list the namespaces, where a rolebinding mentions a user")
 	flag.BoolVar(&enablePprof, "enable-pprof", false, "Enables Pprof endpoint for profiling (not recommend in production)")
 	flag.BoolVar(&bindSsl, "enable-ssl", true, "Enable the bind on HTTPS for secure communication (default: true)")
 	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
@@ -125,11 +123,6 @@ First match is used and can be specified multiple times as comma separated value
 	flag.BoolVar(&disableCaching, "disable-caching", false, "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)")
 	flag.Float32Var(&clientConnectionQPS, "client-connection-qps", 20.0, "QPS to use for interacting with kubernetes apiserver.")
 	flag.Int32Var(&clientConnectionBurst, "client-connection-burst", 30, "Burst to use for interacting with kubernetes apiserver.")
-	flag.Var(
-		enumflag.NewSlice(&hooks, "string", WebhookTypeStrings, enumflag.EnumCaseInsensitive),
-		"webhooks",
-		"Comma-separated list of webhooks to enable. Available options: Watchdog, Labler",
-	)
 	gates.AddFlag(flag.CommandLine)
 
 	opts := zap.Options{
@@ -150,6 +143,11 @@ First match is used and can be specified multiple times as comma separated value
 
 	for feat := range gates.GetAll() {
 		log.Info("feature gate status", "name", feat, "enabled", gates.Enabled(feat))
+	}
+
+	if namespace = os.Getenv("NAMESPACE"); len(namespace) == 0 {
+		log.Error(fmt.Errorf("unable to determinate the Namespace Proxy is running on"), "unable to start manager")
+		os.Exit(1)
 	}
 
 	log.Info("---")
@@ -198,8 +196,14 @@ First match is used and can be specified multiple times as comma separated value
 
 	// Base Config
 	ctrlConfig := ctrl.Options{
-		Scheme:                 scheme,
-		HealthProbeBindAddress: ":8081",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
+		HealthProbeBindAddress:  ":8081",
+		LeaderElection:          false,
+		LeaderElectionNamespace: namespace,
+		LeaderElectionID:        "42dadw1.proxy.projectcapsule.dev",
 	}
 
 	if len(hooks) > 0 {
@@ -221,7 +225,7 @@ First match is used and can be specified multiple times as comma separated value
 
 	var rbReflector *controllers.RoleBindingReflector
 
-	if !disableCaching {
+	if !disableCaching && roleBindingReflector {
 		log.Info("Creating the Rolebindings reflector")
 
 		if rbReflector, err = controllers.NewRoleBindingReflector(config, rolebindingsResyncPeriod); err != nil {
@@ -236,7 +240,7 @@ First match is used and can be specified multiple times as comma separated value
 			os.Exit(1)
 		}
 	} else {
-		log.Info("Cache is disabled, cannot create Rolebindings reflector")
+		log.Info("Rolebinding reflector disabled")
 	}
 
 	ctx := ctrl.SetupSignalHandler()
@@ -259,8 +263,6 @@ First match is used and can be specified multiple times as comma separated value
 			os.Exit(1)
 		}
 	}
-
-	var r webserver.Filter
 
 	log.Info("Creating the NamespaceFilter runner")
 
@@ -286,13 +288,22 @@ First match is used and can be specified multiple times as comma separated value
 		clientOverride = mgr.GetClient()
 	}
 
-	r, err = webserver.NewKubeFilter(listenerOpts, serverOpts, gates, rbReflector, clientOverride, mgr.GetClient())
+	r, err := webserver.NewKubeFilter(
+		listenerOpts,
+		serverOpts,
+		gates,
+		rbReflector,
+		clientOverride,
+		mgr)
 	if err != nil {
 		log.Error(err, "cannot create NamespaceFilter runner")
 		os.Exit(1)
 	}
 
-	log.Info("Adding the NamespaceFilter runner to the Manager")
+	if err = mgr.Add(r); err != nil {
+		log.Error(err, "cannot add NameSpaceFilter as Runnable")
+		os.Exit(1)
+	}
 
 	if err = (&controllers.CapsuleConfiguration{
 		Client:                      mgr.GetClient(),
@@ -300,31 +311,6 @@ First match is used and can be specified multiple times as comma separated value
 		DeprecatedCapsuleUserGroups: capsuleUserGroups,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
-		os.Exit(1)
-	}
-
-	if gates.Enabled(features.ProxyAllNamespaced) {
-		if err = (&watchdog.CRDWatcher{Client: mgr.GetClient()}).SetupWithManager(ctx, mgr); err != nil {
-			log.Error(err, "cannot start watchdog.CRDWatcher controller for features.ProxyAllNamespaced")
-			os.Exit(1)
-		}
-	}
-
-	// Webhook Reconciler
-	if len(hooks) > 0 {
-		if containsWebhook(WebhookWatchdog, hooks) {
-			mgr.GetWebhookServer().Register("/mutate/watchdog", &admission.Webhook{
-				Handler: &webhooks.WatchdogWebhook{
-					Decoder: admission.NewDecoder(mgr.GetScheme()),
-					Client:  mgr.GetClient(),
-					Log:     logger.WithName("Webhooks.Watchdog"),
-				},
-			})
-		}
-	}
-
-	if err = mgr.Add(r); err != nil {
-		log.Error(err, "cannot add NameSpaceFilter as Runnable")
 		os.Exit(1)
 	}
 
@@ -344,14 +330,4 @@ First match is used and can be specified multiple times as comma separated value
 		log.Error(err, "cannot start the Manager")
 		os.Exit(1)
 	}
-}
-
-func containsWebhook(target WebhookType, enabledWebhooks []WebhookType) bool {
-	for _, webhook := range enabledWebhooks {
-		if webhook == target {
-			return true
-		}
-	}
-
-	return false
 }

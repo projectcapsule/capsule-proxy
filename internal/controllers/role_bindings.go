@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package controllers
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -54,12 +54,12 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 
 	namespaces := sets.NewString()
 
-	userOwnerKind := capsulev1beta2.UserOwner
+	userOwnerKind := capsuleapi.UserOwner
 
 	var userRoleBindings []interface{}
 
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
-		userOwnerKind = capsulev1beta2.ServiceAccountOwner
+		userOwnerKind = capsuleapi.ServiceAccountOwner
 
 		namespace, name, splitErr := serviceaccount.SplitUsername(username)
 		if splitErr != nil {
@@ -84,7 +84,7 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 	}
 
 	for _, group := range groups {
-		groupRoleBindings, err := r.store.ByIndex(subjectIndex, fmt.Sprintf("%s-%s", capsulev1beta2.GroupOwner, group))
+		groupRoleBindings, err := r.store.ByIndex(subjectIndex, fmt.Sprintf("%s-%s", capsuleapi.GroupOwner, group))
 		if err != nil {
 			return nil, errors.Wrap(err, "Unable to find rolebindings in index for groups")
 		}

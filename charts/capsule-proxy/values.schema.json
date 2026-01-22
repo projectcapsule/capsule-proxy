@@ -1,645 +1,942 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
     "properties": {
         "affinity": {
-            "properties": {
-                "nodeAffinity": {
-                    "properties": {
-                        "preferredDuringSchedulingIgnoredDuringExecution": {
-                            "items": {
-                                "properties": {
-                                    "preference": {
-                                        "properties": {
-                                            "matchExpressions": {
-                                                "items": {
-                                                    "properties": {
-                                                        "key": {
-                                                            "type": "string"
-                                                        },
-                                                        "operator": {
-                                                            "type": "string"
-                                                        },
-                                                        "values": {
-                                                            "items": {
-                                                                "type": "string"
-                                                            },
-                                                            "type": "array"
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "weight": {
-                                        "type": "integer"
-                                    }
-                                },
-                                "type": "object"
-                            },
-                            "type": "array"
-                        }
-                    },
-                    "type": "object"
-                }
-            },
+            "description": "Set affinity rules for the capsule-proxy pod.",
             "type": "object"
         },
         "autoscaling": {
+            "type": "object",
             "properties": {
                 "annotations": {
-                    "properties": {
-                        "example": {
-                            "type": "string"
-                        }
-                    },
+                    "description": "Annotations to add to the hpa.",
                     "type": "object"
                 },
                 "behavior": {
-                    "properties": {
-                        "scaleDown": {
-                            "properties": {
-                                "policies": {
-                                    "items": {
-                                        "properties": {
-                                            "periodSeconds": {
-                                                "type": "integer"
-                                            },
-                                            "type": {
-                                                "type": "string"
-                                            },
-                                            "value": {
-                                                "type": "integer"
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "type": "array"
-                                }
-                            },
-                            "type": "object"
-                        }
-                    },
+                    "description": "HPA [behavior](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)",
                     "type": "object"
                 },
                 "enabled": {
+                    "description": "Specifies whether an hpa for capsule-proxy should be created.",
                     "type": "boolean"
                 },
                 "labels": {
-                    "properties": {
-                        "example": {
-                            "type": "string"
-                        }
-                    },
+                    "description": "Labels to add to the hpa.",
                     "type": "object"
                 },
                 "maxReplicas": {
+                    "description": "Set the maxReplicas for capsule-proxy hpa.",
                     "type": "integer"
                 },
                 "metrics": {
-                    "items": {
-                        "properties": {
-                            "pods": {
-                                "properties": {
-                                    "metric": {
-                                        "properties": {
-                                            "name": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "target": {
-                                        "properties": {
-                                            "averageValue": {
-                                                "type": "string"
-                                            },
-                                            "type": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "type": "object"
-                                    }
-                                },
-                                "type": "object"
-                            },
-                            "type": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
+                    "description": "Custom [metrics-objects](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/#autoscaling-on-multiple-metrics-and-custom-metrics) for capsule-proxy hpa",
                     "type": "array"
                 },
                 "minReplicas": {
+                    "description": "Set the minReplicas for capsule-proxy hpa.",
                     "type": "integer"
                 },
                 "targetCPUUtilizationPercentage": {
+                    "description": "Set the targetCPUUtilizationPercentage for capsule-proxy hpa.",
+                    "type": "integer"
+                },
+                "targetMemoryUtilizationPercentage": {
+                    "description": "Set the targetMemoryUtilizationPercentage for capsule-proxy hpa.",
                     "type": "integer"
                 }
-            },
-            "type": "object"
+            }
         },
         "certManager": {
+            "type": "object",
             "properties": {
                 "certificate": {
+                    "type": "object",
                     "properties": {
                         "dnsNames": {
-                            "items": {
-                                "type": "string"
-                            },
+                            "description": "Additional DNS Names to include in certificate",
                             "type": "array"
                         },
                         "fields": {
+                            "description": "Additional fields to include in certificate",
+                            "type": "object",
                             "properties": {
                                 "privateKey": {
+                                    "type": "object",
                                     "properties": {
                                         "rotationPolicy": {
                                             "type": "string"
                                         }
-                                    },
-                                    "type": "object"
-                                },
-                                "renewBefore": {
-                                    "type": "string"
+                                    }
                                 }
-                            },
-                            "type": "object"
+                            }
+                        },
+                        "includeInternalServiceNames": {
+                            "description": "Include internal service names in certificate (disable if you create a public cert)",
+                            "type": "boolean"
                         },
                         "ipAddresses": {
-                            "items": {
-                                "type": "string"
-                            },
+                            "description": "Additional IP Addresses to include in certificate",
                             "type": "array"
                         },
                         "uris": {
-                            "items": {
-                                "type": "string"
-                            },
+                            "description": "Additional URIs to include in certificate",
                             "type": "array"
                         }
-                    },
-                    "type": "object"
+                    }
                 },
                 "externalCA": {
+                    "type": "object",
                     "properties": {
                         "enabled": {
+                            "description": "Set if want cert manager to sign certificates with an external CA",
                             "type": "boolean"
                         },
                         "secretName": {
                             "type": "string"
                         }
-                    },
-                    "type": "object"
+                    }
                 },
                 "generateCertificates": {
+                    "description": "Set if the cert manager will generate SSL certificates (self-signed or CA-signed)",
                     "type": "boolean"
                 },
                 "issuer": {
+                    "type": "object",
                     "properties": {
                         "kind": {
+                            "description": "Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer",
                             "type": "string"
                         },
                         "name": {
+                            "description": "Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates",
                             "type": "string"
                         }
-                    },
-                    "type": "object"
+                    }
                 }
-            },
-            "type": "object"
+            }
         },
         "crds": {
+            "type": "object",
             "properties": {
+                "annnotations": {
+                    "description": "Extra Annotations for CRDs",
+                    "type": "object"
+                },
                 "install": {
+                    "description": "Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations)",
                     "type": "boolean"
                 },
                 "keep": {
+                    "description": "Keep the CustomResourceDefinitions (when the chart is deleted)",
                     "type": "boolean"
+                },
+                "labels": {
+                    "description": "Extra Labels for CRDs",
+                    "type": "object"
                 }
-            },
-            "type": "object"
+            }
         },
         "daemonset": {
+            "type": "object",
             "properties": {
                 "hostNetwork": {
+                    "description": "Use the host network namespace for capsule-proxy pod.",
                     "type": "boolean"
                 },
                 "hostPort": {
+                    "description": "Binding the capsule-proxy listening port to the host port.",
                     "type": "boolean"
                 }
-            },
-            "type": "object"
+            }
+        },
+        "env": {
+            "description": "Additional environment variables",
+            "type": "array"
         },
         "global": {
+            "type": "object",
             "properties": {
                 "jobs": {
+                    "type": "object",
                     "properties": {
                         "certs": {
+                            "type": "object",
                             "properties": {
-                                "resources": {
+                                "affinity": {
+                                    "description": "Set affinity rules",
+                                    "type": "object"
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the certgen job.",
+                                    "type": "object"
+                                },
+                                "image": {
+                                    "type": "object",
                                     "properties": {
-                                        "limits": {
+                                        "pullPolicy": {
+                                            "description": "Set the image pull policy of the post install certgen job",
+                                            "type": "string"
+                                        },
+                                        "registry": {
+                                            "description": "Set the image repository of the post install certgen job",
+                                            "type": "string"
+                                        },
+                                        "repository": {
+                                            "description": "Set the image repository of the post install certgen job",
+                                            "type": "string"
+                                        },
+                                        "tag": {
+                                            "description": "Set the image tag of the post install certgen job",
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "nodeSelector": {
+                                    "description": "Set the node selector",
+                                    "type": "object"
+                                },
+                                "podSecurityContext": {
+                                    "description": "Security context for the job pods.",
+                                    "type": "object",
+                                    "properties": {
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "seccompProfile": {
+                                            "type": "object",
                                             "properties": {
-                                                "cpu": {
-                                                    "type": "number"
-                                                },
-                                                "memory": {
+                                                "type": {
                                                     "type": "string"
                                                 }
-                                            },
-                                            "type": "object"
+                                            }
                                         }
-                                    },
+                                    }
+                                },
+                                "priorityClassName": {
+                                    "description": "Set a pod priorityClassName",
+                                    "type": "string"
+                                },
+                                "resources": {
+                                    "description": "Job resources",
                                     "type": "object"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "kubectl": {
-                            "properties": {
+                                },
+                                "restartPolicy": {
+                                    "description": "Set the restartPolicy",
+                                    "type": "string"
+                                },
+                                "securityContext": {
+                                    "description": "Security context for the job containers.",
+                                    "type": "object",
+                                    "properties": {
+                                        "allowPrivilegeEscalation": {
+                                            "type": "boolean"
+                                        },
+                                        "capabilities": {
+                                            "type": "object",
+                                            "properties": {
+                                                "drop": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "readOnlyRootFilesystem": {
+                                            "type": "boolean"
+                                        },
+                                        "runAsGroup": {
+                                            "type": "integer"
+                                        },
+                                        "runAsNonRoot": {
+                                            "type": "boolean"
+                                        },
+                                        "runAsUser": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "tolerations": {
+                                    "description": "Set list of tolerations",
+                                    "type": "array"
+                                },
+                                "topologySpreadConstraints": {
+                                    "description": "Set Topology Spread Constraints",
+                                    "type": "array"
+                                },
                                 "ttlSecondsAfterFinished": {
+                                    "description": "Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.",
                                     "type": "integer"
                                 }
-                            },
-                            "type": "object"
+                            }
+                        },
+                        "kubectl": {
+                            "type": "object",
+                            "properties": {
+                                "affinity": {
+                                    "description": "Set affinity rules",
+                                    "type": "object"
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the job.",
+                                    "type": "object"
+                                },
+                                "image": {
+                                    "type": "object",
+                                    "properties": {
+                                        "pullPolicy": {
+                                            "description": "Set the image pull policy of the helm chart job",
+                                            "type": "string"
+                                        },
+                                        "registry": {
+                                            "description": "Set the image repository of the helm chart job",
+                                            "type": "string"
+                                        },
+                                        "repository": {
+                                            "description": "Set the image repository of the helm chart job",
+                                            "type": "string"
+                                        },
+                                        "tag": {
+                                            "description": "Set the image tag of the helm chart job",
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "labels": {
+                                    "description": "Labels to add to the job.",
+                                    "type": "object"
+                                },
+                                "nodeSelector": {
+                                    "description": "Set the node selector",
+                                    "type": "object"
+                                },
+                                "podAnnotations": {
+                                    "description": "Annotations to add to the job pod",
+                                    "type": "object"
+                                },
+                                "podLabels": {
+                                    "description": "Labels to add to the job pod",
+                                    "type": "object"
+                                },
+                                "podSecurityContext": {
+                                    "description": "Security context for the job pods.",
+                                    "type": "object",
+                                    "properties": {
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "seccompProfile": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "priorityClassName": {
+                                    "description": "Set a pod priorityClassName",
+                                    "type": "string"
+                                },
+                                "resources": {
+                                    "description": "Job resources",
+                                    "type": "object"
+                                },
+                                "restartPolicy": {
+                                    "description": "Set the restartPolicy",
+                                    "type": "string"
+                                },
+                                "securityContext": {
+                                    "description": "Security context for the job containers.",
+                                    "type": "object",
+                                    "properties": {
+                                        "allowPrivilegeEscalation": {
+                                            "type": "boolean"
+                                        },
+                                        "capabilities": {
+                                            "type": "object",
+                                            "properties": {
+                                                "drop": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "enabled": {
+                                            "type": "boolean"
+                                        },
+                                        "readOnlyRootFilesystem": {
+                                            "type": "boolean"
+                                        },
+                                        "runAsGroup": {
+                                            "type": "integer"
+                                        },
+                                        "runAsNonRoot": {
+                                            "type": "boolean"
+                                        },
+                                        "runAsUser": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "tolerations": {
+                                    "description": "Set list of tolerations",
+                                    "type": "array"
+                                },
+                                "topologySpreadConstraints": {
+                                    "description": "Set Topology Spread Constraints",
+                                    "type": "array"
+                                },
+                                "ttlSecondsAfterFinished": {
+                                    "description": "Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.",
+                                    "type": "integer"
+                                }
+                            }
                         }
-                    },
-                    "type": "object"
+                    }
                 }
-            },
-            "type": "object"
+            }
+        },
+        "hostNetwork": {
+            "description": "When deployed as DaemonSet use",
+            "type": "boolean"
+        },
+        "image": {
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "description": "Set the image pull policy.",
+                    "type": "string"
+                },
+                "registry": {
+                    "description": "Set the image registry for capsule-proxy",
+                    "type": "string"
+                },
+                "repository": {
+                    "description": "Set the image repository for capsule-proxy.",
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": "string"
+                }
+            }
         },
         "imagePullSecrets": {
+            "description": "Configuration for `imagePullSecrets` so that you can use a private images registry.",
             "type": "array"
         },
         "ingress": {
+            "type": "object",
             "properties": {
                 "annotations": {
-                    "properties": {
-                        "example": {
-                            "type": "string"
-                        }
-                    },
+                    "description": "Annotations to add to the ingress.",
                     "type": "object"
                 },
+                "className": {
+                    "description": "Set the IngressClass to use for the capsule-proxy ingress (do not set via annotations if setting here).",
+                    "type": "string"
+                },
                 "enabled": {
+                    "description": "Specifies whether an ingress should be created.",
                     "type": "boolean"
                 },
                 "hosts": {
+                    "type": "array",
                     "items": {
+                        "type": "object",
                         "properties": {
                             "host": {
                                 "type": "string"
                             },
                             "paths": {
+                                "description": "Set the path configuration for the capsule-proxy ingress.",
+                                "type": "array",
                                 "items": {
                                     "type": "string"
-                                },
-                                "type": "array"
+                                }
                             }
-                        },
-                        "type": "object"
-                    },
-                    "type": "array"
-                },
-                "ingressClassName": {
-                    "type": "string"
+                        }
+                    }
                 },
                 "labels": {
-                    "properties": {
-                        "example": {
-                            "type": "string"
-                        }
-                    },
+                    "description": "Labels to add to the ingress.",
                     "type": "object"
                 },
                 "tls": {
-                    "items": {
-                        "properties": {
-                            "hosts": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "secretName": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
+                    "description": "Set the tls configuration for the capsule-proxy ingress.",
                     "type": "array"
                 }
-            },
-            "type": "object"
+            }
         },
         "jobs": {
+            "description": "Deprecated: Use `global.jobs.certs` instead",
+            "type": "object",
             "properties": {
-                "affinity": {
-                    "properties": {
-                        "nodeAffinity": {
-                            "properties": {
-                                "preferredDuringSchedulingIgnoredDuringExecution": {
-                                    "items": {
-                                        "properties": {
-                                            "preference": {
-                                                "properties": {
-                                                    "matchExpressions": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "key": {
-                                                                    "type": "string"
-                                                                },
-                                                                "operator": {
-                                                                    "type": "string"
-                                                                },
-                                                                "values": {
-                                                                    "items": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "type": "array"
-                                                                }
-                                                            },
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            },
-                                            "weight": {
-                                                "type": "integer"
-                                            }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "type": "array"
-                                }
-                            },
-                            "type": "object"
-                        }
-                    },
+                "certs": {
                     "type": "object"
-                },
-                "nodeSelector": {
-                    "properties": {
-                        "node-role.kubernetes.io/master": {
-                            "type": "string"
-                        }
-                    },
-                    "type": "object"
-                },
-                "priorityClassName": {
-                    "type": "string"
-                },
-                "resources": {
-                    "properties": {
-                        "requests": {
-                            "properties": {
-                                "cpu": {
-                                    "type": "number"
-                                },
-                                "memory": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        }
-                    },
-                    "type": "object"
-                },
-                "tolerations": {
-                    "items": {
-                        "properties": {
-                            "effect": {
-                                "type": "string"
-                            },
-                            "key": {
-                                "type": "string"
-                            },
-                            "operator": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "type": "array"
-                },
-                "topologySpreadConstraints": {
-                    "items": {
-                        "properties": {
-                            "labelSelector": {
-                                "properties": {
-                                    "matchLabels": {
-                                        "properties": {
-                                            "app.kubernetes.io/name": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "type": "object"
-                                    }
-                                },
-                                "type": "object"
-                            },
-                            "maxSkew": {
-                                "type": "integer"
-                            },
-                            "topologyKey": {
-                                "type": "string"
-                            },
-                            "whenUnsatisfiable": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "type": "array"
                 }
-            },
-            "type": "object"
+            }
         },
         "kind": {
+            "description": "Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.",
             "type": "string"
         },
-        "nodeSelector": {
+        "livenessProbe": {
+            "description": "Proxy Liveness-Probe",
+            "type": "object",
             "properties": {
-                "node-role.kubernetes.io/master": {
-                    "type": "string"
+                "enabled": {
+                    "type": "boolean"
+                },
+                "httpGet": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string"
+                        },
+                        "port": {
+                            "type": "string"
+                        },
+                        "scheme": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "initialDelaySeconds": {
+                    "type": "integer"
                 }
-            },
+            }
+        },
+        "nodeSelector": {
+            "description": "Set the node selector for the capsule-proxy pod.",
             "type": "object"
         },
         "options": {
+            "type": "object",
             "properties": {
-                "enableSSL": {
+                "SSLCertFileName": {
+                    "description": "Set the name of SSL certificate file",
+                    "type": "string"
+                },
+                "SSLDirectory": {
+                    "description": "Set the directory, where SSL certificate and keyfile will be located",
+                    "type": "string"
+                },
+                "SSLKeyFileName": {
+                    "description": "Set the name of SSL key file",
+                    "type": "string"
+                },
+                "additionalSANs": {
+                    "description": "Specify additional subject alternative names for the self-signed SSL",
+                    "type": "array"
+                },
+                "authPreferredTypes": {
+                    "description": "Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]",
+                    "type": "string"
+                },
+                "capsuleConfigurationName": {
+                    "description": "Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups",
+                    "type": "string"
+                },
+                "certificateVolumeName": {
+                    "description": "Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate.",
+                    "type": "string"
+                },
+                "clientConnectionBurst": {
+                    "description": "Burst to use for interacting with kubernetes API Server.",
+                    "type": "integer"
+                },
+                "clientConnectionQPS": {
+                    "description": "QPS to use for interacting with Kubernetes API Server.",
+                    "type": "integer"
+                },
+                "disableCaching": {
+                    "description": "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector.",
                     "type": "boolean"
+                },
+                "enableSSL": {
+                    "description": "Specify if capsule-proxy will use SSL",
+                    "type": "boolean"
+                },
+                "extraArgs": {
+                    "description": "A list of extra arguments to add to the capsule-proxy.",
+                    "type": "array"
                 },
                 "generateCertificates": {
+                    "description": "Specify if capsule-proxy will generate self-signed SSL certificates",
                     "type": "boolean"
-                }
-            },
-            "type": "object"
-        },
-        "podAnnotations": {
-            "properties": {
-                "extra": {
+                },
+                "ignoredUserGroups": {
+                    "description": "Define which groups must be ignored while proxying requests",
+                    "type": "array"
+                },
+                "leaderElection": {
+                    "description": "Set leader election to true if you are running n-replicas",
+                    "type": "boolean"
+                },
+                "listeningPort": {
+                    "description": "Set the listening port of the capsule-proxy",
+                    "type": "integer"
+                },
+                "logLevel": {
+                    "description": "Set the log verbosity of the capsule-proxy with a value from 1 to 10",
+                    "type": "integer"
+                },
+                "oidcUsernameClaim": {
+                    "description": "Specify if capsule-proxy will use SSL",
                     "type": "string"
                 },
-                "scheduler.alpha.kubernetes.io/critical-pod": {
+                "pprof": {
+                    "description": "Enable Pprof for profiling",
+                    "type": "boolean"
+                },
+                "roleBindingReflector": {
+                    "description": "Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.",
+                    "type": "boolean"
+                },
+                "rolebindingsResyncPeriod": {
+                    "description": "Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174)",
                     "type": "string"
                 }
-            },
+            }
+        },
+        "podAnnotations": {
+            "description": "Annotations to add to the capsule-proxy pod.",
             "type": "object"
         },
         "podLabels": {
-            "properties": {
-                "extra": {
-                    "type": "string"
-                }
-            },
+            "description": "Labels to add to the capsule-proxy pod.",
             "type": "object"
         },
+        "podSecurityContext": {
+            "description": "Security context for the capsule-proxy pod.",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "seccompProfile": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "priorityClassName": {
+            "description": "Specifies PriorityClass of the capsule-proxy pod.",
             "type": "string"
         },
         "rbac": {
+            "type": "object",
             "properties": {
-                "annotations": {
-                    "properties": {
-                        "extra": {
-                            "type": "string"
-                        }
-                    },
-                    "type": "object"
+                "clusterRole": {
+                    "description": "Controller ClusterRole",
+                    "type": "string"
                 },
-                "labels": {
+                "enabled": {
+                    "description": "Enable Creation of ClusterRoles",
+                    "type": "boolean"
+                }
+            }
+        },
+        "readinessProbe": {
+            "description": "Proxy Readyness-Probe",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "httpGet": {
+                    "type": "object",
                     "properties": {
-                        "extra": {
+                        "path": {
+                            "type": "string"
+                        },
+                        "port": {
+                            "type": "string"
+                        },
+                        "scheme": {
                             "type": "string"
                         }
-                    },
-                    "type": "object"
+                    }
+                },
+                "initialDelaySeconds": {
+                    "type": "integer"
                 }
-            },
-            "type": "object"
+            }
         },
         "replicaCount": {
+            "description": "Set the replica count for capsule-proxy pod.",
             "type": "integer"
         },
         "resources": {
+            "type": "object",
             "properties": {
                 "limits": {
+                    "type": "object",
                     "properties": {
                         "cpu": {
+                            "description": "Set the CPU requests assigned to the controller.",
                             "type": "string"
                         },
                         "memory": {
+                            "description": "Set the memory requests assigned to the controller.",
                             "type": "string"
                         }
-                    },
-                    "type": "object"
+                    }
                 },
                 "requests": {
+                    "type": "object",
                     "properties": {
                         "cpu": {
+                            "description": "Set the CPU limits assigned to the controller.",
                             "type": "string"
                         },
                         "memory": {
+                            "description": "Set the memory limits assigned to the controller.",
                             "type": "string"
                         }
-                    },
-                    "type": "object"
+                    }
                 }
-            },
-            "type": "object"
+            }
+        },
+        "restartPolicy": {
+            "description": "Set the restartPolicy for the capsule-proxy pod.",
+            "type": "string"
+        },
+        "securityContext": {
+            "description": "Security context for the capsule-proxy container.",
+            "type": "object",
+            "properties": {
+                "allowPrivilegeEscalation": {
+                    "type": "boolean"
+                },
+                "capabilities": {
+                    "type": "object",
+                    "properties": {
+                        "drop": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "readOnlyRootFilesystem": {
+                    "type": "boolean"
+                },
+                "runAsGroup": {
+                    "type": "integer"
+                },
+                "runAsNonRoot": {
+                    "type": "boolean"
+                },
+                "runAsUser": {
+                    "type": "integer"
+                }
+            }
         },
         "service": {
+            "type": "object",
             "properties": {
                 "annotations": {
-                    "properties": {
-                        "example": {
-                            "type": "string"
-                        }
-                    },
+                    "description": "Annotations to add to the service.",
                     "type": "object"
                 },
                 "labels": {
-                    "properties": {
-                        "example": {
-                            "type": "string"
-                        }
-                    },
+                    "description": "Labels to add to the service.",
                     "type": "object"
+                },
+                "nodePort": {
+                    "description": "Specifies the node port number (only for `NodePort` service type).",
+                    "type": "integer"
+                },
+                "port": {
+                    "description": "Specifies the service port number.",
+                    "type": "integer"
+                },
+                "portName": {
+                    "description": "Specifies the service port name.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Specifies the service type should be created (`ClusterIP`, `NodePort`or `LoadBalancer`)",
+                    "type": "string"
                 }
-            },
-            "type": "object"
+            }
+        },
+        "serviceAccount": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the service account.",
+                    "type": "object"
+                },
+                "create": {
+                    "description": "Specifies whether a service account should be created.",
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template",
+                    "type": "string"
+                }
+            }
         },
         "serviceMonitor": {
+            "type": "object",
             "properties": {
+                "annotations": {
+                    "description": "Assign additional Annotations",
+                    "type": "object"
+                },
                 "enabled": {
+                    "description": "Enable ServiceMonitor",
                     "type": "boolean"
-                }
-            },
-            "type": "object"
-        },
-        "tolerations": {
-            "items": {
-                "properties": {
-                    "effect": {
-                        "type": "string"
-                    },
-                    "key": {
-                        "type": "string"
-                    },
-                    "operator": {
-                        "type": "string"
+                },
+                "endpoint": {
+                    "type": "object",
+                    "properties": {
+                        "interval": {
+                            "description": "Set the scrape interval for the endpoint of the serviceMonitor",
+                            "type": "string"
+                        },
+                        "metricRelabelings": {
+                            "description": "Set metricRelabelings for the endpoint of the serviceMonitor",
+                            "type": "array"
+                        },
+                        "relabelings": {
+                            "description": "Set relabelings for the endpoint of the serviceMonitor",
+                            "type": "array"
+                        },
+                        "scrapeTimeout": {
+                            "description": "Set the scrape timeout for the endpoint of the serviceMonitor",
+                            "type": "string"
+                        }
                     }
                 },
-                "type": "object"
-            },
+                "labels": {
+                    "description": "Assign additional labels according to Prometheus' serviceMonitorSelector matching labels",
+                    "type": "object"
+                },
+                "matchLabels": {
+                    "description": "Change matching labels",
+                    "type": "object"
+                },
+                "namespace": {
+                    "description": "Install the ServiceMonitor into a different Namespace, as the monitoring stack one (default: the release one)",
+                    "type": "string"
+                },
+                "serviceAccount": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "namespace": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "targetLabels": {
+                    "description": "Set targetLabels for the serviceMonitor",
+                    "type": "array"
+                }
+            }
+        },
+        "tolerations": {
+            "description": "Set list of tolerations for the capsule-proxy pod.",
             "type": "array"
         },
         "topologySpreadConstraints": {
-            "items": {
-                "properties": {
-                    "labelSelector": {
-                        "properties": {
-                            "matchLabels": {
-                                "properties": {
-                                    "app.kubernetes.io/name": {
-                                        "type": "string"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "maxSkew": {
-                        "type": "integer"
-                    },
-                    "topologyKey": {
-                        "type": "string"
-                    },
-                    "whenUnsatisfiable": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
+            "description": "Topology Spread Constraints for the capsule-proxy pod.",
+            "type": "array"
+        },
+        "volumeMounts": {
+            "description": "Additional volume mounts",
+            "type": "array"
+        },
+        "volumes": {
+            "description": "Additional volumes",
             "type": "array"
         },
         "webhooks": {
+            "type": "object",
             "properties": {
+                "certificate": {
+                    "type": "object",
+                    "properties": {
+                        "dnsNames": {
+                            "description": "Additional DNS Names to include in certificate",
+                            "type": "array"
+                        },
+                        "fields": {
+                            "description": "Additional fields to include in certificate",
+                            "type": "object",
+                            "properties": {
+                                "privateKey": {
+                                    "type": "object",
+                                    "properties": {
+                                        "rotationPolicy": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "ipAddresses": {
+                            "description": "Additional IP Addresses to include in certificate",
+                            "type": "array"
+                        },
+                        "uris": {
+                            "description": "Additional URIs to include in certificate",
+                            "type": "array"
+                        }
+                    }
+                },
                 "enabled": {
+                    "description": "Enable the usage of mutating and validating webhooks",
                     "type": "boolean"
+                },
+                "service": {
+                    "type": "object",
+                    "properties": {
+                        "caBundle": {
+                            "description": "CABundle for the webhook service",
+                            "type": "string"
+                        },
+                        "name": {
+                            "description": "Custom service name for the webhook service",
+                            "type": "string"
+                        },
+                        "namespace": {
+                            "description": "Custom service namespace for the webhook service",
+                            "type": "string"
+                        },
+                        "port": {
+                            "description": "Custom service port for the webhook service",
+                            "type": "null"
+                        },
+                        "url": {
+                            "description": "The URL where the capsule webhook services are running (Overwrites cluster scoped service definition)",
+                            "type": "string"
+                        }
+                    }
                 }
-            },
-            "type": "object"
+            }
         }
-    },
-    "type": "object"
+    }
 }

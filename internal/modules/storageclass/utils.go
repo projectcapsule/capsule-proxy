@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package storageclass
@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"sort"
 
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +23,7 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (a
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsulev1beta2.StorageClassesProxy); !ok {
+		if ok := pt.RequestAllowed(req, capsuleapi.StorageClassesProxy); !ok {
 			continue
 		}
 
@@ -34,19 +34,20 @@ func getStorageClasses(req *http.Request, proxyTenants []*tenant.ProxyTenant) (a
 			continue
 		}
 
-		if len(sc.SelectorAllowedListSpec.Exact) > 0 {
-			exact = append(exact, sc.SelectorAllowedListSpec.Exact...)
+		if len(sc.Exact) > 0 {
+			exact = append(exact, sc.Exact...)
 		}
 
 		if len(sc.Default) > 0 {
 			exact = append(exact, sc.Default)
 		}
 
-		if r := sc.SelectorAllowedListSpec.Regex; len(r) > 0 {
+		//nolint:staticcheck
+		if r := sc.Regex; len(r) > 0 {
 			regex = append(regex, regexp.MustCompile(r))
 		}
 
-		selector, err := metav1.LabelSelectorAsSelector(&sc.SelectorAllowedListSpec.LabelSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&sc.LabelSelector)
 		if err != nil {
 			continue
 		}

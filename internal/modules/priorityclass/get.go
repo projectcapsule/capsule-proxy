@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package priorityclass
@@ -74,6 +74,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	}
 
 	var r *labels.Requirement
+
 	r, err = getPriorityClassSelector(sc, exactMatch, regexMatch)
 
 	switch {

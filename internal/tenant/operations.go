@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package tenant
@@ -6,7 +6,7 @@ package tenant
 import (
 	"net/http"
 
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 )
 
 type Operations struct {
@@ -23,13 +23,13 @@ func defaultOperations() *Operations {
 	}
 }
 
-func (o *Operations) Allow(operation capsulev1beta2.ProxyOperation) {
+func (o *Operations) Allow(operation capsuleapi.ProxyOperation) {
 	switch operation {
-	case capsulev1beta2.ListOperation:
+	case capsuleapi.ListOperation:
 		o.List = true
-	case capsulev1beta2.UpdateOperation:
+	case capsuleapi.UpdateOperation:
 		o.Update = true
-	case capsulev1beta2.DeleteOperation:
+	case capsuleapi.DeleteOperation:
 		o.Delete = true
 	}
 }

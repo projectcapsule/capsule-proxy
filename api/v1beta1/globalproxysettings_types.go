@@ -1,10 +1,10 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package v1beta1
 
 import (
-	"github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,7 +28,7 @@ type GlobalSubjectSpec struct {
 
 type GlobalSubject struct {
 	// Kind of tenant owner. Possible values are "User", "Group", and "ServiceAccount".
-	Kind v1beta2.OwnerKind `json:"kind"`
+	Kind capsuleapi.OwnerKind `json:"kind"`
 	// Name of tenant owner.
 	Name string `json:"name"`
 }
@@ -51,7 +51,8 @@ type GlobalProxySettings struct {
 type GlobalProxySettingsList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []GlobalProxySettings `json:"items"`
+
+	Items []GlobalProxySettings `json:"items"`
 }
 
 //nolint:gochecknoinits

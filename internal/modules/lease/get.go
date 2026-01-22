@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Project Capsule Authors.
+// Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
 package lease
@@ -6,7 +6,7 @@ package lease
 import (
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -59,7 +59,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	httpRequest := proxyRequest.GetHTTPRequest()
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(httpRequest, capsulev1beta2.NodesProxy); ok {
+		if ok := pt.RequestAllowed(httpRequest, capsuleapi.NodesProxy); ok {
 			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 		}
 	}
