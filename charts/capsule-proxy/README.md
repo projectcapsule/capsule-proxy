@@ -184,7 +184,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.disableCaching | bool | `false` | Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector. |
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
 | options.extraArgs | list | `[]` | A list of extra arguments to add to the capsule-proxy. |
-| options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
+| options.generateCertificates | bool | `false` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
 | options.leaderElection | bool | `false` | Set leader election to true if you are running n-replicas |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
@@ -207,7 +207,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | certManager.certificate.uris | list | `[]` | Additional URIs to include in certificate |
 | certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
 | certManager.externalCA.secretName | string | `""` |  |
-| certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
+| certManager.generateCertificates | bool | `true` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
 | certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
 | certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
 
