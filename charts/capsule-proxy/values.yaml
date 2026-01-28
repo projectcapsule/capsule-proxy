@@ -274,7 +274,7 @@ options:
   # -- Set the name of SSL key file
   SSLKeyFileName: tls.key
   # -- Specify if capsule-proxy will generate self-signed SSL certificates
-  generateCertificates: true
+  generateCertificates: false
   # -- Specify additional subject alternative names for the self-signed SSL
   additionalSANs: []
   # -- Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate.
@@ -296,12 +296,11 @@ options:
   # -- A list of extra arguments to add to the capsule-proxy.
   extraArgs: []
   # -"--feature-gates=ProxyClusterScoped=true"
-  # -"--feature-gates=ProxyAllNamespaced=true"
 
 # Cert Manager Configuration
 certManager:
   # -- Set if the cert manager will generate SSL certificates (self-signed or CA-signed)
-  generateCertificates: false
+  generateCertificates: true
   externalCA:
     # -- Set if want cert manager to sign certificates with an external CA
     enabled: false
