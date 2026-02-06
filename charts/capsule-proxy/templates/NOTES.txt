@@ -14,4 +14,4 @@
    # Uninstall capsule-proxy
    $ helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
 
-- 📚 Read More on the configuration for the capulse-proxy here: https://projectcapsule.dev/integrations/addons/capsule-proxy/
+- 📚 Read More on the configuration for the capulse-proxy here: https://projectcapsule.dev/docs/proxy/
