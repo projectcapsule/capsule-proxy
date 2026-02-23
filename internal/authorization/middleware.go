@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
@@ -31,7 +31,7 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 			Kind:    accessReview.Spec.ResourceAttributes.Resource,
 		}
 
-		verbs, req := utils.GetClusterScopeRequirements(&accessReviewGvk, proxyTenants)
+		verbs, req := clusterscoped.GetClusterScopeRequirements(&accessReviewGvk, proxyTenants)
 		if len(req) == 0 {
 			return nil
 		}
