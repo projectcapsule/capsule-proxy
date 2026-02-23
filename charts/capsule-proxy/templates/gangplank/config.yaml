@@ -1,0 +1,13 @@
+{{- if $.Values.gangplank.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gangplank.fullname" . }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "gangplank.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- toYaml .Values.gangplank.config | nindent 4 }}
+{{- end }}

@@ -1,0 +1,101 @@
+{{- if $.Values.gangplank.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gangplank.fullname" . }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "gangplank.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.gangplank.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gangplank.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.gangplank.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "gangplank.labels" . | nindent 8 }}
+        {{- with .Values.gangplank.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.gangplank.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "gangplank.serviceAccountName" . }}
+      {{- if not .Values.gangplank.hostUsers }}
+      hostUsers: {{ .Values.gangplank.hostUsers }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.gangplank.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.gangplank.securityContext | nindent 12 }}
+          image: "{{ .Values.gangplank.image.repository }}:{{ .Values.gangplank.image.tag }}"
+          imagePullPolicy: {{ .Values.gangplank.image.pullPolicy }}
+          command:
+            - "gangplank"
+            - "-config"
+            - "/etc/gangplank/config.yaml"
+          envFrom:
+            - secretRef:
+                name: {{ include "gangplank.fullname" . }}
+            {{- if .Values.gangplank.envFrom }}
+              {{- toYaml .Values.gangplank.envFrom | nindent 12 }}
+            {{- end }}
+          {{- if .Values.envs }}
+          env:
+            {{- range $key, $val := .Values.gangplank.envs }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.gangplank.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.gangplank.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.gangplank.resources | nindent 12 }}
+          volumeMounts:
+            - name: gangplank
+              mountPath: /etc/gangplank
+              readOnly: true
+          {{- with .Values.gangplank.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: gangplank
+          configMap:
+            name: {{ include "gangplank.fullname" $ }}
+      {{- with .Values.gangplank.volumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gangplank.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gangplank.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gangplank.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gangplank.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      priorityClassName: {{ .Values.gangplank.priorityClassName }}
+{{- end }}

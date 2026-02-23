@@ -95,7 +95,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.certs.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
 | global.jobs.certs.image.registry | string | `"registry.k8s.io"` | Set the image repository of the post install certgen job |
 | global.jobs.certs.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
-| global.jobs.certs.image.tag | string | `"v1.6.5"` | Set the image tag of the post install certgen job |
+| global.jobs.certs.image.tag | string | `"v1.6.7"` | Set the image tag of the post install certgen job |
 | global.jobs.certs.nodeSelector | object | `{}` | Set the node selector |
 | global.jobs.certs.podSecurityContext | object | `{"enabled":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | global.jobs.certs.priorityClassName | string | `""` | Set a pod priorityClassName |
@@ -137,6 +137,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
 | env | list | `[]` | Additional environment variables |
 | hostNetwork | bool | `false` | When deployed as DaemonSet use |
+| hostUsers | bool | `true` | Don't use Host Users (User Namespaces) |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
 | image.registry | string | `"ghcr.io"` | Set the image registry for capsule-proxy |
 | image.repository | string | `"projectcapsule/capsule-proxy"` | Set the image repository for capsule-proxy. |
@@ -150,7 +151,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
 | podSecurityContext | object | `{"enabled":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the capsule-proxy pod. |
 | priorityClassName | string | `""` | Specifies PriorityClass of the capsule-proxy pod. |
-| rbac.clusterRole | string | `"cluster-admin"` | Controller ClusterRole |
+| rbac.clusterRole | string | `""` | Controller ClusterRole |
 | rbac.enabled | bool | `true` | Enable Creation of ClusterRoles |
 | readinessProbe | object | `{"enabled":true,"httpGet":{"path":"/readyz/","port":"probe","scheme":"HTTP"},"initialDelaySeconds":5}` | Proxy Readyness-Probe |
 | replicaCount | int | `1` | Set the replica count for capsule-proxy pod. |
@@ -184,7 +185,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.disableCaching | bool | `false` | Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector. |
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
 | options.extraArgs | list | `[]` | A list of extra arguments to add to the capsule-proxy. |
-| options.generateCertificates | bool | `true` | Specify if capsule-proxy will generate self-signed SSL certificates |
+| options.generateCertificates | bool | `false` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
 | options.leaderElection | bool | `false` | Set leader election to true if you are running n-replicas |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
@@ -207,7 +208,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | certManager.certificate.uris | list | `[]` | Additional URIs to include in certificate |
 | certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
 | certManager.externalCA.secretName | string | `""` |  |
-| certManager.generateCertificates | bool | `false` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
+| certManager.generateCertificates | bool | `true` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
 | certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
 | certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
 
@@ -279,6 +280,51 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | serviceMonitor.serviceAccount.name | string | `""` |  |
 | serviceMonitor.serviceAccount.namespace | string | `""` |  |
 | serviceMonitor.targetLabels | list | `[]` | Set targetLabels for the serviceMonitor |
+
+### Gangplank Parameters
+
+[Read More](https://projectcapsule.dev/docs/proxy/gangplank/)
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| gangplank.affinity | object | `{}` | Set affinity rules |
+| gangplank.config | object | `{"apiServerURL":"https://apiserver.example.test","authorizeURL":"https://oauth2provider.test/authorize","clientID":"client-id","clientSecret":"client-secret","clusterName":"cluster-name","redirectURL":"https://gangplank.example.test/callback","tokenURL":"https://oauth2provider.test/token"}` | Custom inline Gangplank configuration (ENV Styles) |
+| gangplank.enabled | bool | `false` | Enable Gangplank |
+| gangplank.envFrom | list | `[]` |  |
+| gangplank.envs | object | `{}` |  |
+| gangplank.hostUsers | bool | `true` | Don't use Host Users (User Namespaces) |
+| gangplank.image.pullPolicy | string | `"IfNotPresent"` |  |
+| gangplank.image.repository | string | `"registry.sighup.io/fury/gangplank"` |  |
+| gangplank.image.tag | string | `"1.1.1"` |  |
+| gangplank.imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
+| gangplank.ingress.annotations | object | `{}` |  |
+| gangplank.ingress.className | string | `""` |  |
+| gangplank.ingress.enabled | bool | `false` |  |
+| gangplank.ingress.hosts[0].host | string | `"chart-example.local"` |  |
+| gangplank.ingress.hosts[0].paths[0].path | string | `"/"` |  |
+| gangplank.ingress.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
+| gangplank.ingress.tls | list | `[]` |  |
+| gangplank.livenessProbe | object | `{"httpGet":{"path":"/","port":"http"}}` | Configure the liveness probe using Deployment probe specs |
+| gangplank.nodeSelector | object | `{}` | Set the node selector |
+| gangplank.podAnnotations | object | `{}` | Annotations to add to the pod. |
+| gangplank.podLabels | object | `{}` | Labels to add to the pod. |
+| gangplank.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Set the securityContext for the Pod |
+| gangplank.priorityClassName | string | `""` | Set a pod priorityClassName |
+| gangplank.readinessProbe | object | `{"httpGet":{"path":"/","port":"http"}}` | Configure the readiness probe using Deployment probe spec |
+| gangplank.replicaCount | int | `1` | Set the replica count |
+| gangplank.resources | object | `{}` | Set the resource requests/limits |
+| gangplank.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Set the securityContext for the Container |
+| gangplank.sensitiveEnvs | object | `{"GANGPLANK_CONFIG_SESSION_SECURITY_KEY":"session-security-key"}` | Environment variables (Secret) |
+| gangplank.service.port | int | `80` |  |
+| gangplank.service.type | string | `"ClusterIP"` |  |
+| gangplank.serviceAccount.annotations | object | `{}` |  |
+| gangplank.serviceAccount.automount | bool | `true` |  |
+| gangplank.serviceAccount.create | bool | `true` |  |
+| gangplank.serviceAccount.name | string | `""` |  |
+| gangplank.tolerations | list | `[]` | Set list of tolerations |
+| gangplank.topologySpreadConstraints | list | `[]` | Set topology spread constraints |
+| gangplank.volumeMounts | list | `[]` | Additional volumeMounts on the output Deployment definition. |
+| gangplank.volumes | list | `[]` | Additional volumes on the output Deployment definition. |
 
 ## Created resources
 

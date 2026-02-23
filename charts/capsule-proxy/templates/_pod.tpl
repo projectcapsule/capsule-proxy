@@ -16,6 +16,9 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
     {{- end }}
   {{- end }}
+  {{- if not .Values.hostUsers }}
+  hostUsers: {{ .Values.hostUsers }}
+  {{- end }}
   {{- with .Values.imagePullSecrets }}
   imagePullSecrets:
     {{- toYaml . | nindent 4 }}

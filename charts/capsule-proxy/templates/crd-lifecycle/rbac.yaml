@@ -1,8 +1,9 @@
 {{- if .Values.crds.install }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "capsule-proxy.crds.name" . }}
+  name: capsule-proxy:{{ include "capsule-proxy.crds.name" . }}
   namespace: {{ .Release.Namespace | quote }}
   annotations:
     # create hook dependencies in the right order
@@ -23,16 +24,20 @@ rules:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions
+  resourceNames:
+  - proxysettings.capsule.clastix.io
+  - globalproxysettings.capsule.clastix.io
   verbs:
   - create
   - delete
   - get
   - patch
+  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "capsule-proxy.crds.name" . }}
+  name: capsule-proxy:{{ include "capsule-proxy.crds.name" . }}
   namespace: {{ .Release.Namespace | quote }}
   annotations:
     # create hook dependencies in the right order
@@ -44,7 +49,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "capsule-proxy.crds.name" . }}
+  name: capsule-proxy:{{ include "capsule-proxy.crds.name" . }}
 subjects:
   - kind: ServiceAccount
     name: {{ include "capsule-proxy.crds.name" . }}

@@ -1,4 +1,5 @@
 {{- if .Values.crds.install }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:

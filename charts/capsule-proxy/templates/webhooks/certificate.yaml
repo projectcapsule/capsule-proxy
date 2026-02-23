@@ -4,6 +4,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook-issuer
+  namespace: {{ $.Release.Namespace }}
 spec:
   selfSigned: {}
 ---
@@ -11,6 +12,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook-ca
+  namespace: {{ $.Release.Namespace }}
 spec:
   isCA: true
   commonName: {{ include "capsule-proxy.fullname" . }}-webhook-ca
@@ -22,11 +24,12 @@ spec:
     name:  {{ include "capsule-proxy.fullname" . }}-webhook-issuer
     kind: Issuer
     group: cert-manager.io
----  
+---
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook
+  namespace: {{ $.Release.Namespace }}
 spec:
   ca:
     secretName: {{ include "capsule-proxy.fullname" . }}-webhook-ca
@@ -35,6 +38,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook-cert
+  namespace: {{ $.Release.Namespace }}
 spec:
   {{- with .Values.webhooks.certificate.fields }}
     {{ toYaml . | nindent 2 }}

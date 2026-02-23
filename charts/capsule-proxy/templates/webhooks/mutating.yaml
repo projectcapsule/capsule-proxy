@@ -1,4 +1,5 @@
 {{- if $.Values.webhooks.enabled }}
+---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
@@ -18,11 +19,11 @@ webhooks:
   name: watchdog.proxy.projectcapsule.dev
   {{- with .rules }}
   rules:
-    {{- toYaml .| nindent 4}} 
+    {{- toYaml .| nindent 4}}
   {{- end }}
   {{- with .namespaceSelector }}
   namespaceSelector:
-    {{- toYaml .| nindent 4}} 
+    {{- toYaml .| nindent 4}}
   {{- end }}
   sideEffects: None
   timeoutSeconds: {{ $.Values.webhooks.mutatingWebhooksTimeoutSeconds }}

@@ -27,7 +27,7 @@ spec:
     group: cert-manager.io
   {{- end }}
   {{- if eq .Values.certManager.issuer.kind "Issuer" }}
----  
+---
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
@@ -36,7 +36,7 @@ metadata:
 spec:
   ca:
     secretName: {{ include "capsule-proxy.caSecretName" . }}
-  {{- end }}    
+  {{- end }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate

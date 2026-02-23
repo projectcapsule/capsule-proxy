@@ -1,4 +1,5 @@
 {{- if .Values.autoscaling.enabled }}
+---
   {{- if semverCompare "<1.23-0" $.Capabilities.KubeVersion.Version }}
 apiVersion: autoscaling/v2beta1
   {{- else }}
@@ -7,6 +8,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}
+  namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
     {{- if .Values.autoscaling.labels }}

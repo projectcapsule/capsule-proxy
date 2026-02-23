@@ -5,6 +5,10 @@ Expand the name of the chart.
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{- define "gangplank.name" -}}
+{{- include "capsule-proxy.name" $ }}-gangplank
+{{- end }}
+
 {{/*
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
@@ -21,6 +25,10 @@ If release name contains chart name it will be used as a full name.
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+{{- define "gangplank.fullname" -}}
+{{- include "capsule-proxy.fullname" $ }}-gangplank
 {{- end }}
 
 {{/*
@@ -40,6 +48,17 @@ helm.sh/chart: {{ include "capsule-proxy.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/component: "proxy"
+{{- end }}
+
+{{- define "gangplank.labels" -}}
+helm.sh/chart: {{ include "capsule-proxy.chart" . }}
+{{ include "capsule-proxy.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/component: "gangplank"
 {{- end }}
 
 {{/*
@@ -48,7 +67,16 @@ Selector labels
 {{- define "capsule-proxy.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "capsule-proxy.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: "proxy"
+
 {{- end }}
+
+{{- define "gangplank.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "capsule-proxy.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: "gangplank"
+{{- end }}
+
 
 {{/*
 Create the name of the service account to use
@@ -58,6 +86,14 @@ Create the name of the service account to use
 {{- default (include "capsule-proxy.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{- define "gangplank.serviceAccountName" -}}
+{{- if .Values.gangplank.serviceAccount.create }}
+{{- default (include "gangplank.fullname" .) .Values.gangplank.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.gangplank.serviceAccount.name }}
 {{- end }}
 {{- end }}
 

@@ -1,4 +1,5 @@
 {{- if .Values.serviceMonitor.enabled }}
+---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -28,7 +29,7 @@ spec:
     {{- with .relabelings }}
     relabelings: {{- toYaml . | nindent 6 }}
     {{- end }}
-  {{- end }}  
+  {{- end }}
   jobLabel: app.kubernetes.io/name
   {{- with .Values.serviceMonitor.targetLabels }}
   targetLabels: {{- toYaml . | nindent 4 }}

@@ -1,8 +1,10 @@
 {{- if $.Values.webhooks.enabled }}
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook-service
+  namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:

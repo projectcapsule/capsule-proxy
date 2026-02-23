@@ -1,8 +1,10 @@
 {{- if eq .Values.kind "Deployment" }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}
+  namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:

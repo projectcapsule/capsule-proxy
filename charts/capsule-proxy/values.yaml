@@ -68,7 +68,7 @@ global:
         # -- Set the image pull policy of the post install certgen job
         pullPolicy: IfNotPresent
         # -- Set the image tag of the post install certgen job
-        tag: "v1.6.5"
+        tag: "v1.6.7"
       # -- Annotations to add to the certgen job.
       annotations: {}
       # -- Set the restartPolicy
@@ -125,7 +125,7 @@ rbac:
   # -- Enable Creation of ClusterRoles
   enabled: true
   # -- Controller ClusterRole
-  clusterRole: cluster-admin
+  clusterRole: ""
 
 image:
   # -- Set the image registry for capsule-proxy
@@ -142,6 +142,9 @@ imagePullSecrets: []
 
 # -- Set the deployment mode of the capsule-proxy as `Deployment` or `DaemonSet`.
 kind: Deployment
+
+# -- Don't use Host Users (User Namespaces)
+hostUsers: true
 
 # -- When deployed as DaemonSet use
 hostNetwork: false
@@ -274,7 +277,7 @@ options:
   # -- Set the name of SSL key file
   SSLKeyFileName: tls.key
   # -- Specify if capsule-proxy will generate self-signed SSL certificates
-  generateCertificates: true
+  generateCertificates: false
   # -- Specify additional subject alternative names for the self-signed SSL
   additionalSANs: []
   # -- Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate.
@@ -301,7 +304,7 @@ options:
 # Cert Manager Configuration
 certManager:
   # -- Set if the cert manager will generate SSL certificates (self-signed or CA-signed)
-  generateCertificates: false
+  generateCertificates: true
   externalCA:
     # -- Set if want cert manager to sign certificates with an external CA
     enabled: false
@@ -467,3 +470,242 @@ serviceMonitor:
     metricRelabelings: []
     # -- Set relabelings for the endpoint of the serviceMonitor
     relabelings: []
+
+# Deploys Gangplank for OIDC Kubeconfig Generation
+gangplank:
+  # -- Enable Gangplank
+  enabled: false
+
+  # -- Set the replica count
+  replicaCount: 1
+
+  image:
+    repository: registry.sighup.io/fury/gangplank
+    pullPolicy: IfNotPresent
+    tag: "1.1.1"
+
+  # -- Configuration for `imagePullSecrets` so that you can use a private images registry.
+  imagePullSecrets: []
+
+  # -- Annotations to add to the pod.
+  podAnnotations: {}
+
+  # -- Labels to add to the pod.
+  podLabels: {}
+
+  # -- Don't use Host Users (User Namespaces)
+  hostUsers: true
+
+  # -- Set the securityContext for the Pod
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- Set the securityContext for the Container
+  securityContext:
+    runAsUser: 65534
+    runAsGroup: 65534
+    runAsNonRoot: true
+    privileged: false
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  # -- Set the resource requests/limits
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  # -- Configure the liveness probe using Deployment probe specs
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+
+  # -- Configure the readiness probe using Deployment probe spec
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+
+  # -- Additional volumes on the output Deployment definition.
+  volumes: []
+  # - name: foo
+  #   secret:
+  #     secretName: mysecret
+  #     optional: false
+
+  # -- Additional volumeMounts on the output Deployment definition.
+  volumeMounts: []
+  # - name: foo
+  #   mountPath: "/etc/foo"
+  #   readOnly: true
+
+  # -- Set the node selector
+  nodeSelector: {}
+  #  node-role.kubernetes.io/master: ""
+
+  # -- Set list of tolerations
+  tolerations: []
+  # - key: CriticalAddonsOnly
+  #   operator: Exists
+  # - effect: NoSchedule
+  #   key: node-role.kubernetes.io/master
+
+  # -- Set affinity rules
+  affinity: {}
+
+  # -- Set topology spread constraints
+  topologySpreadConstraints: []
+
+  # -- Set a pod priorityClassName
+  priorityClassName: ""
+
+
+  envs: {}
+  envFrom: []
+
+  # -- Environment variables (Secret)
+  sensitiveEnvs:
+    GANGPLANK_CONFIG_SESSION_SECURITY_KEY: session-security-key
+
+  # -- Custom inline Gangplank configuration (ENV Styles)
+  config:
+    # The address to listen on. Defaults to 0.0.0.0 to listen on all interfaces.
+    # Env var: GANGPLANK_CONFIG_HOST
+    # host: 0.0.0.0
+
+    # The port to listen on. Defaults to 8080.
+    # Env var: GANGPLANK_CONFIG_PORT
+    # port: 8080
+
+    # Should Gangplank serve TLS vs. plain HTTP? Default: false
+    # Env var: GANGPLANK_CONFIG_SERVE_TLS
+    # serveTLS: false
+
+    # The public cert file (including root and intermediates) to use when serving
+    # TLS.
+    # Env var: GANGPLANK_CONFIG_CERT_FILE
+    # certFile: /etc/gangplank/tls.crt
+
+    # The private key file when serving TLS.
+    # Env var: GANGPLANK_CONFIG_KEY_FILE
+    # keyFile: /etc/gangplank/tls.key
+
+    # The cluster name. Used in UI and kubectl config instructions.
+    # Env var: GANGPLANK_CONFIG_CLUSTER_NAME
+    clusterName: "cluster-name"
+
+    # OAuth2 URL to start authorization flow.
+    # Env var: GANGPLANK_CONFIG_AUTHORIZE_URL
+    authorizeURL: "https://oauth2provider.test/authorize"
+
+    # OAuth2 URL to obtain access tokens.
+    # Env var: GANGPLANK_CONFIG_TOKEN_URL
+    tokenURL: "https://oauth2provider.test/token"
+
+    # Endpoint that provides user profile information [optional]. Not all providers
+    # will require this.
+    # Env var: GANGPLANK_CONFIG_AUDIENCE
+    # audience: "https://oauth2provider.test/audience"
+
+    # Used to specify the scope of the requested Oauth authorization.
+    # scopes: ["openid", "profile", "email", "offline_access"]
+
+    # Where to redirect back to. This should be a URL where gangplank is reachable.
+    # Typically this also needs to be registered as part of the oauth application
+    # with the oAuth provider.
+    # Env var: GANGPLANK_CONFIG_REDIRECT_URL
+    redirectURL: "https://gangplank.example.test/callback"
+
+    # API client ID as indicated by the identity provider
+    # Env var: GANGPLANK_CONFIG_CLIENT_ID
+    clientID: "client-id"
+
+    # API client secret as indicated by the identity provider
+    # Env var: GANGPLANK_CONFIG_CLIENT_SECRET
+    clientSecret: "client-secret"
+
+    # Some identity providers accept an empty client secret, this
+    # is not generally considered a good idea. If you have to use an
+    # empty secret and accept the risks that come with that then you can
+    # set this to true.
+    # allowEmptyClientSecret: false
+
+    # The JWT claim to use as the username. This is used in UI.
+    # Default is "nickname". This is combined with the clusterName
+    # for the "user" portion of the kubeconfig.
+    # Env var: GANGPLANK_CONFIG_USERNAME_CLAIM
+    # usernameClaim: "sub"
+
+    # The API server endpoint used to configure kubectl
+    # Env var: GANGPLANK_CONFIG_APISERVER_URL
+    apiServerURL: "https://apiserver.example.test"
+
+    # The path to find the CA bundle for the API server. Used to configure kubectl.
+    # This is typically mounted into the default location for workloads running on
+    # a Kubernetes cluster and doesn't need to be set.
+    # Env var: GANGPLANK_CONFIG_CLUSTER_CA_PATH
+    # clusterCAPath: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+    # The path to a root CA to trust for self signed certificates at the Oauth2 URLs
+    # Env var: GANGPLANK_CONFIG_TRUSTED_CA_PATH
+    # trustedCAPath: /cacerts/rootca.crt
+
+    # The path gangplank uses to create urls (defaults to "")
+    # Env var: GANGPLANK_CONFIG_HTTP_PATH
+    # httpPath: "https://gangplank.example.test"
+
+    # The path to find custom HTML templates
+    # Env var: GANGPLANK_CONFIG_CUSTOM_HTTP_TEMPLATES_DIR
+    # customHTMLTemplatesDir: /custom-templates
+
+    # Flag to remove the CA from the kubeconfig.
+    # Env var: GANGPLANK_CONFIG_REMOVE_CA_FROM_KUBECONFIG
+    # removeCAFromKubeconfig: false
+
+    # Namespace to use in the kubeconfig.
+    # Env var: GANGPLANK_CONFIG_NAMESPACE
+    # namespace: "default"
+
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    hosts:
+      - host: chart-example.local
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls: []
+    #  - secretName: chart-example-tls
+    #    hosts:
+    #      - chart-example.local
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Automatically mount a ServiceAccount's API credentials?
+    automount: true
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""

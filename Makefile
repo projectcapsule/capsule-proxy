@@ -183,51 +183,58 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "options.enableSSL=false" \
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
+		--set "options.leaderElection=true" \
 		--set "service.type=NodePort" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
 		--set "options.generateCertificates=false" \
-		--set "webhooks.enabled=true" \
+		--set "certManager.generateCertificates=false" \
 		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 else
 	@echo "Running in HTTPS mode"
-	@echo "capsule proxy certificates..."
-	cd hack && $(MKCERT) -install && $(MKCERT) 127.0.0.1  \
-		&& kubectl --namespace capsule-system delete secret capsule-proxy || true \
-		&& kubectl --namespace capsule-system create secret generic capsule-proxy --from-file=tls.key=./127.0.0.1-key.pem --from-file=tls.crt=./127.0.0.1.pem --from-literal=ca=$$(cat $(ROOTCA) | base64 |tr -d '\n')
-	@echo "kubeconfig configurations..."
-	@cd hack \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- alice oil projectcapsule.dev,capsule.clastix.io \
-		&& mv alice-oil.kubeconfig alice.kubeconfig \
-		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
-		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- bob gas projectcapsule.dev,capsule.clastix.io \
-		&& mv bob-gas.kubeconfig bob.kubeconfig \
-		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
-		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- joe gas projectcapsule.dev,capsule.clastix.io,foo.clastix.io \
-		&& mv joe-gas.kubeconfig foo.clastix.io.kubeconfig \
-		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
-		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
-		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- dave soil projectcapsule.dev,capsule.clastix.io,bar.clastix.io \
-		&& mv dave-soil.kubeconfig dave.kubeconfig \
-		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.certificate-authority-data $$(cat $(ROOTCA) | base64 |tr -d '\n') \
-		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.server https://127.0.0.1:9001
 	@echo "Installing Capsule-Proxy using HELM..."
 	@helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=$(VERSION)" \
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
+		--set "options.leaderElection=true" \
 		--set "service.type=NodePort" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
-		--set "webhooks.enabled=true" \
+		--set "options.generateCertificates=false" \
+		--set "certManager.certificate.ipAddresses={127.0.0.1}" \
 		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 endif
 	@kubectl rollout restart ds capsule-proxy -n capsule-system || true
+	$(MAKE) generate-kubeconfigs
+
+generate-kubeconfigs:
+	CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') ; \
+	if [ -z "$$CA_B64" ]; then \
+	  echo "ERROR: secret capsule-system/capsule-proxy-root-secret missing .data[ca.crt]" ; \
+	  exit 1 ; \
+	fi;
+	@cd hack \
+		&& CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- alice oil projectcapsule.dev,capsule.clastix.io \
+		&& mv alice-oil.kubeconfig alice.kubeconfig \
+		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64"  \
+		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- bob gas projectcapsule.dev,capsule.clastix.io \
+		&& mv bob-gas.kubeconfig bob.kubeconfig \
+		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
+		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- joe gas projectcapsule.dev,capsule.clastix.io,foo.clastix.io \
+		&& mv joe-gas.kubeconfig foo.clastix.io.kubeconfig \
+		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
+		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
+		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- dave soil projectcapsule.dev,capsule.clastix.io,bar.clastix.io \
+		&& mv dave-soil.kubeconfig dave.kubeconfig \
+		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
+		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.server https://127.0.0.1:9001
 
 install-dependencies:
 	@$(KUBECTL) kustomize e2e/distro/flux/ | kubectl apply --force-conflicts --server-side=true -f -
