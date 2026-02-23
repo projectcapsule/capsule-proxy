@@ -64,7 +64,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	_, requirements := utils.GetClusterScopeRequirements(gvk, proxyTenants)
+	_, requirements := GetClusterScopeRequirements(gvk, proxyTenants)
 
 	if len(requirements) > 0 {
 		switch httpRequest.Method {

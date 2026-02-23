@@ -1,10 +1,9 @@
 // Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package utils
+package clusterscoped
 
 import (
-	"regexp"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,18 +44,11 @@ func GetClusterScopeRequirements(gvk *schema.GroupVersionKind, proxyTenants []*t
 	return operations, requirements
 }
 
-func matchResource(gvk *schema.GroupVersionKind, cr v1beta1.ClusterResource) (match bool) {
+func matchResource(gvk *schema.GroupVersionKind, cr v1beta1.ClusterResource) bool {
 	kindMatch := false
-	groupVersionMatch := false
 
-	for _, resource := range cr.Resources {
-		if resource == "*" {
-			kindMatch = true
-
-			break
-		}
-
-		if gvk.Kind == resource {
+	for _, r := range cr.Resources {
+		if r == "*" || r == gvk.Kind {
 			kindMatch = true
 
 			break
@@ -64,33 +56,66 @@ func matchResource(gvk *schema.GroupVersionKind, cr v1beta1.ClusterResource) (ma
 	}
 
 	if !kindMatch {
-		return match
+		return false
 	}
 
-	// Check if the group/version matches any of the apiGroups using regex
+	// --- Group / GroupVersion match ---
 	for _, apiGroup := range cr.APIGroups {
-		// Handle wildcard "*" to match any group
 		if apiGroup == "*" {
-			groupVersionMatch = true
-
-			break
+			return true
 		}
 
-		// Replace "*" with ".*" for regex compatibility and ensure match against the entire string
-		regexPattern := "^" + regexp.QuoteMeta(apiGroup) + "$"
-		regexPattern = strings.ReplaceAll(regexPattern, "\\*", ".*")
+		// Decide matching target
+		target := gvk.Group
+		if strings.Contains(apiGroup, "/") {
+			target = gvk.Group + "/" + gvk.Version
+		}
 
-		matched, _ := regexp.MatchString(regexPattern, gvk.Group+"/"+gvk.Version)
-		if matched {
-			groupVersionMatch = true
-
-			break
+		if matchPattern(apiGroup, target) {
+			return true
 		}
 	}
 
-	if kindMatch && groupVersionMatch {
-		match = true
+	return false
+}
+
+func matchPattern(pattern, value string) bool {
+	if pattern == "*" {
+		return true
 	}
 
-	return match
+	// No wildcard → exact match
+	if !strings.Contains(pattern, "*") {
+		return pattern == value
+	}
+
+	parts := strings.Split(pattern, "*")
+
+	// Single '*' at start or end prefix/suffix optimization
+	if len(parts) == 2 {
+		if parts[0] == "" {
+			return strings.HasSuffix(value, parts[1])
+		}
+
+		if parts[1] == "" {
+			return strings.HasPrefix(value, parts[0])
+		}
+	}
+
+	idx := 0
+
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+
+		i := strings.Index(value[idx:], part)
+		if i < 0 {
+			return false
+		}
+
+		idx += i + len(part)
+	}
+
+	return true
 }
