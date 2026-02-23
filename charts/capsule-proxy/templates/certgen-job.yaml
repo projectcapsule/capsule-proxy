@@ -1,11 +1,12 @@
 {{/* Backwards compatibility */}}
 {{- $Values := mergeOverwrite $.Values.global.jobs.certs $.Values.jobs -}}
-
 {{- if and .Values.options.enableSSL .Values.options.generateCertificates -}}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-certgen
+  namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "capsule-proxy.labels" . | nindent 4 }}
   {{- with $Values.annotations }}

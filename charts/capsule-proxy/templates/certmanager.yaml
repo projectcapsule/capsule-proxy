@@ -5,6 +5,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-selfsigned-issuer
+  namespace: {{ $.Release.Namespace }}
 spec:
   selfSigned: {}
 ---
@@ -12,6 +13,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-selfsigned-ca
+  namespace: {{ $.Release.Namespace }}
 spec:
   isCA: true
   commonName: {{ include "capsule-proxy.fullname" . }}-selfsigned-ca
@@ -30,6 +32,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-ca-issuer
+  namespace: {{ $.Release.Namespace }}
 spec:
   ca:
     secretName: {{ include "capsule-proxy.caSecretName" . }}
@@ -39,6 +42,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-serving-cert
+  namespace: {{ $.Release.Namespace }}
 spec:
   {{- with .Values.certManager.certificate.fields }}
     {{ toYaml . | nindent 2 }}
