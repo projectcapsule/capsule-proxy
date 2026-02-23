@@ -180,7 +180,7 @@ func (h http) bearerToken() (string, error) {
 
 		return "", NewErrUnauthorized("Websocket Protocol token is undefined")
 	default:
-		return "", NewErrUnauthorized("unauthenticated users are not supported")
+		return "", NewErrUnauthorized("no authentication headers found. Unauthenticated users are not supported")
 	}
 }
 
@@ -214,7 +214,7 @@ func (h http) authenticationFns() []authenticationFn {
 	}
 	// Dead man switch, if no strategy worked, the proxy cannot work
 	fns = append(fns, func() (string, []string, error) {
-		return "", nil, NewErrUnauthorized("unauthenticated users not supported")
+		return "", nil, NewErrUnauthorized("no authentication provider available. unauthenticated users not supported")
 	})
 
 	return fns
