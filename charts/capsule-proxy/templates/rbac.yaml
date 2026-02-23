@@ -1,4 +1,34 @@
 {{- if $.Values.rbac.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: capsule-proxy:{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  - apiGroups: [""]
+    resources: ["configmaps", "endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: capsule-proxy:{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: capsule-proxy:{{ .Release.Name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "capsule-proxy.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+  {{- if $.Values.rbac.clusterRole }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -20,4 +50,58 @@ roleRef:
   kind: ClusterRole
   name: {{ $.Values.rbac.clusterRole }}
   apiGroup: rbac.authorization.k8s.io
+  {{- else }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: capsule-proxy:{{ .Release.Name }}
+rules:
+  # Read (get/list/watch) everything (namespaced + cluster-scoped)
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+
+  # Some clusters still have a few non-resource URLs you might want to read
+  # (optional; remove if not needed)
+  - nonResourceURLs: ["*"]
+    verbs: ["get"]
+
+  # Allow the controller to impersonate anyone
+  # Core impersonation targets
+  - apiGroups: [""]
+    resources:
+      - users
+      - groups
+      - serviceaccounts
+      - userextras/*
+    verbs: ["impersonate"]
+
+  # Allow SelfSubjectAccessReviews
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectaccessreviews"]
+    verbs: ["create", "get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: capsule-proxy:{{ .Release.Name }}
+  labels:
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
+    {{- if .Values.rbac.labels }}
+      {{- toYaml .Values.rbac.labels | nindent 4 }}
+    {{- end }}
+  {{- with .Values.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "capsule-proxy.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: capsule-proxy:{{ .Release.Name }}
+  apiGroup: rbac.authorization.k8s.io
+  {{- end }}
 {{- end }}
