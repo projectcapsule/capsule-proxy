@@ -228,9 +228,14 @@ generate-kubeconfigs:
 		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
 		&& KUBECONFIG=bob.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
 		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- joe gas projectcapsule.dev,capsule.clastix.io,foo.clastix.io \
-		&& mv joe-gas.kubeconfig foo.clastix.io.kubeconfig \
-		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
-		&& KUBECONFIG=foo.clastix.io.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
+		&& mv joe-gas.kubeconfig joe.kubeconfig \
+		&& KUBECONFIG=joe.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
+		&& KUBECONFIG=joe.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
+	    && curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- cluster-admin admin \
+		&& mv cluster-admin-admin.kubeconfig cluster-admin.kubeconfig \
+		&& KUBECONFIG=cluster-admin.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
+		&& KUBECONFIG=cluster-admin.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
+		&& $(KUBECTL) create clusterrolebinding custom-cluster-admin --clusterrole=cluster-admin --user=cluster-admin \
 		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- dave soil projectcapsule.dev,capsule.clastix.io,bar.clastix.io \
 		&& mv dave-soil.kubeconfig dave.kubeconfig \
 		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \

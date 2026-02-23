@@ -81,10 +81,11 @@ rules:
   - apiGroups: ["authorization.k8s.io"]
     resources: ["selfsubjectaccessreviews"]
     verbs: ["create", "get", "list", "watch"]
-    
+
   # Allow TokenReviews
   - apiGroups: ["authentication.k8s.io"]
     resources: ["tokenreviews"]
+    verbs: ["create"]
 
   # Allow SubjectAccessReviews
   - apiGroups: ["authorization.k8s.io"]
