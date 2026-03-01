@@ -6,7 +6,6 @@ package lease
 import (
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -59,9 +58,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	httpRequest := proxyRequest.GetHTTPRequest()
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(httpRequest, capsuleapi.NodesProxy); ok {
-			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
-		}
+		selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 	}
 
 	name := mux.Vars(httpRequest)["name"]

@@ -141,32 +141,6 @@ spec:
                     name:
                       description: Name of tenant owner.
                       type: string
-                    proxySettings:
-                      description: Proxy settings for tenant owner.
-                      items:
-                        properties:
-                          kind:
-                            enum:
-                            - Nodes
-                            - StorageClasses
-                            - IngressClasses
-                            - PriorityClasses
-                            - RuntimeClasses
-                            - PersistentVolumes
-                            type: string
-                          operations:
-                            items:
-                              enum:
-                              - List
-                              - Update
-                              - Delete
-                              type: string
-                            type: array
-                        required:
-                        - kind
-                        - operations
-                        type: object
-                      type: array
                   required:
                   - kind
                   - name

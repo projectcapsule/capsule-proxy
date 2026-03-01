@@ -5,7 +5,6 @@ package pod
 
 import (
 	"github.com/go-logr/logr"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -92,9 +91,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	var selectors []map[string]string
 	// Ensuring the Tenant Owner can deal with the node listing
 	for _, pt := range proxyTenants {
-		if ok = pt.RequestAllowed(httpRequest, capsuleapi.NodesProxy); ok {
-			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
-		}
+		selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
 	}
 
 	node := &corev1.Node{}

@@ -13,8 +13,6 @@ type OwnerSpec struct {
 	Kind capsuleapi.OwnerKind `json:"kind"`
 	// Name of tenant owner.
 	Name string `json:"name"`
-	// Proxy settings for tenant owner.
-	ProxyOperations []capsuleapi.ProxySettings `json:"proxySettings,omitempty"`
 	// Cluster Resources for tenant Owner.
 	ClusterResources []ClusterResource `json:"clusterResources,omitempty"`
 }
