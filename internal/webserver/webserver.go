@@ -521,6 +521,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 					if t.Status().Code > 0 {
 						writer.WriteHeader(int(t.Status().Code))
 					}
+
 					writer.Header().Set("Content-Type", "application/json")
 
 					b, _ := json.Marshal(t.Status())
