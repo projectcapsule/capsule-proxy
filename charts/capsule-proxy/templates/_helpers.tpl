@@ -52,12 +52,11 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 
 {{- define "gangplank.labels" -}}
 helm.sh/chart: {{ include "capsule-proxy.chart" . }}
-{{ include "capsule-proxy.selectorLabels" . }}
+{{ include "gangplank.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: "gangplank"
 {{- end }}
 
 {{/*
