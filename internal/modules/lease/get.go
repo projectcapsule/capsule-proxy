@@ -53,7 +53,7 @@ func (g get) Methods() []string {
 }
 
 func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
-	var selectors []map[string]string
+	selectors := make([]map[string]string, 0, len(proxyTenants))
 
 	httpRequest := proxyRequest.GetHTTPRequest()
 

@@ -548,8 +548,6 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 
 //nolint:funlen
 func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsuleapi.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
-	var tenants []string
-
 	ownerIndexValue := fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)
 
 	tl := &capsulev1beta2.TenantList{}
@@ -599,6 +597,8 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 	}
 
 	n.log.V(10).Info("Collected GlobalProxySettings", "owner", ownerKind, "name", ownerName, "settings", len(globalProxySettings.Items))
+
+	tenants := make([]string, 0, len(tl.Items))
 
 	for _, t := range tl.Items {
 		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(t, ownerName, ownerKind, nil))

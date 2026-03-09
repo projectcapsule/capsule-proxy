@@ -88,7 +88,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 		return nil, nil
 	}
 
-	var selectors []map[string]string
+	selectors := make([]map[string]string, 0, len(proxyTenants))
 	// Ensuring the Tenant Owner can deal with the node listing
 	for _, pt := range proxyTenants {
 		selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
