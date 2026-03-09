@@ -44,7 +44,7 @@ func MutateAuthorization(proxyTenants []*tenant.ProxyTenant, obj *runtime.Object
 		rules := (*obj).(*authorizationv1.SelfSubjectRulesReview)
 
 		var resourceRules []authorizationv1.ResourceRule
-		
+
 		resourceRules = getAllResourceRules(proxyTenants)
 
 		resourceRules = append(resourceRules, authorizationv1.ResourceRule{
