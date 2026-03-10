@@ -15,6 +15,10 @@ type OwnerSpec struct {
 	Name string `json:"name"`
 	// Cluster Resources for tenant Owner.
 	ClusterResources []ClusterResource `json:"clusterResources,omitempty"`
+	// Deprecated: Use Global Proxy Settings instead (https://projectcapsule.dev/docs/proxy/proxysettings/#globalproxysettings)
+	//
+	// Proxy settings for tenant owner.
+	ProxyOperations []capsuleapi.ProxySettings `json:"proxySettings,omitempty"`
 }
 
 // ProxySettingSpec defines the additional Capsule Proxy settings for additional users of the Tenant.

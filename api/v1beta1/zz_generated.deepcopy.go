@@ -8,6 +8,7 @@
 package v1beta1
 
 import (
+	"github.com/projectcapsule/capsule/pkg/api"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -175,6 +176,13 @@ func (in *OwnerSpec) DeepCopyInto(out *OwnerSpec) {
 	if in.ClusterResources != nil {
 		in, out := &in.ClusterResources, &out.ClusterResources
 		*out = make([]ClusterResource, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.ProxyOperations != nil {
+		in, out := &in.ProxyOperations, &out.ProxyOperations
+		*out = make([]api.ProxySettings, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
