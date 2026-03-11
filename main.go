@@ -82,6 +82,7 @@ func main() {
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
 		},
+		//nolint:staticcheck
 		features.ProxyClusterScoped: {
 			Default:       false,
 			LockToDefault: false,

@@ -190,7 +190,7 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "serviceMonitor.enabled=false" \
 		--set "options.generateCertificates=false" \
 		--set "certManager.generateCertificates=false" \
-		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
+		--set "options.extraArgs={--feature-gates=ProxyAllNamespaced=true}"
 else
 	@echo "Running in HTTPS mode"
 	@echo "Installing Capsule-Proxy using HELM..."
