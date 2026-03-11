@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/component-base/featuregate"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
@@ -180,6 +181,25 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
 	})
+	// cert-watcher integration:
+	// extracting the GetCertificate function for hot reload upon certificate update.
+	// This will be used only if the proxy is set to bare TLS mode.
+	var getCertificateFn func(*tls.ClientHelloInfo) (*tls.Certificate, error)
+
+	if n.serverOptions.IsListeningTLS() {
+		watcher, watcherErr := certwatcher.New(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
+		if watcherErr != nil {
+			return fmt.Errorf("cannot create certificate watcher: %w", watcherErr)
+		}
+
+		getCertificateFn = watcher.GetCertificate
+
+		go func() {
+			if startErr := watcher.Start(ctx); startErr != nil {
+				panic(fmt.Errorf("cannot start certificate watcher: %w", startErr))
+			}
+		}()
+	}
 
 	var srv *http.Server
 
@@ -190,8 +210,9 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 
 		if n.serverOptions.IsListeningTLS() {
 			tlsConfig := &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				ClientCAs:  n.serverOptions.GetCertificateAuthorityPool(),
+				ClientCAs:      n.serverOptions.GetCertificateAuthorityPool(),
+				GetCertificate: getCertificateFn,
+				MinVersion:     tls.VersionTLS12,
 			}
 
 			for _, authType := range n.authTypes {
@@ -208,13 +229,20 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 				TLSConfig:         tlsConfig,
 				ReadHeaderTimeout: 5 * time.Second,
 			}
-			err = srv.ListenAndServeTLS(n.serverOptions.TLSCertificatePath(), n.serverOptions.TLSCertificateKeyPath())
+
+			ln, lnErr := tls.Listen("tcp", addr, tlsConfig)
+			if lnErr != nil {
+				panic("cannot create listener: " + lnErr.Error())
+			}
+
+			err = srv.Serve(ln)
 		} else {
 			srv = &http.Server{
 				Handler:           r,
 				Addr:              addr,
 				ReadHeaderTimeout: 5 * time.Second,
 			}
+
 			err = srv.ListenAndServe()
 		}
 
