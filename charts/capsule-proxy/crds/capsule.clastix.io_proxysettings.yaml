@@ -142,7 +142,10 @@ spec:
                       description: Name of tenant owner.
                       type: string
                     proxySettings:
-                      description: Proxy settings for tenant owner.
+                      description: |-
+                        Deprecated: Use Global Proxy Settings instead (https://projectcapsule.dev/docs/proxy/proxysettings/#globalproxysettings)
+
+                        Proxy settings for tenant owner.
                       items:
                         properties:
                           kind:
