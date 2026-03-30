@@ -33,5 +33,5 @@ annotations:
     - name: Documentation
       url: https://projectcapsule.dev/docs/proxy/
   artifacthub.io/changes: |
-    - kind: added
-      description: added toggles for podSecurityContexts and securityContexts
+    - kind: fixed
+      description: fixed default securityContext toggles for kubectl job

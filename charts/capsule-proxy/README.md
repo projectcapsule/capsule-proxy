@@ -115,11 +115,11 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.kubectl.nodeSelector | object | `{}` | Set the node selector |
 | global.jobs.kubectl.podAnnotations | object | `{}` | Annotations to add to the job pod |
 | global.jobs.kubectl.podLabels | object | `{}` | Labels to add to the job pod |
-| global.jobs.kubectl.podSecurityContext | object | `{"enabled":false,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
+| global.jobs.kubectl.podSecurityContext | object | `{"enabled":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
 | global.jobs.kubectl.priorityClassName | string | `""` | Set a pod priorityClassName |
 | global.jobs.kubectl.resources | object | `{}` | Job resources |
 | global.jobs.kubectl.restartPolicy | string | `"Never"` | Set the restartPolicy |
-| global.jobs.kubectl.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":false,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
+| global.jobs.kubectl.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
 | global.jobs.kubectl.tolerations | list | `[]` | Set list of tolerations |
 | global.jobs.kubectl.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
 | global.jobs.kubectl.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
