@@ -19,7 +19,8 @@ const (
 	// essentially bypassing any authorization. Only use this option in trusted environments
 	// where authorization/authentication is offloaded to external systems.
 	SkipImpersonationReview = "SkipImpersonationReview"
-
+	// Deprecated: Use Global Proxy Settings instead (https://projectcapsule.dev/docs/proxy/proxysettings/#globalproxysettings)
+	//
 	// ProxyClusterScoped allows to proxy all clusterScoped objects
 	// for all tenant users.
 	ProxyClusterScoped = "ProxyClusterScoped"
