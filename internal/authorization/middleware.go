@@ -12,13 +12,17 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
-func MutateAuthorization(proxyTenants []*tenant.ProxyTenant, obj *runtime.Object, gvk schema.GroupVersionKind) error {
+func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTenant, obj *runtime.Object, gvk schema.GroupVersionKind) error {
 	switch gvk.Kind {
 	case "SelfSubjectAccessReview":
 		//nolint:forcetypeassert
 		accessReview := (*obj).(*authorizationv1.SelfSubjectAccessReview)
 		if accessReview.Spec.ResourceAttributes.Resource == "namespaces" && accessReview.Spec.ResourceAttributes.Verb == "list" {
 			accessReview.Status.Allowed = true
+		}
+
+		if !proxyClusterScoped {
+			return nil
 		}
 
 		accessReviewGvk := schema.GroupVersionKind{
@@ -44,8 +48,11 @@ func MutateAuthorization(proxyTenants []*tenant.ProxyTenant, obj *runtime.Object
 		rules := (*obj).(*authorizationv1.SelfSubjectRulesReview)
 
 		var resourceRules []authorizationv1.ResourceRule
-
-		resourceRules = getAllResourceRules(proxyTenants)
+		if proxyClusterScoped {
+			resourceRules = getAllResourceRules(proxyTenants)
+		} else {
+			resourceRules = []authorizationv1.ResourceRule{}
+		}
 
 		resourceRules = append(resourceRules, authorizationv1.ResourceRule{
 			APIGroups: []string{""},

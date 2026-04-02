@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -40,9 +41,11 @@ func GetNodeSelector(nl *corev1.NodeList, selectors []map[string]string) (*label
 	return nil, fmt.Errorf("cannot create LabelSelector for the requested Node requirement")
 }
 
-func GetNodeSelectors(_ *http.Request, proxyTenants []*tenant.ProxyTenant) (selectors []map[string]string) {
+func GetNodeSelectors(request *http.Request, proxyTenants []*tenant.ProxyTenant) (selectors []map[string]string) {
 	for _, pt := range proxyTenants {
-		selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
+		if ok := pt.RequestAllowed(request, capsuleapi.NodesProxy); ok {
+			selectors = append(selectors, pt.Tenant.Spec.NodeSelector)
+		}
 	}
 
 	return

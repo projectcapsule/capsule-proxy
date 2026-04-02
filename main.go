@@ -77,13 +77,12 @@ func main() {
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
 		},
-		features.SkipImpersonationReview: {
+		features.ProxyClusterScoped: {
 			Default:       false,
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
 		},
-		//nolint:staticcheck
-		features.ProxyClusterScoped: {
+		features.SkipImpersonationReview: {
 			Default:       false,
 			LockToDefault: false,
 			PreRelease:    featuregate.Alpha,
@@ -250,9 +249,12 @@ First match is used and can be specified multiple times as comma separated value
 
 	indexers := []capsuleindexer.CustomIndexer{
 		&tenant.NamespacesReference{Obj: &capsulev1beta2.Tenant{}},
-		&indexer.TenantOwnerReference{},
+		&tenant.OwnerReference{},
 		&indexer.ProxySetting{},
-		&indexer.GlobalProxySetting{},
+	}
+	// Optional Indexers
+	if gates.Enabled(features.ProxyClusterScoped) {
+		indexers = append(indexers, &indexer.GlobalProxySetting{})
 	}
 
 	for _, fieldIndex := range indexers {

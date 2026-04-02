@@ -45,14 +45,20 @@ import (
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/authorization"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
+	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	moderrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/ingressclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/metric"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/namespace"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/namespaced"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/node"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/persistentvolume"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/priorityclass"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/runtimeclass"
+	"github.com/projectcapsule/capsule-proxy/internal/modules/storageclass"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/tenants"
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
@@ -350,7 +356,7 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			n.log.Error(err, "cannot decode authorization object")
 		}
 
-		err = authorization.MutateAuthorization(proxyTenants, &obj, *gvk)
+		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, &obj, *gvk)
 		if err != nil {
 			n.log.Error(err, "cannot mutate authorization object")
 		}
@@ -452,35 +458,49 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		namespace.Get(n.roleBindingsReflector, n.reader),
 		tenants.List(),
 		tenants.Get(n.reader),
-		// Node and metric modules are kept as dedicated modules
-		// since they rely on Tenant.Spec.NodeSelector matching
-		node.List(n.reader),
-		node.Get(n.reader),
-		metric.Get(n.reader),
-		metric.List(n.reader),
 	}
 
 	// Discovery client
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie())
 
-	// Use the generic cluster scoped module for all remaining cluster-scoped resources.
-	// Resources already handled by dedicated modules above (namespaces, tenants, nodes, metrics)
-	// are skipped via moduleGroupKindPresent.
-	apis, err := serverPreferredResources(discoveryClient)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, api := range apis {
-		if !moduleGroupKindPresent(modList, api) {
-			n.log.V(6).Info("adding generic cluster scoped resource", "url", api.Path())
-			modList = append(modList, clusterscoped.List(n.reader, n.writer, api.Path()))
-			modList = append(modList, clusterscoped.Get(discoveryClient, n.reader, n.writer, api.ResourcePath()))
+	// When the ProxyClusterScoped flag is enabled
+	// we are no longer respecting legacy proxysettings
+	if n.gates.Enabled(features.ProxyClusterScoped) {
+		apis, err := serverPreferredResources(discoveryClient)
+		if err != nil {
+			panic(err)
 		}
+
+		for _, api := range apis {
+			if !moduleGroupKindPresent(modList, api) {
+				n.log.V(6).Info("adding generic cluster scoped resource", "url", api.Path())
+				modList = append(modList, clusterscoped.List(n.reader, n.writer, api.Path()))
+				modList = append(modList, clusterscoped.Get(discoveryClient, n.reader, n.writer, api.ResourcePath()))
+			}
+		}
+	} else {
+		// Adds all legacy routes
+		modList = append(modList, []modules.Module{
+			node.List(n.reader),
+			node.Get(n.reader),
+			ingressclass.List(n.reader),
+			ingressclass.Get(n.reader),
+			storageclass.Get(n.reader),
+			storageclass.List(n.reader),
+			priorityclass.List(n.reader),
+			priorityclass.Get(n.reader),
+			runtimeclass.Get(n.reader),
+			runtimeclass.List(n.reader),
+			persistentvolume.Get(n.reader),
+			persistentvolume.List(n.reader),
+			metric.Get(n.reader),
+			metric.List(n.reader),
+		}...,
+		)
 	}
 
 	// Get all API group resources
-	apis, err = discoverAPI(ctrl.GetConfigOrDie())
+	apis, err := discoverAPI(ctrl.GetConfigOrDie())
 	if err != nil {
 		panic(err)
 	}
@@ -575,14 +595,31 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 	return
 }
 
+func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsuleapi.OwnerListSpec) []v1beta1.OwnerSpec {
+	out := make([]v1beta1.OwnerSpec, 0, len(owners))
+
+	for _, owner := range owners {
+		out = append(out, v1beta1.OwnerSpec{
+			Kind:            owner.Kind,
+			Name:            owner.Name,
+			ProxyOperations: owner.ProxyOperations,
+		})
+	}
+
+	return out
+}
+
 //nolint:funlen
 func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsuleapi.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
+	//nolint:prealloc
+	var tenants []string
+
 	ownerIndexValue := fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)
 
 	tl := &capsulev1beta2.TenantList{}
 
 	f := client.MatchingFields{
-		indexer.TenantOwnerKindField: ownerIndexValue,
+		".spec.owner.ownerkind": ownerIndexValue,
 	}
 	if err = n.managerReader.List(ctx, tl, f); err != nil {
 		return nil, fmt.Errorf("cannot retrieve Tenants list: %w", err)
@@ -609,28 +646,29 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 			continue
 		}
 
-		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(tntList.Items[0], ownerName, ownerKind, proxySetting.Spec.Subjects))
+		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, tntList.Items[0], proxySetting.Spec.Subjects))
 	}
 
 	// Consider Global ProxySettings
-	globalProxySettings := &v1beta1.GlobalProxySettingsList{}
-	if err = n.managerReader.List(ctx, globalProxySettings, client.MatchingFields{indexer.GlobalKindField: ownerIndexValue}); err != nil {
-		n.log.Error(err, "cannot retrieve GlobalProxySettings", "owner", ownerKind, "name", ownerName)
+	// Only consider GlobalProxySettings if the feature gate is enabled
+	if n.gates.Enabled(features.ProxyClusterScoped) {
+		globalProxySettings := &v1beta1.GlobalProxySettingsList{}
+		if err = n.managerReader.List(ctx, globalProxySettings, client.MatchingFields{indexer.GlobalKindField: ownerIndexValue}); err != nil {
+			n.log.Error(err, "cannot retrieve GlobalProxySettings", "owner", ownerKind, "name", ownerName)
+		}
+		// Convert GlobalProxySettings to TenantProxies
+		for _, globalProxySetting := range globalProxySettings.Items {
+			n.log.V(10).Info("Converting GlobalProxySettings", "Setting", globalProxySetting.Name)
+
+			tProxy := tenant.NewClusterProxy(ownerName, ownerKind, globalProxySetting.Spec.Rules)
+			proxyTenants = append(proxyTenants, tProxy)
+		}
+
+		n.log.V(10).Info("Collected GlobalProxySettings", "owner", ownerKind, "name", ownerName, "settings", len(globalProxySettings.Items))
 	}
-	// Convert GlobalProxySettings to TenantProxies
-	for _, globalProxySetting := range globalProxySettings.Items {
-		n.log.V(10).Info("Converting GlobalProxySettings", "Setting", globalProxySetting.Name)
-
-		tProxy := tenant.NewClusterProxy(ownerName, ownerKind, globalProxySetting.Spec.Rules)
-		proxyTenants = append(proxyTenants, tProxy)
-	}
-
-	n.log.V(10).Info("Collected GlobalProxySettings", "owner", ownerKind, "name", ownerName, "settings", len(globalProxySettings.Items))
-
-	tenants := make([]string, 0, len(tl.Items))
 
 	for _, t := range tl.Items {
-		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(t, ownerName, ownerKind, nil))
+		proxyTenants = append(proxyTenants, tenant.NewProxyTenant(ownerName, ownerKind, t, n.ownerFromCapsuleToProxySetting(t.Spec.Owners)))
 		tenants = append(tenants, t.GetName())
 	}
 
