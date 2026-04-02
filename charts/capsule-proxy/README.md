@@ -136,6 +136,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | daemonset.hostNetwork | bool | `false` | Use the host network namespace for capsule-proxy pod. |
 | daemonset.hostPort | bool | `false` | Binding the capsule-proxy listening port to the host port. |
 | env | list | `[]` | Additional environment variables |
+| extraManifests | list | `[]` | Array of additional resources to be created alongside Capsule-Proxy helm chart |
 | hostNetwork | bool | `false` | When deployed as DaemonSet use |
 | hostUsers | bool | `true` | Don't use Host Users (User Namespaces) |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |

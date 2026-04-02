@@ -471,6 +471,15 @@ serviceMonitor:
     # -- Set relabelings for the endpoint of the serviceMonitor
     relabelings: []
 
+# -- Array of additional resources to be created alongside Capsule-Proxy helm chart
+extraManifests: []
+  # - apiVersion: v1
+  #   kind: ConfigMap
+  #   metadata:
+  #     name: extra-configmap
+  #   data:
+  #     key: value
+
 # Deploys Gangplank for OIDC Kubeconfig Generation
 gangplank:
   # -- Enable Gangplank
