@@ -113,6 +113,19 @@
                             "type": "string"
                         }
                     }
+                },
+                "secretTemplate": {
+                    "type": "object",
+                    "properties": {
+                        "ca": {
+                            "description": "Labels and annotations added to the self-signed CA certificate secret",
+                            "type": "object"
+                        },
+                        "certificate": {
+                            "description": "Labels and annotations added to the certificate secret",
+                            "type": "object"
+                        }
+                    }
                 }
             }
         },

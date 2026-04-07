@@ -329,6 +329,21 @@ certManager:
       privateKey:
         rotationPolicy: 'Always'
       # renewBefore: '24h'
+  secretTemplate:
+    # -- Labels and annotations added to the self-signed CA certificate secret
+    ca: {}
+      # annotations:
+      #   my-secret-annotation-1: "foo"
+      #   my-secret-annotation-2: "bar"
+      # labels:
+      #   my-secret-label: foo
+    # -- Labels and annotations added to the certificate secret
+    certificate: {}
+      # annotations:
+      #   my-secret-annotation-1: "foo"
+      #   my-secret-annotation-2: "bar"
+      # labels:
+      #   my-secret-label: foo
 
 webhooks:
   # -- Enable the usage of mutating and validating webhooks

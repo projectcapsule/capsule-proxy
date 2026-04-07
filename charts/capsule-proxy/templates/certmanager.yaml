@@ -18,6 +18,10 @@ spec:
   isCA: true
   commonName: {{ include "capsule-proxy.fullname" . }}-selfsigned-ca
   secretName: {{ include "capsule-proxy.caSecretName" . }}
+  {{- if .Values.certManager.secretTemplate.ca }}
+  secretTemplate:
+    {{- toYaml .Values.certManager.secretTemplate.ca | nindent 4 }}
+  {{- end }}
   privateKey:
     algorithm: ECDSA
     size: 256
@@ -76,6 +80,10 @@ spec:
     kind: {{ .Values.certManager.issuer.kind }}
     name: {{ include "capsule-proxy.certManager.issuerName" . }}
   secretName: {{ include "capsule-proxy.fullname" . }}
+  {{- if .Values.certManager.secretTemplate.certificate }}
+  secretTemplate:
+    {{- toYaml .Values.certManager.secretTemplate.certificate | nindent 4 }}
+  {{- end }}
   subject:
     organizations:
       - projectcapsule.dev
