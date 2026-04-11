@@ -52,12 +52,12 @@ func MutateAuthorization(proxyTenants []*tenant.ProxyTenant, obj *runtime.Object
 			Resources: []string{"namespaces"},
 			Verbs:     []string{"list"},
 		})
-		src := authorizationv1.SelfSubjectRulesReview{
-			Status: authorizationv1.SubjectRulesReviewStatus{
-				ResourceRules: resourceRules,
-			},
-		}
-		rules.XXX_Merge(&src)
+		/*		src := authorizationv1.SelfSubjectRulesReview{
+				Status: authorizationv1.SubjectRulesReviewStatus{
+					ResourceRules: resourceRules,
+				},
+			}*/
+		rules.Status = authorizationv1.SubjectRulesReviewStatus{ResourceRules: resourceRules}
 	default:
 		return fmt.Errorf("unsupported kind: %s", gvk.Kind)
 	}
