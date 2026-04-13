@@ -212,6 +212,8 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | certManager.generateCertificates | bool | `true` | Set if the cert manager will generate SSL certificates (self-signed or CA-signed) |
 | certManager.issuer.kind | string | `"Issuer"` | Set if the cert manager will generate either self-signed or CA signed SSL certificates. Its value will be either Issuer or ClusterIssuer |
 | certManager.issuer.name | string | `""` | Set the name of the ClusterIssuer if issuer kind is ClusterIssuer and if cert manager will generate CA signed SSL certificates |
+| certManager.secretTemplate.ca | object | `{}` | Labels and annotations added to the self-signed CA certificate secret |
+| certManager.secretTemplate.certificate | object | `{}` | Labels and annotations added to the certificate secret |
 
 ### Webhook Parameters
 
