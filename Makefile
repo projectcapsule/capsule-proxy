@@ -190,7 +190,7 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "serviceMonitor.enabled=false" \
 		--set "options.generateCertificates=false" \
 		--set "certManager.generateCertificates=false" \
-		--set "options.extraArgs={--feature-gates=ProxyAllNamespaced=true}"
+		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 else
 	@echo "Running in HTTPS mode"
 	@echo "Installing Capsule-Proxy using HELM..."
@@ -206,7 +206,7 @@ else
 		--set "serviceMonitor.enabled=false" \
 		--set "options.generateCertificates=false" \
 		--set "certManager.certificate.ipAddresses={127.0.0.1}" \
-		--set "options.extraArgs={--feature-gates=ProxyAllNamespaced=true}"
+		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
 endif
 	@kubectl rollout restart ds capsule-proxy -n capsule-system || true
 	$(MAKE) generate-kubeconfigs
