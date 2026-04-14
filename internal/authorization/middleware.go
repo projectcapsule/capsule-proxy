@@ -79,6 +79,8 @@ func getAllResourceRules(proxyTenants []*tenant.ProxyTenant) []authorizationv1.R
 	for _, pt := range proxyTenants {
 		for _, cr := range pt.ClusterResources {
 			verbs := []string{}
+
+			//nolint:staticcheck
 			for _, op := range cr.Operations {
 				verbs = append(verbs, strings.ToLower(op.String()))
 			}

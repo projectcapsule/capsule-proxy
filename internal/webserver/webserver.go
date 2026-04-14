@@ -215,12 +215,8 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 				MinVersion:     tls.VersionTLS12,
 			}
 
-			for _, authType := range n.authTypes {
-				if authType == req.TLSCertificate {
-					tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
-
-					break
-				}
+			if slices.Contains(n.authTypes, req.TLSCertificate) {
+				tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
 			}
 
 			srv = &http.Server{
@@ -392,7 +388,6 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-//nolint:interfacer
 func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
 	req.SanitizeImpersonationHeaders(request)
 
@@ -680,7 +675,7 @@ func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
 	}
 	// Removing connection headers
 	for _, f := range request.Header.Values(connectionHeaderName) {
-		for _, sf := range strings.Split(f, ",") {
+		for sf := range strings.SplitSeq(f, ",") {
 			if sf = textproto.TrimString(sf); sf != "" {
 				request.Header.Del(sf)
 			}

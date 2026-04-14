@@ -56,7 +56,7 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 
 	userOwnerKind := capsuleapi.UserOwner
 
-	var userRoleBindings []interface{}
+	var userRoleBindings []any
 
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
 		userOwnerKind = capsuleapi.ServiceAccountOwner
@@ -108,7 +108,7 @@ func (r *RoleBindingReflector) Start(ctx context.Context) error {
 	return nil
 }
 
-func OwnerRoleBindingsIndexFunc(obj interface{}) (result []string, err error) {
+func OwnerRoleBindingsIndexFunc(obj any) (result []string, err error) {
 	//nolint:forcetypeassert
 	rb := obj.(*rbacv1.RoleBinding)
 

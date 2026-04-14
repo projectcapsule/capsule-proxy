@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
-// GetGVKByPlural returns the GroupVersionKind for a given plural name.
+// ReplacePluralWithKind returns the GroupVersionKind for a given plural name.
 func ReplacePluralWithKind(discoveryClient *discovery.DiscoveryClient, gvk *schema.GroupVersionKind) error {
 	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(gvk.Group + "/" + gvk.Version)
 	if err != nil {
@@ -29,7 +29,7 @@ func ReplacePluralWithKind(discoveryClient *discovery.DiscoveryClient, gvk *sche
 	return fmt.Errorf("could not find GVK for plural name: %s", gvk.Kind)
 }
 
-// Since the URL is in the format /apis/{group}/{version}/{kind} or /api/{version}/{kind}, we can extract the GVK from the URL.
+// GetGVKFromURL since the URL is in the format /apis/{group}/{version}/{kind} or /api/{version}/{kind}, we can extract the GVK from the URL.
 // However the kind will be the plural form.
 func GetGVKFromURL(url string) *schema.GroupVersionKind {
 	parts := strings.Split(url, "/")
