@@ -48,6 +48,7 @@ spec:
                     clusterResources:
                       description: Cluster Resources for tenant Owner.
                       items:
+                        description: ClusterResource Specification
                         properties:
                           apiGroups:
                             description: APIGroups is the name of the APIGroup that
@@ -60,10 +61,12 @@ spec:
                             type: array
                           operations:
                             description: |-
-                              Operations which can be executed on the selected resources.
                               Deprecated: For all registered Routes only LIST ang GET requests will intercepted
+
+                              Operations which can be executed on the selected resources.
                               Other permissions must be implemented via kubernetes native RBAC
                             items:
+                              description: ClusterResourceOperation
                               enum:
                               - List
                               - Update
