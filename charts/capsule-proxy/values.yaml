@@ -31,12 +31,12 @@ global:
       ttlSecondsAfterFinished: 60
       # -- Security context for the job pods.
       podSecurityContext:
-        enabled: false
+        enabled: true
         seccompProfile:
           type: "RuntimeDefault"
       # -- Security context for the job containers.
       securityContext:
-        enabled: false
+        enabled: true
         allowPrivilegeEscalation: false
         capabilities:
           drop:
@@ -470,6 +470,15 @@ serviceMonitor:
     metricRelabelings: []
     # -- Set relabelings for the endpoint of the serviceMonitor
     relabelings: []
+
+# -- Array of additional resources to be created alongside Capsule-Proxy helm chart
+extraManifests: []
+  # - apiVersion: v1
+  #   kind: ConfigMap
+  #   metadata:
+  #     name: extra-configmap
+  #   data:
+  #     key: value
 
 # Deploys Gangplank for OIDC Kubeconfig Generation
 gangplank:
