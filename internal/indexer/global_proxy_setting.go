@@ -15,7 +15,7 @@ const (
 	GlobalKindField = "spec.subjects.ownerkind"
 )
 
-// ProxySetting is the indexer that allows retrieving the Capsule Proxy Settings
+// GlobalProxySetting is the indexer that allows retrieving the Capsule Proxy Settings
 // for a specific actor according to its kind.
 type GlobalProxySetting struct{}
 

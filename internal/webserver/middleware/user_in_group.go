@@ -6,6 +6,7 @@ package middleware
 import (
 	"net/http"
 	"regexp"
+	"slices"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
@@ -25,13 +26,13 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 					log.Error(err, "Cannot retrieve username and group from request")
 				}
 
-				for _, group := range groups {
-					if ignoredUserGroups.Has(group) {
-						log.V(5).Info("current user belongs to ignored groups", "user", user)
-						fn(writer, request)
+				if slices.ContainsFunc(groups, func(group string) bool {
+					return ignoredUserGroups.Has(group)
+				}) {
+					log.V(5).Info("current user belongs to ignored groups", "user", user)
+					fn(writer, request)
 
-						return
-					}
+					return
 				}
 			}
 
@@ -50,12 +51,12 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 
 			log.V(10).Info("request groups", "groups", groups)
 
-			for _, group := range groups {
-				if controllers.CapsuleUserGroups.Has(group) {
-					next.ServeHTTP(writer, request)
+			if slices.ContainsFunc(groups, func(group string) bool {
+				return controllers.CapsuleUserGroups.Has(group)
+			}) {
+				next.ServeHTTP(writer, request)
 
-					return
-				}
+				return
 			}
 
 			if controllers.CapsuleUsers.Has(user) {

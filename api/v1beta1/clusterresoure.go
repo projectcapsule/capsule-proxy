@@ -5,6 +5,7 @@ package v1beta1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+// ClusterResourceOperation
 // +kubebuilder:validation:Enum=List;Update;Delete
 type ClusterResourceOperation string
 
@@ -16,6 +17,7 @@ const (
 	ClusterResourceOperationList ClusterResourceOperation = "List"
 )
 
+// ClusterResource Specification
 // +kubebuilder:object:generate=true
 type ClusterResource struct {
 	// APIGroups is the name of the APIGroup that contains the resources. If multiple API groups are specified, any action requested against any resource listed will be allowed. '*' represents all resources. Empty string represents v1 api resources.
@@ -24,8 +26,9 @@ type ClusterResource struct {
 	// Resources is a list of resources this rule applies to. '*' represents all resources.
 	Resources []string `json:"resources"`
 
-	// Operations which can be executed on the selected resources.
 	// Deprecated: For all registered Routes only LIST ang GET requests will intercepted
+	//
+	// Operations which can be executed on the selected resources.
 	// Other permissions must be implemented via kubernetes native RBAC
 	Operations []ClusterResourceOperation `json:"operations,omitempty"`
 

@@ -32,7 +32,7 @@ func (o TenantOwnerReference) Func() client.IndexerFunc {
 			panic(fmt.Errorf("expected type *capsulev1beta2.Tenant, got %T", object))
 		}
 
-		var owners []string
+		owners := make([]string, 0, len(tnt.Status.Owners))
 		for _, owner := range tnt.Status.Owners {
 			owners = append(owners, fmt.Sprintf("%s:%s", owner.Kind.String(), owner.Name))
 		}

@@ -14,7 +14,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
-// Calculate Requirements for a given GroupVersionKind based on the ProxyTenants clusterResource configurations.
+// GetClusterScopeRequirements calculates requirements for a given GroupVersionKind based on the ProxyTenants clusterResource configurations.
 func GetClusterScopeRequirements(gvk *schema.GroupVersionKind, proxyTenants []*tenant.ProxyTenant) (operations []v1beta1.ClusterResourceOperation, requirements []labels.Requirement) {
 	operations = []v1beta1.ClusterResourceOperation{}
 	requirements = []labels.Requirement{}
@@ -23,6 +23,7 @@ func GetClusterScopeRequirements(gvk *schema.GroupVersionKind, proxyTenants []*t
 		for _, cr := range pt.ClusterResources {
 			if matchResource(gvk, cr) {
 				// Append Operations
+				//nolint:staticcheck
 				operations = append(operations, cr.Operations...)
 
 				// Append Selector
