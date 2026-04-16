@@ -4,6 +4,7 @@
 package request
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	h "net/http"
@@ -16,6 +17,15 @@ import (
 	"k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var websocketBearerTokenRegexp = regexp.MustCompile(`base64url\.bearer\.authorization\.k8s\.io\.([^,]*)`) //nolint:gochecknoglobals
+
+type userAndGroupsContextKey struct{}
+
+type userAndGroupsContextValue struct {
+	username string
+	groups   []string
+}
 
 type http struct {
 	*h.Request
@@ -38,6 +48,16 @@ func (h http) GetHTTPRequest() *h.Request {
 
 //nolint:funlen
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
+	if cachedUsername, cachedGroups, ok := h.cachedUserAndGroups(); ok {
+		return cachedUsername, cachedGroups, nil
+	}
+
+	defer func() {
+		if err == nil {
+			h.setCachedUserAndGroups(username, groups)
+		}
+	}()
+
 	for _, fn := range h.authenticationFns() {
 		// User authentication data is extracted according to the preferred order:
 		// in case of first match blocking the iteration
@@ -158,16 +178,14 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 // Get the JWT from headers
 // If there is no Authorizaion Bearer, then try finding the Bearer in Websocket Protocols header. This is for browser support.
 func (h http) bearerToken() (string, error) {
-	tradBearer := strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
+	tradBearer := strings.TrimPrefix(h.Header.Get("Authorization"), "Bearer ")
 	wsHeader := h.Header.Get("Sec-Websocket-Protocol")
 
 	switch {
 	case tradBearer != "":
 		return tradBearer, nil
 	case wsHeader != "":
-		re := regexp.MustCompile(`base64url\.bearer\.authorization\.k8s\.io\.([^,]*)`)
-
-		match := re.FindStringSubmatch(wsHeader)[1]
+		match := websocketBearerTokenRegexp.FindStringSubmatch(wsHeader)[1]
 		if match != "" {
 			// our token is base64 encoded without padding
 			b64decode, err := base64.RawStdEncoding.DecodeString(match)
@@ -182,6 +200,23 @@ func (h http) bearerToken() (string, error) {
 	default:
 		return "", NewErrUnauthorized("no authentication headers found. Unauthenticated users are not supported")
 	}
+}
+
+func (h http) cachedUserAndGroups() (string, []string, bool) {
+	value, ok := h.Context().Value(userAndGroupsContextKey{}).(userAndGroupsContextValue)
+	if !ok {
+		return "", nil, false
+	}
+
+	return value.username, value.groups, true
+}
+
+func (h http) setCachedUserAndGroups(username string, groups []string) {
+	ctx := context.WithValue(h.Context(), userAndGroupsContextKey{}, userAndGroupsContextValue{
+		username: username,
+		groups:   groups,
+	})
+	*h.Request = *h.WithContext(ctx)
 }
 
 type authenticationFn func() (username string, groups []string, err error)
