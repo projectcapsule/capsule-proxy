@@ -340,9 +340,7 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
-
-		username, groups, err := proxyRequest.GetUserAndGroups()
+		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 		if err != nil {
 			server.HandleError(writer, err, "cannot retrieve user and group from the request")
 		}
@@ -419,9 +417,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 }
 
 func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
-
-	username, groups, err := hr.GetUserAndGroups()
+	request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 	if err != nil {
 		msg := "cannot retrieve user and group"
 
@@ -538,9 +534,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
-
-			username, groups, err := proxyRequest.GetUserAndGroups()
+			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")
 			}
@@ -552,7 +546,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 			var selector labels.Selector
 
-			selector, err = mod.Handle(proxyTenants, proxyRequest)
+			selector, err = mod.Handle(proxyTenants, req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview))
 
 			switch {
 			case err != nil:

@@ -21,7 +21,13 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if ignoredUserGroups.Len() > 0 {
-				user, groups, err := req.NewHTTP(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview).GetUserAndGroups()
+				var (
+					err    error
+					user   string
+					groups []string
+				)
+
+				request, user, groups, err = req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview)
 				if err != nil {
 					log.Error(err, "Cannot retrieve username and group from request")
 				}
@@ -44,7 +50,7 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			user, groups, err := req.NewHTTP(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview).GetUserAndGroups()
+			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview)
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
 			}

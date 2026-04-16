@@ -42,22 +42,31 @@ func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string
 	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client, ignoredImpersonationGroups: ignoredImpersonationGroups, impersonationGroupsRegexp: impersonationGroupsRegexp, skipImpersonationReview: skipImpersonationReview}
 }
 
+func ResolveUserAndGroups(request *h.Request, authTypes []AuthType, usernameClaimField string, writer client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool) (*h.Request, string, []string, error) {
+	if cachedUsername, cachedGroups, ok := cachedUserAndGroups(request.Context()); ok {
+		return request, cachedUsername, cachedGroups, nil
+	}
+
+	proxyRequest := NewHTTP(request, authTypes, usernameClaimField, writer, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview)
+	username, groups, err := proxyRequest.GetUserAndGroups()
+	if err != nil {
+		return request, "", nil, err
+	}
+
+	ctx := context.WithValue(request.Context(), userAndGroupsContextKey{}, userAndGroupsContextValue{
+		username: username,
+		groups:   groups,
+	})
+
+	return request.WithContext(ctx), username, groups, nil
+}
+
 func (h http) GetHTTPRequest() *h.Request {
 	return h.Request
 }
 
 //nolint:funlen
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
-	if cachedUsername, cachedGroups, ok := h.cachedUserAndGroups(); ok {
-		return cachedUsername, cachedGroups, nil
-	}
-
-	defer func() {
-		if err == nil {
-			h.setCachedUserAndGroups(username, groups)
-		}
-	}()
-
 	for _, fn := range h.authenticationFns() {
 		// User authentication data is extracted according to the preferred order:
 		// in case of first match blocking the iteration
@@ -185,10 +194,10 @@ func (h http) bearerToken() (string, error) {
 	case tradBearer != "":
 		return tradBearer, nil
 	case wsHeader != "":
-		match := websocketBearerTokenRegexp.FindStringSubmatch(wsHeader)[1]
-		if match != "" {
+		match := websocketBearerTokenRegexp.FindStringSubmatch(wsHeader)
+		if len(match) > 1 && match[1] != "" {
 			// our token is base64 encoded without padding
-			b64decode, err := base64.RawStdEncoding.DecodeString(match)
+			b64decode, err := base64.RawStdEncoding.DecodeString(match[1])
 			if err != nil {
 				return "", NewErrUnauthorized("failed to decode websocket auth bearer: " + err.Error())
 			}
@@ -202,21 +211,13 @@ func (h http) bearerToken() (string, error) {
 	}
 }
 
-func (h http) cachedUserAndGroups() (string, []string, bool) {
-	value, ok := h.Context().Value(userAndGroupsContextKey{}).(userAndGroupsContextValue)
+func cachedUserAndGroups(ctx context.Context) (string, []string, bool) {
+	value, ok := ctx.Value(userAndGroupsContextKey{}).(userAndGroupsContextValue)
 	if !ok {
 		return "", nil, false
 	}
 
 	return value.username, value.groups, true
-}
-
-func (h http) setCachedUserAndGroups(username string, groups []string) {
-	ctx := context.WithValue(h.Context(), userAndGroupsContextKey{}, userAndGroupsContextValue{
-		username: username,
-		groups:   groups,
-	})
-	*h.Request = *h.WithContext(ctx)
 }
 
 type authenticationFn func() (username string, groups []string, err error)
