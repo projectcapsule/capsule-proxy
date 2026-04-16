@@ -328,16 +328,19 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 		w := httptest.NewRecorder()
 		next.ServeHTTP(w, request)
 
-		body, err := io.ReadAll(w.Result().Body)
+		result := w.Result()
+		defer func() {
+			_ = result.Body.Close()
+		}()
+
+		body, err := io.ReadAll(result.Body)
 		if err != nil {
 			n.log.Error(err, "cannot read response body")
 
 			return
 		}
 
-		proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
-
-		username, groups, err := proxyRequest.GetUserAndGroups()
+		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 		if err != nil {
 			server.HandleError(writer, err, "cannot retrieve user and group from the request")
 		}
@@ -369,7 +372,7 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		for k, v := range w.Result().Header {
+		for k, v := range result.Header {
 			if k == "Content-Length" {
 				continue
 			}
@@ -379,7 +382,7 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		writer.WriteHeader(w.Result().StatusCode)
+		writer.WriteHeader(result.StatusCode)
 
 		write, err := writer.Write(body)
 		if err != nil {
@@ -390,32 +393,31 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 
 func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
 	req.SanitizeImpersonationHeaders(request)
+	selectorValue := selector.String()
 
 	q := request.URL.Query()
 	if e := q.Get("labelSelector"); len(e) > 0 {
 		n.log.V(4).Info("handling current labelSelector", "selector", e)
 
-		v := strings.Join([]string{e, selector.String()}, ",")
+		v := strings.Join([]string{e, selectorValue}, ",")
 		q.Set("labelSelector", v)
 		n.log.V(4).Info("labelSelector updated", "selector", v)
 	} else {
-		q.Set("labelSelector", selector.String())
-		n.log.V(4).Info("labelSelector added", "selector", selector.String())
+		q.Set("labelSelector", selectorValue)
+		n.log.V(4).Info("labelSelector added", "selector", selectorValue)
 	}
 
 	n.log.V(4).Info("updating RawQuery", "query", q.Encode())
 	request.URL.RawQuery = q.Encode()
 
-	if len(n.BearerToken()) > 0 {
-		n.log.V(10).Info("Updating the token", "token", n.BearerToken())
-		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.BearerToken()))
+	if token := n.BearerToken(); len(token) > 0 {
+		n.log.V(10).Info("Updating the token", "token", token)
+		request.Header.Set("Authorization", "Bearer "+token)
 	}
 }
 
 func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	hr := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
-
-	username, groups, err := hr.GetUserAndGroups()
+	request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 	if err != nil {
 		msg := "cannot retrieve user and group"
 
@@ -429,8 +431,8 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 
 	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups, "uri", request.URL.Path)
 
-	if len(n.BearerToken()) > 0 {
-		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", n.BearerToken()))
+	if token := n.BearerToken(); len(token) > 0 {
+		request.Header.Set("Authorization", "Bearer "+token)
 	}
 	// Dropping malicious header connection
 	// https://github.com/projectcapsule/capsule-proxy/issues/188
@@ -532,9 +534,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			proxyRequest := req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
-
-			username, groups, err := proxyRequest.GetUserAndGroups()
+			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")
 			}
@@ -546,7 +546,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 			var selector labels.Selector
 
-			selector, err = mod.Handle(proxyTenants, proxyRequest)
+			selector, err = mod.Handle(proxyTenants, req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview))
 
 			switch {
 			case err != nil:

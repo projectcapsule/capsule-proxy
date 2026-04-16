@@ -4,6 +4,7 @@
 package request
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	h "net/http"
@@ -16,6 +17,15 @@ import (
 	"k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var websocketBearerTokenRegexp = regexp.MustCompile(`base64url\.bearer\.authorization\.k8s\.io\.([^,]*)`) //nolint:gochecknoglobals
+
+type userAndGroupsContextKey struct{}
+
+type userAndGroupsContextValue struct {
+	username string
+	groups   []string
+}
 
 type http struct {
 	*h.Request
@@ -30,6 +40,25 @@ type http struct {
 
 func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool) Request {
 	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client, ignoredImpersonationGroups: ignoredImpersonationGroups, impersonationGroupsRegexp: impersonationGroupsRegexp, skipImpersonationReview: skipImpersonationReview}
+}
+
+func ResolveUserAndGroups(request *h.Request, authTypes []AuthType, usernameClaimField string, writer client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool) (*h.Request, string, []string, error) {
+	if cachedUsername, cachedGroups, ok := cachedUserAndGroups(request.Context()); ok {
+		return request, cachedUsername, cachedGroups, nil
+	}
+
+	proxyRequest := NewHTTP(request, authTypes, usernameClaimField, writer, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview)
+	username, groups, err := proxyRequest.GetUserAndGroups()
+	if err != nil {
+		return request, "", nil, err
+	}
+
+	ctx := context.WithValue(request.Context(), userAndGroupsContextKey{}, userAndGroupsContextValue{
+		username: username,
+		groups:   groups,
+	})
+
+	return request.WithContext(ctx), username, groups, nil
 }
 
 func (h http) GetHTTPRequest() *h.Request {
@@ -158,19 +187,17 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 // Get the JWT from headers
 // If there is no Authorizaion Bearer, then try finding the Bearer in Websocket Protocols header. This is for browser support.
 func (h http) bearerToken() (string, error) {
-	tradBearer := strings.ReplaceAll(h.Header.Get("Authorization"), "Bearer ", "")
+	tradBearer := strings.TrimPrefix(h.Header.Get("Authorization"), "Bearer ")
 	wsHeader := h.Header.Get("Sec-Websocket-Protocol")
 
 	switch {
 	case tradBearer != "":
 		return tradBearer, nil
 	case wsHeader != "":
-		re := regexp.MustCompile(`base64url\.bearer\.authorization\.k8s\.io\.([^,]*)`)
-
-		match := re.FindStringSubmatch(wsHeader)[1]
-		if match != "" {
+		match := websocketBearerTokenRegexp.FindStringSubmatch(wsHeader)
+		if len(match) > 1 && match[1] != "" {
 			// our token is base64 encoded without padding
-			b64decode, err := base64.RawStdEncoding.DecodeString(match)
+			b64decode, err := base64.RawStdEncoding.DecodeString(match[1])
 			if err != nil {
 				return "", NewErrUnauthorized("failed to decode websocket auth bearer: " + err.Error())
 			}
@@ -182,6 +209,15 @@ func (h http) bearerToken() (string, error) {
 	default:
 		return "", NewErrUnauthorized("no authentication headers found. Unauthenticated users are not supported")
 	}
+}
+
+func cachedUserAndGroups(ctx context.Context) (string, []string, bool) {
+	value, ok := ctx.Value(userAndGroupsContextKey{}).(userAndGroupsContextValue)
+	if !ok {
+		return "", nil, false
+	}
+
+	return value.username, value.groups, true
 }
 
 type authenticationFn func() (username string, groups []string, err error)
