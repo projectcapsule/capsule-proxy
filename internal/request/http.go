@@ -36,18 +36,57 @@ type http struct {
 	impersonationGroupsRegexp  *regexp.Regexp
 	skipImpersonationReview    bool
 	client                     client.Writer
+
+	xfcc_header string
 }
 
-func NewHTTP(request *h.Request, authTypes []AuthType, usernameClaimField string, client client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool) Request {
-	return &http{Request: request, authTypes: authTypes, usernameClaimField: usernameClaimField, client: client, ignoredImpersonationGroups: ignoredImpersonationGroups, impersonationGroupsRegexp: impersonationGroupsRegexp, skipImpersonationReview: skipImpersonationReview}
+func NewHTTP(
+	request *h.Request,
+	authTypes []AuthType,
+	usernameClaimField string,
+	client client.Writer,
+	ignoredImpersonationGroups []string,
+	impersonationGroupsRegexp *regexp.Regexp,
+	skipImpersonationReview bool,
+	xfcc_header string,
+) Request {
+	return &http{
+		Request:                    request,
+		authTypes:                  authTypes,
+		usernameClaimField:         usernameClaimField,
+		client:                     client,
+		ignoredImpersonationGroups: ignoredImpersonationGroups,
+		impersonationGroupsRegexp:  impersonationGroupsRegexp,
+		skipImpersonationReview:    skipImpersonationReview,
+		xfcc_header:                xfcc_header,
+	}
 }
 
-func ResolveUserAndGroups(request *h.Request, authTypes []AuthType, usernameClaimField string, writer client.Writer, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool) (*h.Request, string, []string, error) {
+func ResolveUserAndGroups(
+	request *h.Request,
+	authTypes []AuthType,
+	usernameClaimField string,
+	writer client.Writer,
+	ignoredImpersonationGroups []string,
+	impersonationGroupsRegexp *regexp.Regexp,
+	skipImpersonationReview bool,
+	xfcc_header string,
+) (*h.Request, string, []string, error) {
 	if cachedUsername, cachedGroups, ok := cachedUserAndGroups(request.Context()); ok {
 		return request, cachedUsername, cachedGroups, nil
 	}
 
-	proxyRequest := NewHTTP(request, authTypes, usernameClaimField, writer, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview)
+	proxyRequest := NewHTTP(
+		request,
+		authTypes,
+		usernameClaimField,
+		writer,
+		ignoredImpersonationGroups,
+		impersonationGroupsRegexp,
+		skipImpersonationReview,
+		xfcc_header,
+	)
+
 	username, groups, err := proxyRequest.GetUserAndGroups()
 	if err != nil {
 		return request, "", nil, err
@@ -246,8 +285,11 @@ func (h http) authenticationFns() []authenticationFn {
 
 				return
 			})
+		case XForwardedClientCert:
+			fns = append(fns, h.processXFCC)
 		}
 	}
+
 	// Dead man switch, if no strategy worked, the proxy cannot work
 	fns = append(fns, func() (string, []string, error) {
 		return "", nil, NewErrUnauthorized("no authentication provider available. unauthenticated users not supported")

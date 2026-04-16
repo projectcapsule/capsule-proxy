@@ -11,4 +11,5 @@ const (
 	BearerToken AuthType = iota
 	TLSCertificate
 	Anonymous
+	XForwardedClientCert
 )

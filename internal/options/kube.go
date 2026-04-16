@@ -21,6 +21,7 @@ import (
 
 type kubeOpts struct {
 	authTypes                  []request.AuthType
+	allowedPaths               []string
 	url                        url.URL
 	ignoredGroups              []string
 	ignoredImpersonationGroups []string
@@ -28,12 +29,30 @@ type kubeOpts struct {
 	claimName                  string
 	impersonationGroupsRegexp  *regexp.Regexp
 	config                     *rest.Config
+	trustedProxyCIDRs          []*net.IPNet
+	xfcc_header                string
 }
 
-func NewKube(authTypes []request.AuthType, ignoredGroups []string, claimName string, config *rest.Config, ignoredImpersonationGroups []string, impersonationGroupsString string, skipImpersonationReview bool) (ListenerOpts, error) {
+func NewKube(
+	authTypes []request.AuthType,
+	ignoredGroups []string,
+	claimName string,
+	config *rest.Config,
+	ignoredImpersonationGroups []string,
+	impersonationGroupsString string,
+	skipImpersonationReview bool,
+	trustedProxyCIDRStrings []string,
+	xfcc_header string,
+	allowedPaths []string,
+) (ListenerOpts, error) {
 	u, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
+	}
+
+	trustedProxyCIDRs, err := parseCIDRs(trustedProxyCIDRStrings)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse trusted proxy CIDRs")
 	}
 
 	var impersonationGroupsRegexp *regexp.Regexp
@@ -53,11 +72,26 @@ func NewKube(authTypes []request.AuthType, ignoredGroups []string, claimName str
 		skipImpersonationReview:    skipImpersonationReview,
 		claimName:                  claimName,
 		config:                     config,
+		trustedProxyCIDRs:          trustedProxyCIDRs,
+		xfcc_header:                xfcc_header,
+		allowedPaths:               allowedPaths,
 	}, nil
 }
 
 func (k kubeOpts) AuthTypes() []request.AuthType {
 	return k.authTypes
+}
+
+func (k kubeOpts) AllowedPaths() []string {
+	return k.allowedPaths
+}
+
+func (k kubeOpts) TrustedProxyCIDRs() []*net.IPNet {
+	return k.trustedProxyCIDRs
+}
+
+func (k kubeOpts) XFCCHeader() string {
+	return k.xfcc_header
 }
 
 func (k kubeOpts) BearerToken() string {

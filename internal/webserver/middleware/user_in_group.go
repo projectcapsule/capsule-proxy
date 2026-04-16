@@ -17,7 +17,7 @@ import (
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
-func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if ignoredUserGroups.Len() > 0 {
@@ -27,7 +27,7 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 					groups []string
 				)
 
-				request, user, groups, err = req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview)
+				request, user, groups, err = req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
 				if err != nil {
 					log.Error(err, "Cannot retrieve username and group from request")
 				}
@@ -47,10 +47,10 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 	}
 }
 
-func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
+func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview)
+			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
 			}

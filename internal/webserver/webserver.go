@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -108,7 +109,7 @@ func NewKubeFilter(
 		reader:                     clientOverride,
 		writer:                     mgr.GetClient(),
 		managerReader:              mgr.GetClient(),
-		allowedPaths:               sets.New("/api", "/apis", "/version"),
+		allowedPaths:               sets.New(opts.AllowedPaths()...),
 		authTypes:                  opts.AuthTypes(),
 		ignoredUserGroups:          sets.New(opts.IgnoredGroupNames()...),
 		ignoredImpersonationGroups: opts.IgnoredImpersonationsGroups(),
@@ -125,6 +126,8 @@ func NewKubeFilter(
 		protoEncoder:               protoEncoder,
 		universalDecoder:           universalDecoder,
 		scheme:                     scheme,
+		trustedProxyCIDRs:          opts.TrustedProxyCIDRs(),
+		xfcc_header:                opts.XFCCHeader(),
 	}, nil
 }
 
@@ -145,6 +148,8 @@ type kubeFilter struct {
 	log                        logr.Logger
 	roleBindingsReflector      *controllers.RoleBindingReflector
 	gates                      featuregate.FeatureGate
+	xfcc_header                string
+	trustedProxyCIDRs          []*net.IPNet
 
 	managerReader, reader client.Reader
 	writer                client.Writer
@@ -172,6 +177,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
 	root.Use(
+		middleware.RequireTrustedSourceMiddleware(n.log, n.trustedProxyCIDRs),
 		n.authorizationMiddleware,
 		n.reverseProxyMiddleware,
 		middleware.LoggerMiddleware(n.log),
@@ -329,6 +335,7 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, request)
 
 		result := w.Result()
+
 		defer func() {
 			_ = result.Body.Close()
 		}()
@@ -340,11 +347,12 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
+		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 		if err != nil {
 			server.HandleError(writer, err, "cannot retrieve user and group from the request")
 		}
 
+		//nolint:contextcheck
 		proxyTenants, err := n.getTenantsForOwner(request.Context(), username, groups)
 		if err != nil {
 			server.HandleError(writer, err, "cannot list Tenant resources")
@@ -393,6 +401,7 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 
 func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
 	req.SanitizeImpersonationHeaders(request)
+
 	selectorValue := selector.String()
 
 	q := request.URL.Query()
@@ -417,7 +426,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 }
 
 func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *http.Request) {
-	request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
+	request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 	if err != nil {
 		msg := "cannot retrieve user and group"
 
@@ -530,11 +539,11 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr.Use(
 			middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 			middleware.CheckJWTMiddleware(n.writer),
-			middleware.CheckUserInIgnoredGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.impersonateHandler),
-			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.impersonateHandler),
+			middleware.CheckUserInIgnoredGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
+			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview)
+			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")
 			}
@@ -546,7 +555,18 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 			var selector labels.Selector
 
-			selector, err = mod.Handle(proxyTenants, req.NewHTTP(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview))
+			selector, err = mod.Handle(
+				proxyTenants,
+				req.NewHTTP(
+					request,
+					n.authTypes,
+					n.usernameClaimField,
+					n.writer,
+					n.ignoredImpersonationGroups,
+					n.impersonationGroupsRegexp,
+					n.skipImpersonationReview,
+					n.xfcc_header,
+				))
 
 			switch {
 			case err != nil:
