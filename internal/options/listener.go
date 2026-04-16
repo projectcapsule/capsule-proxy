@@ -4,6 +4,7 @@
 package options
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 )
 
+//nolint:interfacebloat
 type ListenerOpts interface {
 	AuthTypes() []request.AuthType
 	KubernetesControlPlaneURL() *url.URL
@@ -22,4 +24,7 @@ type ListenerOpts interface {
 	BearerTokenFile() string
 	BearerToken() string
 	SkipImpersonationReview() bool
+	TrustedProxyCIDRs() []*net.IPNet
+	XFCCHeader() string
+	AllowedPaths() []string
 }

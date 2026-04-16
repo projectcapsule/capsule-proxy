@@ -44,7 +44,7 @@ const (
 	WebhookLabler
 )
 
-//nolint:funlen,cyclop,maintidx
+//nolint:funlen,maintidx
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
@@ -56,17 +56,17 @@ func main() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
 	var (
-		err                                                                                                                error
-		mgr                                                                                                                ctrl.Manager
-		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr string
-		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups                                                    []string
-		listeningPort                                                                                                      uint
-		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                   bool
-		rolebindingsResyncPeriod                                                                                           time.Duration
-		clientConnectionQPS                                                                                                float32
-		clientConnectionBurst                                                                                              int32
-		webhookPort                                                                                                        int
-		hooks                                                                                                              []WebhookType
+		err                                                                                                                                error
+		mgr                                                                                                                                ctrl.Manager
+		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr, xfccHeaderName string
+		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups, allowedPaths, trustedProxyCIDRStrings                             []string
+		listeningPort                                                                                                                      uint
+		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                                   bool
+		rolebindingsResyncPeriod                                                                                                           time.Duration
+		clientConnectionQPS                                                                                                                float32
+		clientConnectionBurst                                                                                                              int32
+		webhookPort                                                                                                                        int
+		hooks                                                                                                                              []WebhookType
 	)
 
 	gates := featuregate.NewFeatureGate()
@@ -95,34 +95,145 @@ func main() {
 	}
 
 	authTypesMap := map[request.AuthType][]string{
-		request.BearerToken:    {request.BearerToken.String()},
-		request.TLSCertificate: {request.TLSCertificate.String()},
+		request.BearerToken:          {request.BearerToken.String()},
+		request.TLSCertificate:       {request.TLSCertificate.String()},
+		request.XForwardedClientCert: {request.XForwardedClientCert.String()},
 	}
 
-	flag.IntVar(&webhookPort, "webhook-port", 9443, "The port the webhook server binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
+	flag.IntVar(
+		&webhookPort,
+		"webhook-port",
+		9443,
+		"The port the webhook server binds to.",
+	)
+	flag.BoolVar(
+		&enableLeaderElection,
+		"enable-leader-election",
+		false,
 		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&capsuleConfigurationName, "capsule-configuration-name", "default", "Name of the CapsuleConfiguration used to retrieve the Capsule user groups names")
-	flag.StringSliceVar(&capsuleUserGroups, "capsule-user-group", []string{}, "Names of the groups for capsule users (deprecated: use capsule-configuration-name)")
-	flag.StringSliceVar(&ignoredUserGroups, "ignored-user-group", []string{}, "Names of the groups which requests must be ignored and proxy-passed to the upstream server")
-	flag.StringSliceVar(&ignoreImpersonationGroups, "ignored-impersonation-group", []string{}, "Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)")
-	flag.StringVar(&impersonationGroupsRegexp, "impersonation-group-regexp", "", "Regular expression to match the groups which are considered for impersonation")
-	flag.UintVar(&listeningPort, "listening-port", 9001, "HTTP port the proxy listens to (default: 9001)")
-	flag.StringVar(&usernameClaimField, "oidc-username-claim", "preferred_username", "The OIDC field name used to identify the user (default: preferred_username)")
-	flag.BoolVar(&roleBindingReflector, "enable-reflector", false, "Enable rolebinding reflector. The reflector allows to list the namespaces, where a rolebinding mentions a user")
-	flag.BoolVar(&enablePprof, "enable-pprof", false, "Enables Pprof endpoint for profiling (not recommend in production)")
-	flag.BoolVar(&bindSsl, "enable-ssl", true, "Enable the bind on HTTPS for secure communication (default: true)")
-	flag.StringVar(&certPath, "ssl-cert-path", "", "Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)")
-	flag.StringVar(&keyPath, "ssl-key-path", "", "Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)")
-	flag.DurationVar(&rolebindingsResyncPeriod, "rolebindings-resync-period", 10*time.Hour, "Resync period for rolebindings reflector")
-	flag.Var(enumflag.NewSlice(&authTypes, "string", authTypesMap, enumflag.EnumCaseSensitive), "auth-preferred-types",
-		`Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
-First match is used and can be specified multiple times as comma separated values or by using the flag multiple times.`)
-	flag.BoolVar(&disableCaching, "disable-caching", false, "Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)")
-	flag.Float32Var(&clientConnectionQPS, "client-connection-qps", 20.0, "QPS to use for interacting with kubernetes apiserver.")
-	flag.Int32Var(&clientConnectionBurst, "client-connection-burst", 30, "Burst to use for interacting with kubernetes apiserver.")
+			"Enabling this will ensure there is only one active controller manager.",
+	)
+	flag.StringVar(
+		&metricsAddr,
+		"metrics-addr",
+		":8080",
+		"The address the metric endpoint binds to.",
+	)
+	flag.StringSliceVar(
+		&capsuleUserGroups,
+		"allowed-paths",
+		[]string{
+			"/api", "/apis", "/version",
+		},
+		"URL paths which are not inspected by capsule-proxy (still require valid authentication)",
+	)
+	flag.StringSliceVar(
+		&trustedProxyCIDRStrings,
+		"trusted-proxy-cidrs",
+		nil,
+		"CIDR ranges of trusted proxies allowed to send forwarded client certificate headers",
+	)
+	flag.StringVar(
+		&xfccHeaderName,
+		"xfcc-header-name",
+		"X-Forwarded-Client-Cert",
+		"Name of the header inspected for forwarded client certificates",
+	)
+	flag.StringVar(
+		&capsuleConfigurationName,
+		"capsule-configuration-name",
+		"default",
+		"Name of the CapsuleConfiguration used to retrieve the Capsule user groups names",
+	)
+	flag.StringSliceVar(
+		&ignoredUserGroups,
+		"ignored-user-group",
+		[]string{},
+		"Names of the groups which requests must be ignored and proxy-passed to the upstream server",
+	)
+	flag.StringSliceVar(
+		&ignoreImpersonationGroups,
+		"ignored-impersonation-group",
+		[]string{},
+		"Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)",
+	)
+	flag.StringVar(
+		&impersonationGroupsRegexp,
+		"impersonation-group-regexp",
+		"",
+		"Regular expression to match the groups which are considered for impersonation",
+	)
+	flag.UintVar(
+		&listeningPort,
+		"listening-port",
+		9001,
+		"HTTP port the proxy listens to (default: 9001)",
+	)
+	flag.StringVar(
+		&usernameClaimField,
+		"oidc-username-claim",
+		"preferred_username",
+		"The OIDC field name used to identify the user (default: preferred_username)",
+	)
+	flag.BoolVar(
+		&roleBindingReflector,
+		"enable-reflector",
+		false,
+		"Enable rolebinding reflector. The reflector allows to list the namespaces, where a rolebinding mentions a user",
+	)
+	flag.BoolVar(
+		&enablePprof,
+		"enable-pprof",
+		false,
+		"Enables Pprof endpoint for profiling (not recommend in production)",
+	)
+	flag.BoolVar(
+		&bindSsl,
+		"enable-ssl",
+		true,
+		"Enable the bind on HTTPS for secure communication (default: true)",
+	)
+	flag.StringVar(
+		&certPath,
+		"ssl-cert-path",
+		"",
+		"Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)",
+	)
+	flag.StringVar(
+		&keyPath,
+		"ssl-key-path",
+		"",
+		"Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)",
+	)
+	flag.DurationVar(
+		&rolebindingsResyncPeriod,
+		"rolebindings-resync-period",
+		10*time.Hour,
+		"Resync period for rolebindings reflector",
+	)
+	flag.Var(
+		enumflag.NewSlice(&authTypes, "string", authTypesMap, enumflag.EnumCaseSensitive), "auth-preferred-types",
+		`Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert]
+First match is used and can be specified multiple times as comma separated values or by using the flag multiple times.`,
+	)
+	flag.BoolVar(
+		&disableCaching,
+		"disable-caching",
+		false,
+		"Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)",
+	)
+	flag.Float32Var(
+		&clientConnectionQPS,
+		"client-connection-qps",
+		20.0,
+		"QPS to use for interacting with kubernetes apiserver.",
+	)
+	flag.Int32Var(
+		&clientConnectionBurst,
+		"client-connection-burst",
+		30,
+		"Burst to use for interacting with kubernetes apiserver.",
+	)
 	gates.AddFlag(flag.CommandLine)
 
 	opts := zap.Options{
@@ -163,13 +274,6 @@ First match is used and can be specified multiple times as comma separated value
 			log.Info("cannot use a Certificate key when TLS/SSL mode is disabled")
 			os.Exit(1)
 		}
-	}
-
-	if len(capsuleUserGroups) > 0 {
-		log.Info(
-			"the CLI flags --capsule-user-group is deprecated, " +
-				"please use the new one --capsule-configuration-name to select the CapsuleConfiguration")
-		log.Info(fmt.Sprintf("The selected Capsule User Groups are %v", capsuleUserGroups))
 	}
 
 	log.Info(fmt.Sprintf("The ignored User Groups are %v", ignoredUserGroups))
@@ -265,7 +369,18 @@ First match is used and can be specified multiple times as comma separated value
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(authTypes, ignoredUserGroups, usernameClaimField, config, ignoreImpersonationGroups, impersonationGroupsRegexp, gates.Enabled(features.SkipImpersonationReview)); err != nil {
+	if listenerOpts, err = options.NewKube(
+		authTypes,
+		ignoredUserGroups,
+		usernameClaimField,
+		config,
+		ignoreImpersonationGroups,
+		impersonationGroupsRegexp,
+		gates.Enabled(features.SkipImpersonationReview),
+		trustedProxyCIDRStrings,
+		xfccHeaderName,
+		allowedPaths,
+	); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
@@ -303,9 +418,8 @@ First match is used and can be specified multiple times as comma separated value
 	}
 
 	if err = (&controllers.CapsuleConfiguration{
-		Client:                      mgr.GetClient(),
-		CapsuleConfigurationName:    capsuleConfigurationName,
-		DeprecatedCapsuleUserGroups: capsuleUserGroups,
+		Client:                   mgr.GetClient(),
+		CapsuleConfigurationName: capsuleConfigurationName,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
 		os.Exit(1)

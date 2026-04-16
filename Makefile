@@ -235,7 +235,7 @@ generate-kubeconfigs:
 		&& mv cluster-admin-admin.kubeconfig cluster-admin.kubeconfig \
 		&& KUBECONFIG=cluster-admin.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
 		&& KUBECONFIG=cluster-admin.kubeconfig kubectl config set clusters.kind-capsule.server https://127.0.0.1:9001 \
-		&& $(KUBECTL) create clusterrolebinding custom-cluster-admin --clusterrole=cluster-admin --user=cluster-admin \
+		&& $(KUBECTL) create clusterrolebinding custom-cluster-admin --clusterrole=cluster-admin --user=cluster-admin  || true \
 		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- dave soil projectcapsule.dev,capsule.clastix.io,bar.clastix.io \
 		&& mv dave-soil.kubeconfig dave.kubeconfig \
 		&& kubectl --kubeconfig=dave.kubeconfig config set clusters.kind-capsule.certificate-authority-data "$$CA_B64" \
@@ -254,10 +254,10 @@ wait-for-helmreleases:
 
 rbac-fix:
 	@echo "RBAC customization..."
-	@kubectl create clusterrole capsule-selfsubjectaccessreviews --verb=create --resource=selfsubjectaccessreviews.authorization.k8s.io
-	@kubectl create clusterrole capsule-apis --verb="get" --non-resource-url="/api/*" --non-resource-url="/api" --non-resource-url="/apis/*" --non-resource-url="/apis" --non-resource-url="/version"
-	@kubectl create clusterrolebinding capsule:selfsubjectaccessreviews --clusterrole=capsule-selfsubjectaccessreviews --group=capsule.clastix.io
-	@kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io
+	@kubectl create clusterrole capsule-selfsubjectaccessreviews --verb=create --resource=selfsubjectaccessreviews.authorization.k8s.io || true
+	@kubectl create clusterrole capsule-apis --verb="get" --non-resource-url="/api/*" --non-resource-url="/api" --non-resource-url="/apis/*" --non-resource-url="/apis" --non-resource-url="/version" || true
+	@kubectl create clusterrolebinding capsule:selfsubjectaccessreviews --clusterrole=capsule-selfsubjectaccessreviews --group=capsule.clastix.io || true
+	@kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io || true
 
 # Run tests
 .PHONY: test
