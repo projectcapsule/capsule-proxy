@@ -16,6 +16,8 @@ import (
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 var websocketBearerTokenRegexp = regexp.MustCompile(`base64url\.bearer\.authorization\.k8s\.io\.([^,]*)`) //nolint:gochecknoglobals
@@ -127,7 +129,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 				ac := &authorizationv1.SubjectAccessReview{
 					Spec: authorizationv1.SubjectAccessReviewSpec{
 						ResourceAttributes: &authorizationv1.ResourceAttributes{
-							Verb:     "impersonate",
+							Verb:     types.ImprisonateVerb,
 							Resource: "groups",
 							Name:     impersonateGroup,
 						},

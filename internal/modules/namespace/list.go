@@ -18,6 +18,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 type list struct {
@@ -33,7 +34,7 @@ func List(roleBindingsReflector *controllers.RoleBindingReflector) modules.Modul
 		gk: schema.GroupVersionKind{
 			Group:   corev1.GroupName,
 			Version: "*",
-			Kind:    "namespaces",
+			Kind:    types.Namespaces,
 		},
 	}
 }
