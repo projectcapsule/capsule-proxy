@@ -17,6 +17,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 type list struct {
@@ -36,7 +37,7 @@ func List(client client.Reader) modules.Module {
 		gk: schema.GroupVersionKind{
 			Group:   corev1.GroupName,
 			Version: "*",
-			Kind:    "persistentvolumes",
+			Kind:    types.PersistentVolumes,
 		},
 	}
 }

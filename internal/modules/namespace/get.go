@@ -23,6 +23,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	ctypes "github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 type get struct {
@@ -44,7 +45,7 @@ func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.
 		gk: schema.GroupVersionKind{
 			Group:   corev1.GroupName,
 			Version: "*",
-			Kind:    "namespaces",
+			Kind:    ctypes.Namespaces,
 		},
 	}
 }

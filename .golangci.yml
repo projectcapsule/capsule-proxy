@@ -5,8 +5,11 @@ run:
 linters:
   enable:
     - wsl_v5
+    - gomodguard_v2
   default: all
   disable:
+    - wsl
+    - gomodguard
     - revive
     - noinlineerr
     - depguard
@@ -39,6 +42,9 @@ linters:
     gocognit:
       min-complexity: 50
     goconst:
+      ignore-string-values:
+        - "status"
+        - "path"
       min-len: 2
       min-occurrences: 2
     inamedparam:

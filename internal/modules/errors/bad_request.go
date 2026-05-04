@@ -8,6 +8,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 //nolint:errname
@@ -33,8 +35,8 @@ func (b badRequest) Error() string {
 func (b badRequest) Status() *metav1.Status {
 	return &metav1.Status{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Status",
-			APIVersion: "v1",
+			Kind:       types.StatusKind,
+			APIVersion: types.V1,
 		},
 		Reason:  metav1.StatusReasonBadRequest,
 		Message: b.message,
