@@ -11,8 +11,8 @@ import (
 
 	capsulev1beta1 "github.com/projectcapsule/capsule/api/v1beta1"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
-	capsuleindexer "github.com/projectcapsule/capsule/pkg/indexer"
-	"github.com/projectcapsule/capsule/pkg/indexer/tenant"
+	capsuleindexer "github.com/projectcapsule/capsule/pkg/runtime/indexers"
+	"github.com/projectcapsule/capsule/pkg/runtime/indexers/tenant"
 	flag "github.com/spf13/pflag"
 	"github.com/thediveo/enumflag"
 	"go.uber.org/zap/zapcore"
