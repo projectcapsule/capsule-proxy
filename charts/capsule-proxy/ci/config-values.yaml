@@ -1,0 +1,55 @@
+# Controller Options
+options:
+  # -- Set the listening port of the capsule-proxy
+  listeningPort: 9001
+  # -- Set leader election to true if you are running n-replicas
+  leaderElection: false
+  # -- Set the log verbosity of the capsule-proxy with a value from 1 to 10
+  logLevel: 4
+  # -- Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups
+  capsuleConfigurationName: default
+  # -- Define which groups must be ignored while proxying requests
+  ignoredUserGroups:
+    - "group-1"
+    - "group-2"
+  # --  Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)
+  ignoredImpersonationGroups:
+    - "group-1"
+    - "group-2"
+  # -- Regular expression to match the groups which are considered for impersonation
+  impersonationGroupRegexp: "some-regex-.*"
+  # -- Specify if capsule-proxy will use SSL
+  oidcUsernameClaim: preferred_username
+  # -- Specify if capsule-proxy will use SSL
+  enableSSL: true
+  # -- Set the directory, where SSL certificate and keyfile will be located
+  SSLDirectory: /opt/capsule-proxy
+  # -- Set the name of SSL certificate file
+  SSLCertFileName: tls.crt
+  # -- Set the name of SSL key file
+  SSLKeyFileName: tls.key
+  # -- Specify if capsule-proxy will generate self-signed SSL certificates
+  generateCertificates: false
+  # -- Specify additional subject alternative names for the self-signed SSL
+  additionalSANs: []
+  # -- Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate.
+  certificateVolumeName: ""
+  # -- Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174)
+  rolebindingsResyncPeriod: 10h
+  # -- Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector.
+  disableCaching: false
+  # -- Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.
+  roleBindingReflector: false
+  # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate,XForwardedClientCert]
+  authPreferredTypes: "BearerToken,TLSCertificate"
+  # -- QPS to use for interacting with Kubernetes API Server.
+  clientConnectionQPS: 20
+  # -- Burst to use for interacting with kubernetes API Server.
+  clientConnectionBurst: 30
+  # -- Enable Pprof for profiling
+  pprof: false
+  # -- CIDR ranges of trusted proxies allowed to make requests to the proxy
+  trustedProxyCidrs:
+    - "127.0.0.1/32"
+  extraArgs:
+    - "--feature-gates=ProxyClusterScoped=true"

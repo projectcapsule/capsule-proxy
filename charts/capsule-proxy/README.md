@@ -178,7 +178,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.SSLDirectory | string | `"/opt/capsule-proxy"` | Set the directory, where SSL certificate and keyfile will be located |
 | options.SSLKeyFileName | string | `"tls.key"` | Set the name of SSL key file |
 | options.additionalSANs | list | `[]` | Specify additional subject alternative names for the self-signed SSL |
-| options.authPreferredTypes | string | `"BearerToken,TLSCertificate"` | Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate] |
+| options.authPreferredTypes | string | `"BearerToken,TLSCertificate"` | Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert] |
 | options.capsuleConfigurationName | string | `"default"` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups |
 | options.certificateVolumeName | string | `""` | Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate. |
 | options.clientConnectionBurst | int | `30` | Burst to use for interacting with kubernetes API Server. |
@@ -187,7 +187,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.enableSSL | bool | `true` | Specify if capsule-proxy will use SSL |
 | options.extraArgs | list | `[]` | A list of extra arguments to add to the capsule-proxy. |
 | options.generateCertificates | bool | `false` | Specify if capsule-proxy will generate self-signed SSL certificates |
+| options.ignoredImpersonationGroups | list | `[]` | Names of the groups which are not used for impersonation (considered after impersonation-group-regexp) |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
+| options.impersonationGroupRegexp | string | `""` | Regular expression to match the groups which are considered for impersonation |
 | options.leaderElection | bool | `false` | Set leader election to true if you are running n-replicas |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |
 | options.logLevel | int | `4` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
@@ -195,6 +197,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.pprof | bool | `false` | Enable Pprof for profiling |
 | options.roleBindingReflector | bool | `false` | Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user. |
 | options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174) |
+| options.trustedProxyCidrs | list | `[]` | CIDR ranges of trusted proxies allowed to make requests to the proxy |
 
 ### Cert-Manager Parameters
 

@@ -65,7 +65,6 @@ Selector labels
 {{- define "capsule-proxy.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "capsule-proxy.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: "proxy"
 
 {{- end }}
 
