@@ -5,6 +5,7 @@ metadata:
   name: {{ include "capsule-proxy.fullname"  . }}-metrics-service
   namespace: {{ $.Release.Namespace }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels"  . | nindent 4 }}
   {{- with .Values.customAnnotations }}
   annotations:
@@ -17,6 +18,7 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.selectorLabels" . | nindent 4 }}
   sessionAffinity: None
   type: ClusterIP

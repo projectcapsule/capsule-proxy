@@ -830,7 +830,7 @@
                     "type": "array"
                 },
                 "authPreferredTypes": {
-                    "description": "Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]",
+                    "description": "Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert]",
                     "type": "string"
                 },
                 "capsuleConfigurationName": {

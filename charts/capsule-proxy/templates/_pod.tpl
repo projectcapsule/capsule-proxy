@@ -5,6 +5,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.selectorLabels" . | nindent 4 }}
     {{- with .Values.podLabels }}
       {{- toYaml . | nindent 4 }}

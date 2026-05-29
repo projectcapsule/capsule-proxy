@@ -5,6 +5,9 @@ kind: Role
 metadata:
   name: capsule-proxy:{{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels"  . | nindent 4 }}
 rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
@@ -19,6 +22,9 @@ kind: RoleBinding
 metadata:
   name: capsule-proxy:{{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels"  . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -34,6 +40,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
     {{- if .Values.rbac.labels }}
       {{- toYaml .Values.rbac.labels | nindent 4 }}
@@ -56,6 +63,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: capsule-proxy:{{ .Release.Name }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
 rules:
   # Read (get/list/watch) everything (namespaced + cluster-scoped)
   - apiGroups: ["*"]
@@ -97,6 +107,7 @@ kind: ClusterRoleBinding
 metadata:
   name: capsule-proxy:{{ .Release.Name }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
     {{- if .Values.rbac.labels }}
       {{- toYaml .Values.rbac.labels | nindent 4 }}

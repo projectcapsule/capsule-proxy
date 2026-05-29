@@ -8,6 +8,7 @@ metadata:
   name: {{ include "capsule-proxy.fullname" . }}-certgen
   namespace: {{ $.Release.Namespace }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
   {{- with $Values.annotations }}
   annotations:

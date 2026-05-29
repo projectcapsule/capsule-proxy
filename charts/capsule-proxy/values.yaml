@@ -234,6 +234,7 @@ securityContext:
   runAsGroup: 1002
   runAsNonRoot: true
   runAsUser: 1002
+
 resources:
   limits:
     # -- Set the CPU requests assigned to the controller.
@@ -288,7 +289,7 @@ options:
   disableCaching: false
   # -- Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.
   roleBindingReflector: false
-  # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
+  # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert]
   authPreferredTypes: "BearerToken,TLSCertificate"
   # -- QPS to use for interacting with Kubernetes API Server.
   clientConnectionQPS: 20

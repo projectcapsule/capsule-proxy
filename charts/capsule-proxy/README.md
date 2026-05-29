@@ -178,7 +178,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.SSLDirectory | string | `"/opt/capsule-proxy"` | Set the directory, where SSL certificate and keyfile will be located |
 | options.SSLKeyFileName | string | `"tls.key"` | Set the name of SSL key file |
 | options.additionalSANs | list | `[]` | Specify additional subject alternative names for the self-signed SSL |
-| options.authPreferredTypes | string | `"BearerToken,TLSCertificate"` | Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate] |
+| options.authPreferredTypes | string | `"BearerToken,TLSCertificate"` | Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert] |
 | options.capsuleConfigurationName | string | `"default"` | Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups |
 | options.certificateVolumeName | string | `""` | Specify an override for the Secret containing the certificate for SSL. Default value is empty and referring to the generated certificate. |
 | options.clientConnectionBurst | int | `30` | Burst to use for interacting with kubernetes API Server. |
