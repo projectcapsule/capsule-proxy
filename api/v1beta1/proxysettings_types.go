@@ -4,13 +4,13 @@
 package v1beta1
 
 import (
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type OwnerSpec struct {
 	// Kind of tenant owner. Possible values are "User", "Group", and "ServiceAccount"
-	Kind capsuleapi.OwnerKind `json:"kind"`
+	Kind capsulerbac.OwnerKind `json:"kind"`
 	// Name of tenant owner.
 	Name string `json:"name"`
 	// Cluster Resources for tenant Owner.
@@ -18,7 +18,7 @@ type OwnerSpec struct {
 	// Deprecated: Use Global Proxy Settings instead (https://projectcapsule.dev/docs/proxy/proxysettings/#globalproxysettings)
 	//
 	// Proxy settings for tenant owner.
-	ProxyOperations []capsuleapi.ProxySettings `json:"proxySettings,omitempty"`
+	ProxyOperations []capsulerbac.ProxySettings `json:"proxySettings,omitempty"`
 }
 
 // ProxySettingSpec defines the additional Capsule Proxy settings for additional users of the Tenant.

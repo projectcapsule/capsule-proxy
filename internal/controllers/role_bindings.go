@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -54,12 +54,12 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 
 	namespaces := sets.NewString()
 
-	userOwnerKind := capsuleapi.UserOwner
+	userOwnerKind := capsulerbac.UserOwner
 
 	var userRoleBindings []any
 
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
-		userOwnerKind = capsuleapi.ServiceAccountOwner
+		userOwnerKind = capsulerbac.ServiceAccountOwner
 
 		namespace, name, splitErr := serviceaccount.SplitUsername(username)
 		if splitErr != nil {
@@ -84,7 +84,7 @@ func (r *RoleBindingReflector) GetUserNamespacesFromRequest(req request.Request)
 	}
 
 	for _, group := range groups {
-		groupRoleBindings, err := r.store.ByIndex(subjectIndex, fmt.Sprintf("%s-%s", capsuleapi.GroupOwner, group))
+		groupRoleBindings, err := r.store.ByIndex(subjectIndex, fmt.Sprintf("%s-%s", capsulerbac.GroupOwner, group))
 		if err != nil {
 			return nil, errors.Wrap(err, "Unable to find rolebindings in index for groups")
 		}

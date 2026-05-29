@@ -6,7 +6,7 @@ package tenant
 import (
 	"net/http"
 
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 )
 
 type Operations struct {
@@ -23,13 +23,13 @@ func defaultOperations() *Operations {
 	}
 }
 
-func (o *Operations) Allow(operation capsuleapi.ProxyOperation) {
+func (o *Operations) Allow(operation capsulerbac.ProxyOperation) {
 	switch operation {
-	case capsuleapi.ListOperation:
+	case capsulerbac.ListOperation:
 		o.List = true
-	case capsuleapi.UpdateOperation:
+	case capsulerbac.UpdateOperation:
 		o.Update = true
-	case capsuleapi.DeleteOperation:
+	case capsulerbac.DeleteOperation:
 		o.Delete = true
 	}
 }

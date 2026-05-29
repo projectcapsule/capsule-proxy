@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"sort"
 
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +23,7 @@ func getPriorityClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (al
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsuleapi.PriorityClassesProxy); !ok {
+		if ok := pt.RequestAllowed(req, capsulerbac.PriorityClassesProxy); !ok {
 			continue
 		}
 
