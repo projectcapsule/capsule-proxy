@@ -506,7 +506,7 @@ gangplank:
   image:
     repository: registry.sighup.io/fury/gangplank
     pullPolicy: IfNotPresent
-    tag: "1.1.1"
+    tag: "v1.2.0"
 
   # -- Configuration for `imagePullSecrets` so that you can use a private images registry.
   imagePullSecrets: []
