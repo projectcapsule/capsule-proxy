@@ -17,7 +17,7 @@ var (
 	GroupVersion = schema.GroupVersion{Group: "capsule.clastix.io", Version: "v1beta1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	//nolint:gochecknoglobals
+	//nolint:gochecknoglobals,staticcheck
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.

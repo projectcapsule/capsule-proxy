@@ -257,8 +257,6 @@ func cachedUserAndGroups(ctx context.Context) (string, []string, bool) {
 	return value.username, value.groups, true
 }
 
-type authenticationFn func() (username string, groups []string, err error)
-
 func (h http) authenticate() (string, []string, error) {
 	for _, authType := range h.authTypes {
 		switch authType {
@@ -282,6 +280,9 @@ func (h http) authenticate() (string, []string, error) {
 			if err == nil {
 				return username, groups, nil
 			}
+		case Anonymous:
+			// Explicitly ignored: capsule-proxy does not support unauthenticated users.
+			continue
 		}
 	}
 
