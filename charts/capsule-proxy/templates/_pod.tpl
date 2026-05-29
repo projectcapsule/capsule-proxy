@@ -5,6 +5,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.selectorLabels" . | nindent 4 }}
     {{- with .Values.podLabels }}
       {{- toYaml . | nindent 4 }}
@@ -76,6 +77,15 @@ spec:
     - --client-connection-burst={{ .Values.options.clientConnectionBurst }}
     - --enable-pprof={{ .Values.options.pprof }}
     - --enable-leader-election={{ .Values.options.leaderElection }}
+    {{- range .Values.options.trustedProxyCidrs }}
+    - --trusted-proxy-cidrs={{.}}
+    {{- end }}
+    {{- range .Values.options.ignoredImpersonationGroups }}
+    - --ignored-impersonation-group={{.}}
+    {{- end }}
+    {{- with .Values.options.impersonationGroupRegexp }}
+    - --impersonation-group-regexp={{.}}
+    {{- end }}
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

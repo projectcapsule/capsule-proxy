@@ -5,6 +5,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "capsule-proxy.fullname" . }}-webhook-cert

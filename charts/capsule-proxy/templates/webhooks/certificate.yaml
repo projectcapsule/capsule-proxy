@@ -5,6 +5,9 @@ kind: Issuer
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook-issuer
   namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
   selfSigned: {}
 ---
@@ -13,6 +16,9 @@ kind: Certificate
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook-ca
   namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
   isCA: true
   commonName: {{ include "capsule-proxy.fullname" . }}-webhook-ca
@@ -30,6 +36,9 @@ kind: Issuer
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook
   namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
   ca:
     secretName: {{ include "capsule-proxy.fullname" . }}-webhook-ca
@@ -39,6 +48,9 @@ kind: Certificate
 metadata:
   name: {{ include "capsule-proxy.fullname" . }}-webhook-cert
   namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
   {{- with .Values.webhooks.certificate.fields }}
     {{ toYaml . | nindent 2 }}
