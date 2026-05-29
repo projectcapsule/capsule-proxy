@@ -19,6 +19,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 type get struct {
@@ -36,9 +37,9 @@ func Get(client client.Reader) modules.Module {
 		client:       client,
 		log:          ctrl.Log.WithName("tenant_get"),
 		gk: schema.GroupVersionKind{
-			Group:   "capsule.clastix.io",
+			Group:   types.CapsuleGroup,
 			Version: "*",
-			Kind:    "tenants",
+			Kind:    types.Tenants,
 		},
 	}
 }

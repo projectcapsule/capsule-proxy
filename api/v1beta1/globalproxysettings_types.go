@@ -4,7 +4,7 @@
 package v1beta1
 
 import (
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,7 +28,7 @@ type GlobalSubjectSpec struct {
 
 type GlobalSubject struct {
 	// Kind of tenant owner. Possible values are "User", "Group", and "ServiceAccount".
-	Kind capsuleapi.OwnerKind `json:"kind"`
+	Kind capsulerbac.OwnerKind `json:"kind"`
 	// Name of tenant owner.
 	Name string `json:"name"`
 }

@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
@@ -15,30 +15,30 @@ import (
 
 type ProxyTenant struct {
 	Tenant           capsulev1beta2.Tenant
-	ProxySetting     map[capsuleapi.ProxyServiceKind]*Operations
+	ProxySetting     map[capsulerbac.ProxyServiceKind]*Operations
 	ClusterResources []v1beta1.ClusterResource
 }
 
-func defaultProxySettings() map[capsuleapi.ProxyServiceKind]*Operations {
-	return map[capsuleapi.ProxyServiceKind]*Operations{
-		capsuleapi.NodesProxy:             defaultOperations(),
-		capsuleapi.StorageClassesProxy:    defaultOperations(),
-		capsuleapi.IngressClassesProxy:    defaultOperations(),
-		capsuleapi.PriorityClassesProxy:   defaultOperations(),
-		capsuleapi.RuntimeClassesProxy:    defaultOperations(),
-		capsuleapi.PersistentVolumesProxy: defaultOperations(),
+func defaultProxySettings() map[capsulerbac.ProxyServiceKind]*Operations {
+	return map[capsulerbac.ProxyServiceKind]*Operations{
+		capsulerbac.NodesProxy:             defaultOperations(),
+		capsulerbac.StorageClassesProxy:    defaultOperations(),
+		capsulerbac.IngressClassesProxy:    defaultOperations(),
+		capsulerbac.PriorityClassesProxy:   defaultOperations(),
+		capsulerbac.RuntimeClassesProxy:    defaultOperations(),
+		capsulerbac.PersistentVolumesProxy: defaultOperations(),
 	}
 }
 
 func NewProxyTenant(
 	tenant capsulev1beta2.Tenant,
 	ownerName string,
-	ownerKind capsuleapi.OwnerKind,
+	ownerKind capsulerbac.OwnerKind,
 	owners []v1beta1.OwnerSpec,
 	disableLegacyProxySettings bool,
 ) *ProxyTenant {
 	var (
-		tenantProxySettings    []capsuleapi.ProxySettings
+		tenantProxySettings    []capsulerbac.ProxySettings
 		tenantClusterResources []v1beta1.ClusterResource
 	)
 
@@ -75,7 +75,7 @@ func NewProxyTenant(
 
 // NewClusterProxy returns a ProxyTenant struct for GlobalProxySettings. These settings are currently not bound to a tenant and therefore
 // an empty tenant is returned.
-func NewClusterProxy(ownerName string, ownerKind capsuleapi.OwnerKind, owners []v1beta1.GlobalSubjectSpec) *ProxyTenant {
+func NewClusterProxy(ownerName string, ownerKind capsulerbac.OwnerKind, owners []v1beta1.GlobalSubjectSpec) *ProxyTenant {
 	var tenantClusterResources []v1beta1.ClusterResource
 
 	for _, global := range owners {
@@ -97,6 +97,6 @@ func NewClusterProxy(ownerName string, ownerKind capsuleapi.OwnerKind, owners []
 	}
 }
 
-func (p *ProxyTenant) RequestAllowed(request *http.Request, serviceKind capsuleapi.ProxyServiceKind) (ok bool) {
+func (p *ProxyTenant) RequestAllowed(request *http.Request, serviceKind capsulerbac.ProxyServiceKind) (ok bool) {
 	return p.ProxySetting[serviceKind].IsAllowed(request)
 }

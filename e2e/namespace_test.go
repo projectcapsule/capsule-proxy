@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -22,13 +22,21 @@ var _ = Describe("Namespaces", func() {
 			Labels: e2eLabels(),
 		},
 		Spec: capsulev1beta2.TenantSpec{
-			Owners: capsuleapi.OwnerListSpec{
+			Owners: capsulerbac.OwnerListSpec{
 				{
-					CoreOwnerSpec: capsuleapi.CoreOwnerSpec{
-						UserSpec: capsuleapi.UserSpec{
+					CoreOwnerSpec: capsulerbac.CoreOwnerSpec{
+						UserSpec: capsulerbac.UserSpec{
 
 							Name: "alice",
 							Kind: "User",
+						},
+					},
+				},
+				{
+					CoreOwnerSpec: capsulerbac.CoreOwnerSpec{
+						UserSpec: capsulerbac.UserSpec{
+							Name: "wind:users",
+							Kind: "Group",
 						},
 					},
 				},
@@ -43,10 +51,10 @@ var _ = Describe("Namespaces", func() {
 			Labels: e2eLabels(),
 		},
 		Spec: capsulev1beta2.TenantSpec{
-			Owners: capsuleapi.OwnerListSpec{
+			Owners: capsulerbac.OwnerListSpec{
 				{
-					CoreOwnerSpec: capsuleapi.CoreOwnerSpec{
-						UserSpec: capsuleapi.UserSpec{
+					CoreOwnerSpec: capsulerbac.CoreOwnerSpec{
+						UserSpec: capsulerbac.UserSpec{
 
 							Name: "alice",
 							Kind: "User",
@@ -54,11 +62,19 @@ var _ = Describe("Namespaces", func() {
 					},
 				},
 				{
-					CoreOwnerSpec: capsuleapi.CoreOwnerSpec{
-						UserSpec: capsuleapi.UserSpec{
+					CoreOwnerSpec: capsulerbac.CoreOwnerSpec{
+						UserSpec: capsulerbac.UserSpec{
 
 							Name: "bob",
 							Kind: "User",
+						},
+					},
+				},
+				{
+					CoreOwnerSpec: capsulerbac.CoreOwnerSpec{
+						UserSpec: capsulerbac.UserSpec{
+							Name: "wind:users",
+							Kind: "Group",
 						},
 					},
 				},

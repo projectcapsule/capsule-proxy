@@ -10,6 +10,7 @@ import (
 
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTenant, obj *runtime.Object, gvk schema.GroupVersionKind) error {
@@ -17,7 +18,7 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 	case "SelfSubjectAccessReview":
 		//nolint:forcetypeassert
 		accessReview := (*obj).(*authorizationv1.SelfSubjectAccessReview)
-		if accessReview.Spec.ResourceAttributes.Resource == "namespaces" && accessReview.Spec.ResourceAttributes.Verb == "list" {
+		if accessReview.Spec.ResourceAttributes.Resource == types.Namespaces && accessReview.Spec.ResourceAttributes.Verb == types.ListVerb {
 			accessReview.Status.Allowed = true
 		}
 
@@ -57,15 +58,11 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 
 		resourceRules = append(resourceRules, authorizationv1.ResourceRule{
 			APIGroups: []string{""},
-			Resources: []string{"namespaces"},
-			Verbs:     []string{"list"},
+			Resources: []string{types.Namespaces},
+			Verbs:     []string{types.ListVerb},
 		})
-		src := authorizationv1.SelfSubjectRulesReview{
-			Status: authorizationv1.SubjectRulesReviewStatus{
-				ResourceRules: resourceRules,
-			},
-		}
-		rules.XXX_Merge(&src)
+
+		rules.Status = authorizationv1.SubjectRulesReviewStatus{ResourceRules: resourceRules}
 	default:
 		return fmt.Errorf("unsupported kind: %s", gvk.Kind)
 	}

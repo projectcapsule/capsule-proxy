@@ -18,7 +18,7 @@ IMG             ?= $(IMG_BASE):$(VERSION)
 CAPSULE_PROXY_IMG     ?= $(REGISTRY)/$(IMG_BASE)
 
 ## Kubernetes Version Support
-KUBERNETES_SUPPORTED_VERSION ?= "v1.34.0"
+KUBERNETES_SUPPORTED_VERSION ?= "v1.35.0"
 
 ## Tool Binaries
 KUBECTL ?= kubectl
@@ -317,14 +317,14 @@ helm-doc:
 # -- Tools
 ####################
 CONTROLLER_GEN         := $(LOCALBIN)/controller-gen
-CONTROLLER_GEN_VERSION ?= v0.20.1
+CONTROLLER_GEN_VERSION ?= v0.21.0
 CONTROLLER_GEN_LOOKUP  := kubernetes-sigs/controller-tools
 controller-gen:
 	@test -s $(CONTROLLER_GEN) && $(CONTROLLER_GEN) --version | grep -q $(CONTROLLER_GEN_VERSION) || \
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
 
 GINKGO         := $(LOCALBIN)/ginkgo
-GINKGO_VERSION := v2.27.2
+GINKGO_VERSION := v2.29.0
 GINKGO_LOOKUP  := onsi/ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	$(call go-install-tool,$(GINKGO),github.com/$(GINKGO_LOOKUP)/v2/ginkgo@$(GINKGO_VERSION))
@@ -357,14 +357,14 @@ ko:
 	$(call go-install-tool,$(KO),github.com/$(KO_LOOKUP)@$(KO_VERSION))
 
 NWA           := $(LOCALBIN)/nwa
-NWA_VERSION   := v0.7.7
+NWA_VERSION   := v0.7.8
 NWA_LOOKUP    := B1NARY-GR0UP/nwa
 nwa:
 	@test -s $(NWA) && $(NWA) -h | grep -q $(NWA_VERSION) || \
 	$(call go-install-tool,$(NWA),github.com/$(NWA_LOOKUP)@$(NWA_VERSION))
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := v2.11.4
+GOLANGCI_LINT_VERSION  := v2.12.2
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
 golangci-lint: ## Download golangci-lint locally if necessary.
 	@test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) -h | grep -q $(GOLANGCI_LINT_VERSION) || \

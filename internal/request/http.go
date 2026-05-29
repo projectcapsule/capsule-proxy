@@ -16,6 +16,8 @@ import (
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 var websocketBearerTokenRegexp = regexp.MustCompile(`base64url\.bearer\.authorization\.k8s\.io\.([^,]*)`) //nolint:gochecknoglobals
@@ -106,14 +108,7 @@ func (h http) GetHTTPRequest() *h.Request {
 
 //nolint:funlen
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
-	for _, fn := range h.authenticationFns() {
-		// User authentication data is extracted according to the preferred order:
-		// in case of first match blocking the iteration
-		if username, groups, err = fn(); err == nil {
-			break
-		}
-	}
-	// In case of error, we're blocking the request flow here
+	username, groups, err = h.authenticate()
 	if err != nil {
 		return "", nil, err
 	}
@@ -127,7 +122,7 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 				ac := &authorizationv1.SubjectAccessReview{
 					Spec: authorizationv1.SubjectAccessReviewSpec{
 						ResourceAttributes: &authorizationv1.ResourceAttributes{
-							Verb:     "impersonate",
+							Verb:     types.ImprisonateVerb,
 							Resource: "groups",
 							Name:     impersonateGroup,
 						},
@@ -186,9 +181,12 @@ func (h http) GetUserAndGroups() (username string, groups []string, err error) {
 			// - system:serviceaccounts
 			// - system:authenticated
 			if namespace, _, err := serviceaccount.SplitUsername(username); err == nil {
-				groups = append(groups, fmt.Sprintf("%s%s", serviceaccount.ServiceAccountGroupPrefix, namespace))
-				groups = append(groups, serviceaccount.AllServiceAccountsGroup)
-				groups = append(groups, user.AllAuthenticated)
+				groups = make([]string, 0, 3)
+				groups = append(groups,
+					fmt.Sprintf("%s%s", serviceaccount.ServiceAccountGroupPrefix, namespace),
+					serviceaccount.AllServiceAccountsGroup,
+					user.AllAuthenticated,
+				)
 			}
 		}()
 	}
@@ -259,41 +257,34 @@ func cachedUserAndGroups(ctx context.Context) (string, []string, bool) {
 	return value.username, value.groups, true
 }
 
-type authenticationFn func() (username string, groups []string, err error)
-
-func (h http) authenticationFns() []authenticationFn {
-	fns := make([]authenticationFn, 0, len(h.authTypes)+1)
-
+func (h http) authenticate() (string, []string, error) {
 	for _, authType := range h.authTypes {
-		//nolint:exhaustive
 		switch authType {
 		case BearerToken:
-			fns = append(fns, h.processBearerToken)
-		case TLSCertificate:
-			// If the proxy is handling a non TLS connection, we have to skip the authentication strategy,
-			// since the TLS section of the request would be nil.
-			if h.TLS == nil {
-				break
+			username, groups, err := h.processBearerToken()
+			if err == nil {
+				return username, groups, nil
 			}
 
-			fns = append(fns, func() (username string, groups []string, err error) {
-				if pc := h.TLS.PeerCertificates; len(pc) == 0 {
-					err = NewErrUnauthorized("no provided peer certificates")
-				} else {
-					username, groups = pc[0].Subject.CommonName, pc[0].Subject.Organization
-				}
+		case TLSCertificate:
+			if h.TLS == nil {
+				continue
+			}
 
-				return
-			})
+			if pc := h.TLS.PeerCertificates; len(pc) > 0 {
+				return pc[0].Subject.CommonName, pc[0].Subject.Organization, nil
+			}
+
 		case XForwardedClientCert:
-			fns = append(fns, h.processXFCC)
+			username, groups, err := h.processXFCC()
+			if err == nil {
+				return username, groups, nil
+			}
+		case Anonymous:
+			// Explicitly ignored: capsule-proxy does not support unauthenticated users.
+			continue
 		}
 	}
 
-	// Dead man switch, if no strategy worked, the proxy cannot work
-	fns = append(fns, func() (string, []string, error) {
-		return "", nil, NewErrUnauthorized("no authentication provider available. unauthenticated users not supported")
-	})
-
-	return fns
+	return "", nil, NewErrUnauthorized("no authentication provider available. unauthenticated users not supported")
 }

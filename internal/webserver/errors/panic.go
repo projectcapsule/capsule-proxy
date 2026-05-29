@@ -9,14 +9,16 @@ import (
 	"net/http"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 func HandleUnauthorized(w http.ResponseWriter, err error, message string) {
 	message = fmt.Sprintf("%s: %s", message, err.Error())
 	status := &metav1.Status{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Status",
-			APIVersion: "v1",
+			Kind:       types.StatusKind,
+			APIVersion: types.V1,
 		},
 		Status:  metav1.StatusFailure,
 		Message: message,

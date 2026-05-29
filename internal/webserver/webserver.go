@@ -26,7 +26,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	"golang.org/x/net/http/httpguts"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
@@ -454,7 +454,7 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 	}
 }
 
-func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsuleapi.OwnerListSpec) []v1beta1.OwnerSpec {
+func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulerbac.OwnerListSpec) []v1beta1.OwnerSpec {
 	out := make([]v1beta1.OwnerSpec, 0, len(owners))
 
 	for _, owner := range owners {
@@ -597,12 +597,12 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsuleapi.ServiceAccountOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulerbac.ServiceAccountOwner, username)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 	} else {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsuleapi.UserOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulerbac.UserOwner, username)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -610,7 +610,7 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 
 	// Find tenants belonging to a group
 	for _, group := range groups {
-		pt, err := n.getProxyTenantsForOwnerKind(ctx, capsuleapi.GroupOwner, group)
+		pt, err := n.getProxyTenantsForOwnerKind(ctx, capsulerbac.GroupOwner, group)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -622,7 +622,7 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 }
 
 //nolint:funlen
-func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsuleapi.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
+func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulerbac.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	ownerIndexValue := fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)
 
 	tl := &capsulev1beta2.TenantList{}

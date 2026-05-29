@@ -17,6 +17,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 type get struct {
@@ -32,7 +33,7 @@ func Get(client client.Reader) modules.Module {
 		gk: schema.GroupVersionKind{
 			Group:   nodev1.GroupName,
 			Version: "*",
-			Kind:    "runtimeclasses",
+			Kind:    types.RuntimeClasses,
 		},
 	}
 }

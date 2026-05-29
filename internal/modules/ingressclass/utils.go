@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	"github.com/gorilla/mux"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
@@ -26,7 +26,7 @@ func getIngressClasses(request *http.Request, proxyTenants []*tenant.ProxyTenant
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(request, capsuleapi.IngressClassesProxy); !ok {
+		if ok := pt.RequestAllowed(request, capsulerbac.IngressClassesProxy); !ok {
 			continue
 		}
 

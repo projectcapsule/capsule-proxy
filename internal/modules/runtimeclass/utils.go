@@ -6,7 +6,7 @@ package runtimeclass
 import (
 	"net/http"
 
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -17,7 +17,7 @@ func getRuntimeClass(req *http.Request, proxyTenants []*tenant.ProxyTenant) (all
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsuleapi.RuntimeClassesProxy); ok {
+		if ok := pt.RequestAllowed(req, capsulerbac.RuntimeClassesProxy); ok {
 			allowed = true
 
 			rc := pt.Tenant.Spec.RuntimeClasses

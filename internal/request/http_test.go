@@ -17,6 +17,7 @@ import (
 
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,6 +45,10 @@ func (t testClient) DeleteAllOf(ctx context.Context, obj client.Object, _ ...cli
 
 func (t testClient) Create(ctx context.Context, obj client.Object, _ ...client.CreateOption) error {
 	return t(ctx, obj)
+}
+
+func (t testClient) Apply(ctx context.Context, cfg runtime.ApplyConfiguration, _ ...client.ApplyOption) error {
+	return t(ctx, nil)
 }
 
 //nolint:funlen
@@ -260,7 +265,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := request.NewHTTP(tc.fields.Request, tc.fields.authTypes, tc.fields.usernameClaimField, tc.fields.client, tc.fields.ignoreGroups, tc.fields.ignoreImpersonationRegexp, tc.fields.skipImpersonationReview)
+			req := request.NewHTTP(tc.fields.Request, tc.fields.authTypes, tc.fields.usernameClaimField, tc.fields.client, tc.fields.ignoreGroups, tc.fields.ignoreImpersonationRegexp, tc.fields.skipImpersonationReview, "X-Forwarded-Client-Cert")
 			gotUsername, gotGroups, err := req.GetUserAndGroups()
 			if (err != nil) != tc.wantErr {
 				t.Errorf("GetUserAndGroups() error = %v, wantErr %v", err, tc.wantErr)
