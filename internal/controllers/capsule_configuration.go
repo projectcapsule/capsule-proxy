@@ -21,9 +21,8 @@ import (
 )
 
 type CapsuleConfiguration struct {
-	Client                      client.Client
-	CapsuleConfigurationName    string
-	DeprecatedCapsuleUserGroups []string
+	Client                   client.Client
+	CapsuleConfigurationName string
 }
 
 //nolint:gochecknoglobals
@@ -31,12 +30,6 @@ var CapsuleUsers sets.Set[string]
 var CapsuleUserGroups sets.Set[string]
 
 func (c *CapsuleConfiguration) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
-	if len(c.DeprecatedCapsuleUserGroups) > 0 {
-		CapsuleUserGroups = sets.New[string](c.DeprecatedCapsuleUserGroups...)
-
-		return nil
-	}
-
 	if err := mgr.GetAPIReader().Get(ctx, types.NamespacedName{Name: c.CapsuleConfigurationName}, &capsulev1beta2.CapsuleConfiguration{}); err != nil {
 		if k8serrors.IsNotFound(err) {
 			return fmt.Errorf("CapsuleConfiguration %s does not exist", c.CapsuleConfigurationName)

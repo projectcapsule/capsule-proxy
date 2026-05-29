@@ -131,7 +131,7 @@ func main() {
 		&trustedProxyCIDRStrings,
 		"trusted-proxy-cidrs",
 		nil,
-		"CIDR ranges of trusted proxies allowed to send forwarded client certificate headers",
+		"CIDR ranges of trusted proxies allowed to make requests to the proxy",
 	)
 	flag.StringVar(
 		&xfccHeaderName,
