@@ -6,12 +6,14 @@ metadata:
   name: {{ include "capsule-proxy.fullname" . }}
   namespace: {{ $.Release.Namespace }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
   updateStrategy:
     type: RollingUpdate
   selector:
     matchLabels:
+      app.kubernetes.io/component: "proxy"
       {{- include "capsule-proxy.selectorLabels" . | nindent 6 }}
   template:
     {{- include "capsule-proxy.pod" $ | nindent 4 }}

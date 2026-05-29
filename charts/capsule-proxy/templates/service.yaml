@@ -5,6 +5,7 @@ metadata:
   name: {{ include "capsule-proxy.fullname" . }}
   namespace: {{ $.Release.Namespace }}
   labels:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
 {{- if .Values.service.labels }}
 {{ toYaml .Values.service.labels | indent 4 }}
@@ -42,4 +43,5 @@ spec:
       {{- end }}
     {{ end }}
   selector:
+    app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.selectorLabels" . | nindent 4 }}
