@@ -266,6 +266,10 @@ options:
   capsuleConfigurationName: default
   # -- Define which groups must be ignored while proxying requests
   ignoredUserGroups: []
+  # --  Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)
+  ignoredImpersonationGroups: []
+  # -- Regular expression to match the groups which are considered for impersonation
+  impersonationGroupRegexp: ""
   # -- Specify if capsule-proxy will use SSL
   oidcUsernameClaim: preferred_username
   # -- Specify if capsule-proxy will use SSL
@@ -288,7 +292,7 @@ options:
   disableCaching: false
   # -- Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.
   roleBindingReflector: false
-  # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]
+  # -- Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert]
   authPreferredTypes: "BearerToken,TLSCertificate"
   # -- QPS to use for interacting with Kubernetes API Server.
   clientConnectionQPS: 20
@@ -296,6 +300,8 @@ options:
   clientConnectionBurst: 30
   # -- Enable Pprof for profiling
   pprof: false
+  # -- CIDR ranges of trusted proxies allowed to make requests to the proxy
+  trustedProxyCidrs: []
   # -- A list of extra arguments to add to the capsule-proxy.
   extraArgs: []
   # -"--feature-gates=ProxyClusterScoped=true"

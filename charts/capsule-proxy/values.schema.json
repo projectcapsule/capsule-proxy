@@ -830,7 +830,7 @@
                     "type": "array"
                 },
                 "authPreferredTypes": {
-                    "description": "Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate]",
+                    "description": "Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert]",
                     "type": "string"
                 },
                 "capsuleConfigurationName": {
@@ -865,9 +865,17 @@
                     "description": "Specify if capsule-proxy will generate self-signed SSL certificates",
                     "type": "boolean"
                 },
+                "ignoredImpersonationGroups": {
+                    "description": "Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)",
+                    "type": "array"
+                },
                 "ignoredUserGroups": {
                     "description": "Define which groups must be ignored while proxying requests",
                     "type": "array"
+                },
+                "impersonationGroupRegexp": {
+                    "description": "Regular expression to match the groups which are considered for impersonation",
+                    "type": "string"
                 },
                 "leaderElection": {
                     "description": "Set leader election to true if you are running n-replicas",
@@ -896,6 +904,10 @@
                 "rolebindingsResyncPeriod": {
                     "description": "Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174)",
                     "type": "string"
+                },
+                "trustedProxyCidrs": {
+                    "description": "CIDR ranges of trusted proxies allowed to make requests to the proxy",
+                    "type": "array"
                 }
             }
         },
