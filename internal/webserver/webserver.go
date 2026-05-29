@@ -436,6 +436,8 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 		} else {
 			server.HandleError(writer, err, msg)
 		}
+
+		return
 	}
 
 	n.log.V(4).Info("impersonating for the current request", "username", username, "groups", groups, "uri", request.URL.Path)
