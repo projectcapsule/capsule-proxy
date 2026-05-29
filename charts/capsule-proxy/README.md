@@ -298,7 +298,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | gangplank.hostUsers | bool | `true` | Don't use Host Users (User Namespaces) |
 | gangplank.image.pullPolicy | string | `"IfNotPresent"` |  |
 | gangplank.image.repository | string | `"registry.sighup.io/fury/gangplank"` |  |
-| gangplank.image.tag | string | `"1.1.1"` |  |
+| gangplank.image.tag | string | `"v1.2.0"` |  |
 | gangplank.imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
 | gangplank.ingress.annotations | object | `{}` |  |
 | gangplank.ingress.className | string | `""` |  |
