@@ -6,7 +6,7 @@ package persistentvolume
 import (
 	"net/http"
 
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
@@ -17,7 +17,7 @@ func getPersistentVolume(req *http.Request, proxyTenants []*tenant.ProxyTenant, 
 	var tenantNames []string
 
 	for _, pt := range proxyTenants {
-		if ok := pt.RequestAllowed(req, capsuleapi.PersistentVolumesProxy); ok {
+		if ok := pt.RequestAllowed(req, capsulerbac.PersistentVolumesProxy); ok {
 			allowed = true
 
 			tenantNames = append(tenantNames, pt.Tenant.Name)

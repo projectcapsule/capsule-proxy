@@ -7,7 +7,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	capsuleapi "github.com/projectcapsule/capsule/pkg/api"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,7 +91,7 @@ func NewNamespace(name string, labels ...map[string]string) *corev1.Namespace {
 	}
 }
 
-func NamespaceCreation(ns *corev1.Namespace, owner capsuleapi.OwnerSpec, timeout time.Duration) AsyncAssertion {
+func NamespaceCreation(ns *corev1.Namespace, owner capsulerbac.OwnerSpec, timeout time.Duration) AsyncAssertion {
 	cs := ownerClient(owner)
 	return Eventually(func() (err error) {
 		_, err = cs.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
@@ -99,7 +99,7 @@ func NamespaceCreation(ns *corev1.Namespace, owner capsuleapi.OwnerSpec, timeout
 	}, timeout, defaultPollInterval)
 }
 
-func ownerClient(owner capsuleapi.OwnerSpec) (cs kubernetes.Interface) {
+func ownerClient(owner capsulerbac.OwnerSpec) (cs kubernetes.Interface) {
 	c, err := config.GetConfig()
 	Expect(err).ToNot(HaveOccurred())
 	c.Impersonate.Groups = []string{"projectcapsule.dev", owner.Name}
