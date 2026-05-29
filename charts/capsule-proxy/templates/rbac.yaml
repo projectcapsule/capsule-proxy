@@ -14,7 +14,7 @@ rules:
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
   - apiGroups: [""]
-    resources: ["configmaps", "endpoints"]
+    resources: ["configmaps", "endpoints"{{ if and .Values.options.enableSSL .Values.options.generateCertificates }}, "secrets"{{ end }}]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
