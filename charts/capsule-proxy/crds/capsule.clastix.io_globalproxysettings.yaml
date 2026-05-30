@@ -166,6 +166,15 @@ spec:
             required:
             - rules
             type: object
+          status:
+            description: GlobalProxySettingsStatus defines the observed state of GlobalProxySettings.
+            properties:
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
+                type: integer
+            type: object
         type: object
     served: true
     storage: true

@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -68,12 +69,31 @@ var _ = Describe("GlobalProxySettings", func() {
 			},
 		}
 
-		for _, tran := range settings {
+		for _, setting := range settings {
+			s := setting
 			Eventually(func() error {
-				tran.ResourceVersion = ""
+				s.ResourceVersion = ""
 
-				return k8sClient.Create(context.TODO(), tran)
+				return k8sClient.Create(context.TODO(), s)
 			}).Should(Succeed())
+		}
+
+		// Verify observedGeneration is set after reconciliation for each created resource
+		for _, setting := range settings {
+			name := setting.GetName()
+
+			Eventually(func(g Gomega) {
+				current := &v1beta1.GlobalProxySettings{}
+				g.Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: name}, current)).To(Succeed())
+
+				g.Expect(current.Status.ObservedGeneration).To(
+					Equal(current.GetGeneration()),
+					"expected GlobalProxySettings %q status.observedGeneration (%d) to equal metadata.generation (%d)",
+					name,
+					current.Status.ObservedGeneration,
+					current.GetGeneration(),
+				)
+			}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
 		}
 
 		// Load Alice's kubeconfig

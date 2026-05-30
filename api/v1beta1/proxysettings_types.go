@@ -29,7 +29,15 @@ type ProxySettingSpec struct {
 	Subjects []OwnerSpec `json:"subjects"`
 }
 
+// ProxySettingStatus defines the observed state of ProxySetting.
+type ProxySettingStatus struct {
+	// ObservedGeneration is the most recent generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
 //+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
 
 // ProxySetting is the Schema for the proxysettings API.
 type ProxySetting struct {
@@ -37,6 +45,8 @@ type ProxySetting struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec ProxySettingSpec `json:"spec,omitempty"`
+	// +optional
+	Status ProxySettingStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

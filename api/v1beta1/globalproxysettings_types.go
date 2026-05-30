@@ -33,6 +33,13 @@ type GlobalSubject struct {
 	Name string `json:"name"`
 }
 
+// GlobalProxySettingsStatus defines the observed state of GlobalProxySettings.
+type GlobalProxySettingsStatus struct {
+	// ObservedGeneration is the most recent generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster
@@ -43,6 +50,8 @@ type GlobalProxySettings struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec GlobalProxySettingsSpec `json:"spec,omitempty"`
+	// +optional
+	Status GlobalProxySettingsStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

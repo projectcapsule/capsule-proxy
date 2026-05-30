@@ -182,6 +182,17 @@ spec:
             required:
             - subjects
             type: object
+          status:
+            description: ProxySettingStatus defines the observed state of ProxySetting.
+            properties:
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
+                type: integer
+            type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
