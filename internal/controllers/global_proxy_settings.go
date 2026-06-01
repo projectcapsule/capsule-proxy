@@ -1,11 +1,15 @@
 // Copyright 2020-2025 Project Capsule Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package controllers //nolint:dupl // GlobalProxySettingsReconciler and ProxySettingReconciler are intentionally parallel thin wrappers for different CRD types; shared logic lives in observed_generation.go.
+package controllers
 
 import (
 	"context"
+	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -14,22 +18,62 @@ import (
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 )
 
-// GlobalProxySettingsReconciler updates status.observedGeneration after each reconcile.
+// GlobalProxySettingsReconciler reconciles GlobalProxySettings objects and keeps
+// status.observedGeneration in sync with metadata.generation.
 type GlobalProxySettingsReconciler struct {
 	Client client.Client
+	reader client.Reader
 }
 
 func (r *GlobalProxySettingsReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.reader = mgr.GetAPIReader()
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capsuleproxyv1beta1.GlobalProxySettings{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
 }
 
-func (r *GlobalProxySettingsReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	return reconcileObservedGeneration(ctx, r.Client, req,
-		func() *capsuleproxyv1beta1.GlobalProxySettings { return &capsuleproxyv1beta1.GlobalProxySettings{} },
-		func(o *capsuleproxyv1beta1.GlobalProxySettings) int64 { return o.Status.ObservedGeneration },
-		func(o *capsuleproxyv1beta1.GlobalProxySettings, gen int64) { o.Status.ObservedGeneration = gen },
-	)
+func (r *GlobalProxySettingsReconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) { //nolint:dupl
+	instance := &capsuleproxyv1beta1.GlobalProxySettings{}
+	if err = r.Client.Get(ctx, req.NamespacedName, instance); err != nil {
+		if apierrors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+
+		return reconcile.Result{}, err
+	}
+
+	defer func() {
+		if uerr := r.updateStatus(ctx, instance); uerr != nil {
+			err = fmt.Errorf("cannot update GlobalProxySettings status: %w", uerr)
+		}
+	}()
+
+	return reconcile.Result{}, nil
+}
+
+func (r *GlobalProxySettingsReconciler) updateStatus(ctx context.Context, instance *capsuleproxyv1beta1.GlobalProxySettings) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		latest := &capsuleproxyv1beta1.GlobalProxySettings{}
+		if err := r.reader.Get(ctx, types.NamespacedName{Name: instance.Name}, latest); err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+
+			return err
+		}
+
+		latest.Status.ObservedGeneration = latest.GetGeneration()
+
+		if err := r.Client.Status().Update(ctx, latest); err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+
+			return err
+		}
+
+		return nil
+	})
 }
