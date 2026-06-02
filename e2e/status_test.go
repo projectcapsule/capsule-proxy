@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
+	capmeta "github.com/projectcapsule/capsule/pkg/api/meta"
 )
 
 var _ = Describe("observedGeneration is tracked in status", Ordered, Label("observedGeneration"), func() {
@@ -60,6 +61,11 @@ var _ = Describe("observedGeneration is tracked in status", Ordered, Label("obse
 					current.Status.ObservedGeneration,
 					current.GetGeneration(),
 				)
+
+				readyCond := current.Status.Conditions.GetConditionByType(capmeta.ReadyCondition)
+				g.Expect(readyCond).NotTo(BeNil(), "expected Ready condition to be set")
+				g.Expect(readyCond.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(readyCond.ObservedGeneration).To(Equal(current.GetGeneration()))
 			}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
 		})
 
@@ -99,6 +105,11 @@ var _ = Describe("observedGeneration is tracked in status", Ordered, Label("obse
 						current.Status.ObservedGeneration,
 						current.GetGeneration(),
 					)
+
+					readyCond := current.Status.Conditions.GetConditionByType(capmeta.ReadyCondition)
+					g.Expect(readyCond).NotTo(BeNil(), "expected Ready condition to be set")
+					g.Expect(readyCond.Status).To(Equal(metav1.ConditionTrue))
+					g.Expect(readyCond.ObservedGeneration).To(Equal(current.GetGeneration()))
 				}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
 			})
 		})
@@ -181,6 +192,11 @@ var _ = Describe("observedGeneration is tracked in status", Ordered, Label("obse
 					current.Status.ObservedGeneration,
 					current.GetGeneration(),
 				)
+
+				readyCond := current.Status.Conditions.GetConditionByType(capmeta.ReadyCondition)
+				g.Expect(readyCond).NotTo(BeNil(), "expected Ready condition to be set")
+				g.Expect(readyCond.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(readyCond.ObservedGeneration).To(Equal(current.GetGeneration()))
 			}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
 		})
 
@@ -220,6 +236,11 @@ var _ = Describe("observedGeneration is tracked in status", Ordered, Label("obse
 						current.Status.ObservedGeneration,
 						current.GetGeneration(),
 					)
+
+					readyCond := current.Status.Conditions.GetConditionByType(capmeta.ReadyCondition)
+					g.Expect(readyCond).NotTo(BeNil(), "expected Ready condition to be set")
+					g.Expect(readyCond.Status).To(Equal(metav1.ConditionTrue))
+					g.Expect(readyCond.ObservedGeneration).To(Equal(current.GetGeneration()))
 				}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
 			})
 		})

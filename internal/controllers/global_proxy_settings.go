@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	capmeta "github.com/projectcapsule/capsule/pkg/api/meta"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -65,6 +66,10 @@ func (r *GlobalProxySettingsReconciler) updateStatus(ctx context.Context, instan
 		}
 
 		latest.Status.ObservedGeneration = latest.GetGeneration()
+
+		readyCondition := capmeta.NewReadyCondition(latest)
+		readyCondition.ObservedGeneration = latest.GetGeneration()
+		latest.Status.Conditions.UpdateConditionByType(readyCondition)
 
 		if err := r.Client.Status().Update(ctx, latest); err != nil {
 			if apierrors.IsNotFound(err) {

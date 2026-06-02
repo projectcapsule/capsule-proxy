@@ -4,6 +4,7 @@
 package v1beta1
 
 import (
+	capmeta "github.com/projectcapsule/capsule/pkg/api/meta"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,11 +39,17 @@ type GlobalProxySettingsStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Conditions contains the reconciliation conditions for this GlobalProxySettings.
+	// +optional
+	Conditions capmeta.ConditionList `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Reconcile status of this GlobalProxySettings"
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Age"
 
 // GlobalProxySettings is the Schema for the globalproxysettings API.
 type GlobalProxySettings struct {

@@ -4,6 +4,7 @@
 package v1beta1
 
 import (
+	capmeta "github.com/projectcapsule/capsule/pkg/api/meta"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,10 +35,16 @@ type ProxySettingStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Conditions contains the reconciliation conditions for this ProxySetting.
+	// +optional
+	Conditions capmeta.ConditionList `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description="Reconcile status of this ProxySetting"
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Age"
 
 // ProxySetting is the Schema for the proxysettings API.
 type ProxySetting struct {
