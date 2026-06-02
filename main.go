@@ -39,6 +39,37 @@ import (
 // WebhookType defines the available webhook names.
 type WebhookType enumflag.Flag
 
+// setupHealthProbes registers liveness and readiness probes on the manager.
+func setupHealthProbes(mgr ctrl.Manager, filter webserver.Filter) error {
+	if err := mgr.AddHealthzCheck("healthz", filter.LivenessProbe); err != nil {
+		return fmt.Errorf("cannot create healthcheck probe: %w", err)
+	}
+
+	if err := mgr.AddReadyzCheck("ready", filter.ReadinessProbe); err != nil {
+		return fmt.Errorf("cannot create readiness probe: %w", err)
+	}
+
+	return nil
+}
+
+// setupObservedGenerationControllers registers the status controllers that maintain
+// observedGeneration on GlobalProxySettings and ProxySetting resources.
+func setupObservedGenerationControllers(mgr ctrl.Manager) error {
+	if err := (&controllers.GlobalProxySettingsReconciler{
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("cannot start GlobalProxySettings controller: %w", err)
+	}
+
+	if err := (&controllers.ProxySettingReconciler{
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("cannot start ProxySetting controller: %w", err)
+	}
+
+	return nil
+}
+
 const (
 	WebhookWatchdog WebhookType = iota
 	WebhookLabler
@@ -425,13 +456,13 @@ First match is used and can be specified multiple times as comma separated value
 		os.Exit(1)
 	}
 
-	if err = mgr.AddHealthzCheck("healthz", r.LivenessProbe); err != nil {
-		log.Error(err, "cannot create healthcheck probe")
+	if err := setupObservedGenerationControllers(mgr); err != nil {
+		log.Error(err, "unable to set up observed generation controllers")
 		os.Exit(1)
 	}
 
-	if err = mgr.AddReadyzCheck("ready", r.ReadinessProbe); err != nil {
-		log.Error(err, "cannot create readiness probe")
+	if err = setupHealthProbes(mgr, r); err != nil {
+		log.Error(err, "cannot set up health probes")
 		os.Exit(1)
 	}
 
