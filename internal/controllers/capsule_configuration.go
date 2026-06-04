@@ -59,24 +59,16 @@ func (c *CapsuleConfiguration) Reconcile(ctx context.Context, request reconcile.
 		panic(err)
 	}
 
-	//nolint:staticcheck
-	allGroups := append(
-		append([]string{}, capsuleConfig.Spec.UserGroups...), // copy to avoid aliasing
-		capsuleConfig.Spec.Users.GetByKinds(
-			[]capsulerbac.OwnerKind{capsulerbac.GroupOwner},
-		)...,
+	allGroups := capsuleConfig.Status.Users.GetByKinds(
+		[]capsulerbac.OwnerKind{capsulerbac.GroupOwner},
 	)
 
 	CapsuleUserGroups = sets.New[string](allGroups...)
 
-	//nolint:staticcheck
-	allUsers := append(
-		append([]string{}, capsuleConfig.Spec.UserNames...), // copy base slice
-		capsuleConfig.Spec.Users.GetByKinds([]capsulerbac.OwnerKind{
-			capsulerbac.UserOwner,
-			capsulerbac.ServiceAccountOwner,
-		})...,
-	)
+	allUsers := capsuleConfig.Status.Users.GetByKinds([]capsulerbac.OwnerKind{
+		capsulerbac.UserOwner,
+		capsulerbac.ServiceAccountOwner,
+	})
 
 	CapsuleUsers = sets.New[string](allUsers...)
 
