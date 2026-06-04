@@ -5,7 +5,6 @@ run:
 linters:
   enable:
     - wsl_v5
-    - gomodguard_v2
   default: all
   disable:
     - wsl
