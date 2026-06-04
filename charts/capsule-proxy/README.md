@@ -164,6 +164,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the capsule-proxy container. |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
+| serviceAccount.imagePullSecrets | list | `[]` | Pullsecrets mounted to the service account, used to pull images from private registries. |
 | serviceAccount.name | string | `capsule-proxy` | The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template |
 | tolerations | list | `[]` | Set list of tolerations for the capsule-proxy pod. |
 | topologySpreadConstraints | list | `[]` | Topology Spread Constraints for the capsule-proxy pod. |

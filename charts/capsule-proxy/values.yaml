@@ -390,6 +390,9 @@ serviceAccount:
   # -- The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template
   # @default -- `capsule-proxy`
   name: ""
+  # -- Pullsecrets mounted to the service account, used to pull images from private registries.
+  imagePullSecrets: []
+  # just string array [ "sec-1", "sec-2" ]
 
 # HorizontalPodAutoscaler
 autoscaling:

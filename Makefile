@@ -290,6 +290,84 @@ install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/con
 uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	kubectl delete -f charts/capsule-proxy/crds
 
+
+####################
+# -- Enterprise Release
+####################
+
+ENTERPRISE_VERSION  ?= "dirty"
+ENTERPRISE_REGISTRY ?= "registry.projectcapsule.dev"
+
+.PHONY: enterprise-release
+enterprise-release:
+	mkdir -p ./builds
+	$(MAKE) CAPSULE_PROXY_IMG=$(ENTERPRISE_REGISTRY)/enterprise/capsule-proxy VERSION=v$(ENTERPRISE_VERSION) ko-publish-capsule-proxy
+	$(HELM) package ./charts/capsule-proxy --app-version=$(ENTERPRISE_VERSION) --version=$(ENTERPRISE_VERSION) --destination ./builds/
+	$(HELM) push ./builds/capsule-proxy-$(ENTERPRISE_VERSION).tgz oci://$(ENTERPRISE_REGISTRY)/charts/
+	$(MAKE) deploy-enterprise
+	rm -rf ./builds
+
+.PHONY: deploy-enterprise
+deploy-enterprise:
+	@echo ""
+	@echo "Deploying Capsule-Proxy (Enterprise) $(ENTERPRISE_VERSION)"
+	@echo ""
+	@echo "1) Create image pull secret (Change the credentials with the ones provided to you):"
+	@echo ""
+	@echo "kubectl create secret docker-registry capsule-enterprise -n capsule-system \\"
+	@echo "  --docker-username='robot\$$name' \\"
+	@echo "  --docker-password='serviceaccount-password' \\"
+	@echo "  --docker-server='$(ENTERPRISE_REGISTRY)'"
+	@echo ""
+	@echo "2) Deploy Capsule-Proxy:"
+	@echo ""
+	@echo "helm upgrade --install capsule-proxy \\"
+	@echo "  oci://$(ENTERPRISE_REGISTRY)/charts/capsule-proxy \\"
+	@echo "  --namespace capsule-system \\"
+	@echo "  --version $(ENTERPRISE_VERSION) \\"
+	@echo "  --reuse-values \\"
+	@echo "  --set image.registry=$(ENTERPRISE_REGISTRY) \\"
+	@echo "  --set image.repository=enterprise/capsule-proxy \\"
+	@echo "  --set 'serviceAccount.imagePullSecrets={capsule-enterprise}'"
+	@echo ""
+
+.PHONY: enterprise-prerelease
+enterprise-prerelease:
+	mkdir -p ./builds
+	$(MAKE) CAPSULE_PROXY_IMG=$(ENTERPRISE_REGISTRY)/prereleases/capsule-proxy VERSION=v$(ENTERPRISE_VERSION) ko-publish-capsule-proxy
+	$(HELM) package ./charts/capsule-proxy --app-version=$(ENTERPRISE_VERSION) --version=$(ENTERPRISE_VERSION) --destination ./builds/
+	$(HELM) push ./builds/capsule-proxy-$(ENTERPRISE_VERSION).tgz oci://$(ENTERPRISE_REGISTRY)/charts/prereleases/
+	$(MAKE) deploy-enterprise-prerelease
+	rm -rf ./builds
+
+.PHONY: deploy-enterprise-prerelease
+deploy-enterprise-prerelease:
+	@echo ""
+	@echo "Deploying Capsule-Proxy Prerelease (Enterprise) $(ENTERPRISE_VERSION)"
+	@echo ""
+	@echo "1) Create image pull secret (Change the credentials with the ones provided to you):"
+	@echo ""
+	@echo "kubectl create secret docker-registry capsule-enterprise -n capsule-system \\"
+	@echo "  --docker-username='robot\$$name' \\"
+	@echo "  --docker-password='serviceaccount-password' \\"
+	@echo "  --docker-server='$(ENTERPRISE_REGISTRY)'"
+	@echo ""
+	@echo "2) Deploy Capsule-Proxy:"
+	@echo ""
+	@echo "helm upgrade --install capsule-proxy \\"
+	@echo "  oci://$(ENTERPRISE_REGISTRY)/charts/prereleases/capsule-proxy \\"
+	@echo "  --namespace capsule-system \\"
+	@echo "  --version $(ENTERPRISE_VERSION) \\"
+	@echo "  --reuse-values \\"
+	@echo "  --set image.registry=$(ENTERPRISE_REGISTRY) \\"
+	@echo "  --set image.repository=prereleases/capsule-proxy \\"
+	@echo "  --set image.tag=v$(ENTERPRISE_VERSION) \\"
+	@echo "  --set image.pullPolicy=Always \\"
+	@echo "  --set 'serviceAccount.imagePullSecrets={capsule-enterprise}'"
+	@echo ""
+
+
+
 ####################
 # -- Helpers
 ####################

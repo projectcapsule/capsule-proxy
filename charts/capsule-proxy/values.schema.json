@@ -1093,6 +1093,10 @@
                     "description": "Specifies whether a service account should be created.",
                     "type": "boolean"
                 },
+                "imagePullSecrets": {
+                    "description": "Pullsecrets mounted to the service account, used to pull images from private registries.",
+                    "type": "array"
+                },
                 "name": {
                     "description": "The name of the service account to use. If not set and `serviceAccount.create=true`, a name is generated using the fullname template",
                     "type": "string"
