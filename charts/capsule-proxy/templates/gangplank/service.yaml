@@ -8,11 +8,11 @@ metadata:
   labels:
     {{- include "gangplank.labels" . | nindent 4 }}
 {{- if .Values.gangplank.service.labels }}
-  {{ toYaml .Values.gangplank.service.labels | nindent 4 }}
+  {{- toYaml .Values.gangplank.service.labels | nindent 4 }}
 {{- end }}
 {{- with .Values.gangplank.service.annotations }}
   annotations:
-    {{ toYaml . | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
 {{- end }}
 spec:
 {{- if (or (eq .Values.gangplank.service.type "ClusterIP") (empty .Values.gangplank.service.type)) }}
