@@ -322,7 +322,10 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | gangplank.resources | object | `{}` | Set the resource requests/limits |
 | gangplank.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Set the securityContext for the Container |
 | gangplank.sensitiveEnvs | object | `{"GANGPLANK_CONFIG_SESSION_SECURITY_KEY":"session-security-key"}` | Environment variables (Secret) |
-| gangplank.service.port | int | `80` |  |
+| gangplank.service.annotations | object | `{}` | Annotations to add to the service. |
+| gangplank.service.labels | object | `{}` | Labels to add to the service. |
+| gangplank.service.nodePort | int | `0` | Specifies the node port number (only for `NodePort` service type). |
+| gangplank.service.port | int | `80` | Specifies the service port number. |
 | gangplank.service.type | string | `"ClusterIP"` |  |
 | gangplank.serviceAccount.annotations | object | `{}` |  |
 | gangplank.serviceAccount.automount | bool | `true` |  |

@@ -398,7 +398,20 @@
                 "service": {
                     "type": "object",
                     "properties": {
+                        "annotations": {
+                            "description": "Annotations to add to the service.",
+                            "type": "object"
+                        },
+                        "labels": {
+                            "description": "Labels to add to the service.",
+                            "type": "object"
+                        },
+                        "nodePort": {
+                            "description": "Specifies the node port number (only for `NodePort` service type).",
+                            "type": "integer"
+                        },
                         "port": {
+                            "description": "Specifies the service port number.",
                             "type": "integer"
                         },
                         "type": {

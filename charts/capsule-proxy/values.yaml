@@ -714,7 +714,18 @@ gangplank:
 
   service:
     type: ClusterIP
+    # -- Specifies the service port number.
     port: 80
+    # -- Specifies the node port number (only for `NodePort` service type).
+    nodePort: 0
+    #  Add these labels to have capsule-proxy show up in `kubectl cluster-info`
+    #  kubernetes.io/cluster-service: "true"
+    #  kubernetes.io/name: "Capsule Proxy"
+    # -- Labels to add to the service.
+    labels: {}
+    # -- Annotations to add to the service.
+    annotations: {}
+
 
   ingress:
     enabled: false
