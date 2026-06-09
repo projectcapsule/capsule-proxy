@@ -53,7 +53,7 @@ func (g get) GroupKind() schema.GroupKind {
 }
 
 func (g get) Path() string {
-	return "/apis/{}/v1beta2/tenants/{name}"
+	return "/apis/" + types.CapsuleGroup + "/v1beta2/" + types.Tenants + "/{name}"
 }
 
 func (g get) Methods() []string {
