@@ -37,10 +37,6 @@ spec:
   {{- with .Values.certManager.ca.renewBefore }}
   renewBefore: {{ . }}
   {{- end }}
-  {{- with .Values.certManager.ca.privateKey }}
-  privateKey:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
   issuerRef:
     name: {{ include "capsule-proxy.fullname" . }}-selfsigned-issuer
     kind: Issuer
