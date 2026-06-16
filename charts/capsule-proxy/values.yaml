@@ -29,11 +29,15 @@ global:
       restartPolicy: Never
       # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
       ttlSecondsAfterFinished: 60
+      # @schema type: object
+      # @schema additionalProperties: true
       # -- Security context for the job pods.
       podSecurityContext:
         enabled: true
         seccompProfile:
           type: "RuntimeDefault"
+      # @schema type: object
+      # @schema additionalProperties: true
       # -- Security context for the job containers.
       securityContext:
         enabled: true
@@ -75,11 +79,15 @@ global:
       restartPolicy: Never
       # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
       ttlSecondsAfterFinished: 60
+      # @schema type: object
+      # @schema additionalProperties: true
       # -- Security context for the job pods.
       podSecurityContext:
         enabled: true
         seccompProfile:
           type: "RuntimeDefault"
+      # @schema type: object
+      # @schema additionalProperties: true
       # -- Security context for the job containers.
       securityContext:
         enabled: true
@@ -106,6 +114,8 @@ global:
 
 # -- Deprecated: Use `global.jobs.certs` instead
 jobs:
+  # @schema type: object
+  # @schema additionalProperties: true
   certs: {}
 
 # Manage CRD Lifecycle
@@ -194,6 +204,8 @@ topologySpreadConstraints: []
 #     matchLabels:
 #       app.kubernetes.io/name: capsule-proxy
 
+# @schema type: object
+# @schema additionalProperties: true
 # -- Proxy Readyness-Probe
 readinessProbe:
   enabled: true
@@ -203,6 +215,8 @@ readinessProbe:
     port: probe
     scheme: HTTP
 
+# @schema type: object
+# @schema additionalProperties: true
 # -- Proxy Liveness-Probe
 livenessProbe:
   enabled: true
@@ -217,12 +231,16 @@ livenessProbe:
 # -- Specifies PriorityClass of the capsule-proxy pod.
 priorityClassName: ""
 
+# @schema type: object
+# @schema additionalProperties: true
 # -- Security context for the capsule-proxy pod.
 podSecurityContext:
   enabled: true
   seccompProfile:
     type: "RuntimeDefault"
 
+# @schema type: object
+# @schema additionalProperties: true
 # -- Security context for the capsule-proxy container.
 securityContext:
   enabled: true
@@ -327,6 +345,8 @@ certManager:
     duration: ""
     # -- Renew the CA certificate before its expiration time (e.g. 360h for 15 days)
     renewBefore: ""
+    # @schema type: object
+    # @schema additionalProperties: true
     # -- Additional fields to include in certificate
     fields:
       privateKey:
@@ -346,6 +366,8 @@ certManager:
     ipAddresses: []
     # -- Additional URIs to include in certificate
     uris: []
+    # @schema type: object
+    # @schema additionalProperties: true
     # -- Additional fields to include in certificate
     fields:
       privateKey:
@@ -353,6 +375,8 @@ certManager:
       # renewBefore: '24h'
 
   secretTemplate:
+    # @schema type: object
+    # @schema additionalProperties: true
     # -- Labels and annotations added to the self-signed CA certificate secret
     ca: {}
       # annotations:
@@ -360,6 +384,9 @@ certManager:
       #   my-secret-annotation-2: "bar"
       # labels:
       #   my-secret-label: foo
+
+    # @schema type: object
+    # @schema additionalProperties: true
     # -- Labels and annotations added to the certificate secret
     certificate: {}
       # annotations:
@@ -546,11 +573,15 @@ gangplank:
   # -- Don't use Host Users (User Namespaces)
   hostUsers: true
 
+  # @schema type: object
+  # @schema additionalProperties: true
   # -- Set the securityContext for the Pod
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
 
+  # @schema type: object
+  # @schema additionalProperties: true
   # -- Set the securityContext for the Container
   securityContext:
     runAsUser: 65534
@@ -576,12 +607,16 @@ gangplank:
     #   cpu: 100m
     #   memory: 128Mi
 
+  # @schema type: object
+  # @schema additionalProperties: true
   # -- Configure the liveness probe using Deployment probe specs
   livenessProbe:
     httpGet:
       path: /
       port: http
 
+  # @schema type: object
+  # @schema additionalProperties: true
   # -- Configure the readiness probe using Deployment probe spec
   readinessProbe:
     httpGet:
@@ -625,10 +660,14 @@ gangplank:
   envs: {}
   envFrom: []
 
+  # @schema type: object
+  # @schema additionalProperties: true
   # -- Environment variables (Secret)
   sensitiveEnvs:
     GANGPLANK_CONFIG_SESSION_SECURITY_KEY: session-security-key
 
+  # @schema type: object
+  # @schema additionalProperties: true
   # -- Custom inline Gangplank configuration (ENV Styles)
   config:
     # The address to listen on. Defaults to 0.0.0.0 to listen on all interfaces.
