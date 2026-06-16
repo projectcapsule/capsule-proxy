@@ -206,10 +206,15 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| certManager.ca.duration | string | `""` | Duration of validity for the CA certificate (e.g. 2160h for 90 days) |
+| certManager.ca.fields | object | `{"privateKey":{"algorithm":"ECDSA","size":256}}` | Additional fields to include in certificate |
+| certManager.ca.renewBefore | string | `""` | Renew the CA certificate before its expiration time (e.g. 360h for 15 days) |
 | certManager.certificate.dnsNames | list | `[]` | Additional DNS Names to include in certificate |
+| certManager.certificate.duration | string | `""` | Duration of validity for the CA certificate (e.g. 2160h for 90 days) |
 | certManager.certificate.fields | object | `{"privateKey":{"rotationPolicy":"Always"}}` | Additional fields to include in certificate |
 | certManager.certificate.includeInternalServiceNames | bool | `true` | Include internal service names in certificate (disable if you create a public cert) |
 | certManager.certificate.ipAddresses | list | `[]` | Additional IP Addresses to include in certificate |
+| certManager.certificate.renewBefore | string | `""` | Renew the CA certificate before its expiration time (e.g. 360h for 15 days) |
 | certManager.certificate.uris | list | `[]` | Additional URIs to include in certificate |
 | certManager.externalCA.enabled | bool | `false` | Set if want cert manager to sign certificates with an external CA |
 | certManager.externalCA.secretName | string | `""` |  |

@@ -21,16 +21,26 @@ metadata:
     app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
 spec:
+  {{- with .Values.certManager.ca.fields }}
+    {{ toYaml . | nindent 2 }}
+  {{- end }}
   isCA: true
   commonName: {{ include "capsule-proxy.fullname" . }}-selfsigned-ca
   secretName: {{ include "capsule-proxy.caSecretName" . }}
-  {{- if .Values.certManager.secretTemplate.ca }}
+  {{- with .Values.certManager.secretTemplate.ca }}
   secretTemplate:
-    {{- toYaml .Values.certManager.secretTemplate.ca | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
+  {{- with .Values.certManager.ca.duration }}
+  duration: {{ . }}
+  {{- end }}
+  {{- with .Values.certManager.ca.renewBefore }}
+  renewBefore: {{ . }}
+  {{- end }}
+  {{- with .Values.certManager.ca.privateKey }}
   privateKey:
-    algorithm: ECDSA
-    size: 256
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   issuerRef:
     name: {{ include "capsule-proxy.fullname" . }}-selfsigned-issuer
     kind: Issuer
@@ -92,6 +102,12 @@ spec:
     kind: {{ .Values.certManager.issuer.kind }}
     name: {{ include "capsule-proxy.certManager.issuerName" . }}
   secretName: {{ include "capsule-proxy.fullname" . }}
+  {{- with .Values.certManager.certificate.duration }}
+  duration: {{ . }}
+  {{- end }}
+  {{- with .Values.certManager.certificate.renewBefore }}
+  renewBefore: {{ . }}
+  {{- end }}
   {{- if .Values.certManager.secretTemplate.certificate }}
   secretTemplate:
     {{- toYaml .Values.certManager.secretTemplate.certificate | nindent 4 }}

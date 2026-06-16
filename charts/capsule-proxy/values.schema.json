@@ -50,12 +50,46 @@
         "certManager": {
             "type": "object",
             "properties": {
+                "ca": {
+                    "type": "object",
+                    "properties": {
+                        "duration": {
+                            "description": "Duration of validity for the CA certificate (e.g. 2160h for 90 days)",
+                            "type": "string"
+                        },
+                        "fields": {
+                            "description": "Additional fields to include in certificate",
+                            "type": "object",
+                            "properties": {
+                                "privateKey": {
+                                    "type": "object",
+                                    "properties": {
+                                        "algorithm": {
+                                            "type": "string"
+                                        },
+                                        "size": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "renewBefore": {
+                            "description": "Renew the CA certificate before its expiration time (e.g. 360h for 15 days)",
+                            "type": "string"
+                        }
+                    }
+                },
                 "certificate": {
                     "type": "object",
                     "properties": {
                         "dnsNames": {
                             "description": "Additional DNS Names to include in certificate",
                             "type": "array"
+                        },
+                        "duration": {
+                            "description": "Duration of validity for the CA certificate (e.g. 2160h for 90 days)",
+                            "type": "string"
                         },
                         "fields": {
                             "description": "Additional fields to include in certificate",
@@ -78,6 +112,10 @@
                         "ipAddresses": {
                             "description": "Additional IP Addresses to include in certificate",
                             "type": "array"
+                        },
+                        "renewBefore": {
+                            "description": "Renew the CA certificate before its expiration time (e.g. 360h for 15 days)",
+                            "type": "string"
                         },
                         "uris": {
                             "description": "Additional URIs to include in certificate",
