@@ -50,12 +50,47 @@
         "certManager": {
             "type": "object",
             "properties": {
+                "ca": {
+                    "type": "object",
+                    "properties": {
+                        "duration": {
+                            "description": "Duration of validity for the CA certificate (e.g. 2160h for 90 days)",
+                            "type": "string"
+                        },
+                        "fields": {
+                            "description": "Additional fields to include in certificate",
+                            "type": "object",
+                            "properties": {
+                                "privateKey": {
+                                    "type": "object",
+                                    "properties": {
+                                        "algorithm": {
+                                            "type": "string"
+                                        },
+                                        "size": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            },
+                            "additionalProperties": true
+                        },
+                        "renewBefore": {
+                            "description": "Renew the CA certificate before its expiration time (e.g. 360h for 15 days)",
+                            "type": "string"
+                        }
+                    }
+                },
                 "certificate": {
                     "type": "object",
                     "properties": {
                         "dnsNames": {
                             "description": "Additional DNS Names to include in certificate",
                             "type": "array"
+                        },
+                        "duration": {
+                            "description": "Duration of validity for the CA certificate (e.g. 2160h for 90 days)",
+                            "type": "string"
                         },
                         "fields": {
                             "description": "Additional fields to include in certificate",
@@ -69,7 +104,8 @@
                                         }
                                     }
                                 }
-                            }
+                            },
+                            "additionalProperties": true
                         },
                         "includeInternalServiceNames": {
                             "description": "Include internal service names in certificate (disable if you create a public cert)",
@@ -78,6 +114,10 @@
                         "ipAddresses": {
                             "description": "Additional IP Addresses to include in certificate",
                             "type": "array"
+                        },
+                        "renewBefore": {
+                            "description": "Renew the CA certificate before its expiration time (e.g. 360h for 15 days)",
+                            "type": "string"
                         },
                         "uris": {
                             "description": "Additional URIs to include in certificate",
@@ -119,11 +159,13 @@
                     "properties": {
                         "ca": {
                             "description": "Labels and annotations added to the self-signed CA certificate secret",
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": true
                         },
                         "certificate": {
                             "description": "Labels and annotations added to the certificate secret",
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -203,7 +245,8 @@
                         "tokenURL": {
                             "type": "string"
                         }
-                    }
+                    },
+                    "additionalProperties": true
                 },
                 "enabled": {
                     "description": "Enable Gangplank",
@@ -294,7 +337,8 @@
                                 }
                             }
                         }
-                    }
+                    },
+                    "additionalProperties": true
                 },
                 "nodeSelector": {
                     "description": "Set the node selector",
@@ -320,7 +364,8 @@
                                 }
                             }
                         }
-                    }
+                    },
+                    "additionalProperties": true
                 },
                 "priorityClassName": {
                     "description": "Set a pod priorityClassName",
@@ -341,7 +386,8 @@
                                 }
                             }
                         }
-                    }
+                    },
+                    "additionalProperties": true
                 },
                 "replicaCount": {
                     "description": "Set the replica count",
@@ -384,7 +430,8 @@
                         "runAsUser": {
                             "type": "integer"
                         }
-                    }
+                    },
+                    "additionalProperties": true
                 },
                 "sensitiveEnvs": {
                     "description": "Environment variables (Secret)",
@@ -393,7 +440,8 @@
                         "GANGPLANK_CONFIG_SESSION_SECURITY_KEY": {
                             "type": "string"
                         }
-                    }
+                    },
+                    "additionalProperties": true
                 },
                 "service": {
                     "type": "object",
@@ -511,7 +559,8 @@
                                                 }
                                             }
                                         }
-                                    }
+                                    },
+                                    "additionalProperties": true
                                 },
                                 "priorityClassName": {
                                     "description": "Set a pod priorityClassName",
@@ -558,7 +607,8 @@
                                         "runAsUser": {
                                             "type": "integer"
                                         }
-                                    }
+                                    },
+                                    "additionalProperties": true
                                 },
                                 "tolerations": {
                                     "description": "Set list of tolerations",
@@ -637,7 +687,8 @@
                                                 }
                                             }
                                         }
-                                    }
+                                    },
+                                    "additionalProperties": true
                                 },
                                 "priorityClassName": {
                                     "description": "Set a pod priorityClassName",
@@ -684,7 +735,8 @@
                                         "runAsUser": {
                                             "type": "integer"
                                         }
-                                    }
+                                    },
+                                    "additionalProperties": true
                                 },
                                 "tolerations": {
                                     "description": "Set list of tolerations",
@@ -785,7 +837,8 @@
             "type": "object",
             "properties": {
                 "certs": {
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": true
                 }
             }
         },
@@ -817,7 +870,8 @@
                 "initialDelaySeconds": {
                     "type": "integer"
                 }
-            }
+            },
+            "additionalProperties": true
         },
         "nodeSelector": {
             "description": "Set the node selector for the capsule-proxy pod.",
@@ -947,7 +1001,8 @@
                         }
                     }
                 }
-            }
+            },
+            "additionalProperties": true
         },
         "priorityClassName": {
             "description": "Specifies PriorityClass of the capsule-proxy pod.",
@@ -990,7 +1045,8 @@
                 "initialDelaySeconds": {
                     "type": "integer"
                 }
-            }
+            },
+            "additionalProperties": true
         },
         "replicaCount": {
             "description": "Set the replica count for capsule-proxy pod.",
@@ -1064,7 +1120,8 @@
                 "runAsUser": {
                     "type": "integer"
                 }
-            }
+            },
+            "additionalProperties": true
         },
         "service": {
             "type": "object",
