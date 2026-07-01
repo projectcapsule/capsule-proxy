@@ -129,6 +129,10 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
+| apiPriorityAndFairness.enabled | bool | `false` | Create a FlowSchema for capsule-proxy requests. |
+| apiPriorityAndFairness.flowApiVersion | string | `"flowcontrol.apiserver.k8s.io/v1"` | Declare ApiVersion used for Flow |
+| apiPriorityAndFairness.matchingPrecedence | int | `900` | FlowSchema matching precedence. Lower values have higher priority. |
+| apiPriorityAndFairness.priorityLevelConfigurationSpec | object | See [values.yaml](values.yaml) | Priority level configuration. The block is directly forwarded into the priorityLevelConfiguration, so you can use whatever specification you want. ref: https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration |
 | crds.annnotations | object | `{}` | Extra Annotations for CRDs |
 | crds.install | bool | `true` | Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations) |
 | crds.keep | bool | `true` | Keep the CustomResourceDefinitions (when the chart is deleted) |

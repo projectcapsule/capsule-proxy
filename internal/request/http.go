@@ -108,6 +108,12 @@ func (h http) GetHTTPRequest() *h.Request {
 
 //nolint:funlen
 func (h http) GetUserAndGroups() (username string, groups []string, err error) {
+	if h.Request != nil {
+		if cachedUsername, cachedGroups, ok := cachedUserAndGroups(h.Context()); ok {
+			return cachedUsername, cachedGroups, nil
+		}
+	}
+
 	username, groups, err = h.authenticate()
 	if err != nil {
 		return "", nil, err

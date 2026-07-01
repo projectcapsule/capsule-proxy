@@ -116,6 +116,13 @@ func splitXFCCEntries(header string) ([]string, error) {
 func parseXFCCFields(entry string) (map[string]string, error) {
 	parts, err := splitOutsideQuotes(entry, ';')
 	if err != nil {
+		if key, _, ok := strings.Cut(entry, "="); ok {
+			key = strings.TrimSpace(key)
+			if key != "" {
+				return nil, fmt.Errorf("invalid value for %q: %w", key, err)
+			}
+		}
+
 		return nil, err
 	}
 
@@ -168,6 +175,8 @@ func splitOutsideQuotes(s string, sep rune) ([]string, error) {
 			escaped = false
 		case r == '\\':
 			if inQuotes {
+				current.WriteRune(r)
+
 				escaped = true
 			} else {
 				current.WriteRune(r)

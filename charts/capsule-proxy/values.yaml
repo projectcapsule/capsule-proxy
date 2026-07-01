@@ -137,6 +137,28 @@ rbac:
   # -- Controller ClusterRole
   clusterRole: ""
 
+# Kubernetes API Priority and Fairness configuration for capsule-proxy API calls.
+apiPriorityAndFairness:
+  # -- Create a FlowSchema for capsule-proxy requests.
+  enabled: false
+  # -- Declare ApiVersion used for Flow
+  flowApiVersion: "flowcontrol.apiserver.k8s.io/v1"
+  # -- Priority level configuration.
+  # The block is directly forwarded into the priorityLevelConfiguration, so you can use whatever specification you want.
+  # ref: https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration
+  # @default -- See [values.yaml](values.yaml)
+  priorityLevelConfigurationSpec:
+    type: Limited
+    limited:
+      nominalConcurrencyShares: 10
+      limitResponse:
+        queuing:
+          queueLengthLimit: 50
+        type: Queue
+  # -- FlowSchema matching precedence. Lower values have higher priority.
+  matchingPrecedence: 900
+
+
 image:
   # -- Set the image registry for capsule-proxy
   registry: ghcr.io
