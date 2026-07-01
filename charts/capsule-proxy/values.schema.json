@@ -6,6 +6,56 @@
             "description": "Set affinity rules for the capsule-proxy pod.",
             "type": "object"
         },
+        "apiPriorityAndFairness": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Create a FlowSchema for capsule-proxy requests.",
+                    "type": "boolean"
+                },
+                "flowApiVersion": {
+                    "description": "Declare ApiVersion used for Flow",
+                    "type": "string"
+                },
+                "matchingPrecedence": {
+                    "description": "FlowSchema matching precedence. Lower values have higher priority.",
+                    "type": "integer"
+                },
+                "priorityLevelConfigurationSpec": {
+                    "description": "Priority level configuration. The block is directly forwarded into the priorityLevelConfiguration, so you can use whatever specification you want. ref: https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration",
+                    "type": "object",
+                    "properties": {
+                        "limited": {
+                            "type": "object",
+                            "properties": {
+                                "limitResponse": {
+                                    "type": "object",
+                                    "properties": {
+                                        "queuing": {
+                                            "type": "object",
+                                            "properties": {
+                                                "queueLengthLimit": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        },
+                                        "type": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "nominalConcurrencyShares": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "autoscaling": {
             "type": "object",
             "properties": {

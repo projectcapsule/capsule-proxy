@@ -198,7 +198,7 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 			fields: fields{
 				Request: &http.Request{
 					Header: map[string][]string{
-						"Sec-Websocket-Protocol": {"base64url.bearer.authorization.k8s.io.YXNkZg"},
+						"Sec-Websocket-Protocol": {"base64url.bearer.authorization.k8s.io.ZmRzYQ"},
 					},
 				},
 				authTypes: []request.AuthType{
@@ -283,6 +283,72 @@ func Test_http_GetUserAndGroups(t *testing.T) {
 				t.Errorf("GetUserAndGroups() gotGroups = %v, want %v", gotGroups, tc.wantGroups)
 			}
 		})
+	}
+}
+
+func Test_http_GetUserAndGroups_UsesCachedUserAndGroups(t *testing.T) {
+	t.Parallel()
+
+	var tokenReviews int
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Authorization", "Bearer asdf")
+
+	writer := testClient(func(ctx context.Context, obj client.Object) error {
+		tokenReviews++
+
+		tr := obj.(*authenticationv1.TokenReview)
+		tr.Status.Authenticated = true
+		tr.Status.User.Username = "cached-user"
+		tr.Status.User.Groups = []string{"cached-group"}
+
+		return nil
+	})
+
+	resolved, _, _, err := request.ResolveUserAndGroups(
+		req,
+		[]request.AuthType{request.BearerToken},
+		"",
+		writer,
+		nil,
+		nil,
+		false,
+		"X-Forwarded-Client-Cert",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proxyRequest := request.NewHTTP(
+		resolved,
+		[]request.AuthType{request.BearerToken},
+		"",
+		writer,
+		nil,
+		nil,
+		false,
+		"X-Forwarded-Client-Cert",
+	)
+
+	username, groups, err := proxyRequest.GetUserAndGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if username != "cached-user" {
+		t.Fatalf("username = %q, want cached-user", username)
+	}
+
+	if !reflect.DeepEqual(groups, []string{"cached-group"}) {
+		t.Fatalf("groups = %v, want [cached-group]", groups)
+	}
+
+	if tokenReviews != 1 {
+		t.Fatalf("tokenReviews = %d, want 1", tokenReviews)
 	}
 }
 

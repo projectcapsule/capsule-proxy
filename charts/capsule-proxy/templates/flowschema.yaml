@@ -1,0 +1,43 @@
+{{- $flowApiVersion := .Values.apiPriorityAndFairness.flowApiVersion -}}
+{{- if and .Values.apiPriorityAndFairness.enabled (.Capabilities.APIVersions.Has (printf "%s/FlowSchema" $flowApiVersion)) }}
+---
+apiVersion: {{ $flowApiVersion }}
+kind: PriorityLevelConfiguration
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
+spec:
+  {{- toYaml .Values.apiPriorityAndFairness.priorityLevelConfigurationSpec | nindent 2 }}
+---
+apiVersion: {{ $flowApiVersion }}
+kind: FlowSchema
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
+spec:
+  matchingPrecedence: {{ .Values.apiPriorityAndFairness.matchingPrecedence }}
+  priorityLevelConfiguration:
+    name: {{ include "capsule-proxy.fullname" . }}
+  distinguisherMethod:
+    type: ByUser
+  rules:
+    - subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            namespace: {{ .Release.Namespace | quote }}
+            name: {{ include "capsule-proxy.serviceAccountName" . | quote }}
+      resourceRules:
+        - verbs: ["get", "list"]
+          apiGroups: ["*"]
+          resources: ["*"]
+          clusterScope: true
+          namespaces: ["*"]
+        - verbs: ["create"]
+          apiGroups: ["authorization.k8s.io"]
+          resources: ["subjectaccessreviews"]
+          clusterScope: true
+{{- end }}
