@@ -6,6 +6,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	goerrors "github.com/pkg/errors"
@@ -19,6 +20,7 @@ import (
 
 func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 	invalidatedToken := sets.New[string]()
+	var mu sync.RWMutex
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -26,8 +28,12 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 
 			token := strings.ReplaceAll(request.Header.Get("Authorization"), "Bearer ", "")
 
+			mu.RLock()
+			hasToken := invalidatedToken.Has(token)
+			mu.RUnlock()
+
 			switch {
-			case len(token) > 0 && !invalidatedToken.Has(token):
+			case len(token) > 0 && !hasToken:
 				tr := authenticationv1.TokenReview{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "TokenReview",
@@ -44,13 +50,15 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 				}
 
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
+					mu.Lock()
 					invalidatedToken.Insert(token)
+					mu.Unlock()
 
 					errors.HandleUnauthorized(writer, goerrors.New(statusErr), "cannot authenticate the token due to error")
 
 					return
 				}
-			case invalidatedToken.Has(token):
+			case hasToken:
 				errors.HandleUnauthorized(writer, goerrors.New("token is invalid"), "cannot authenticate the token due to error")
 
 				return

@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
+	pkgerrors "github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -31,7 +32,15 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 				request, user, groups, err = req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
 				if err != nil {
 					log.Error(err, "Cannot retrieve username and group from request")
-					errors.HandleError(writer, err, "cannot retrieve user and group from the request")
+
+					msg := "cannot retrieve user and group from the request"
+
+					var t *req.ErrUnauthorized
+					if pkgerrors.As(err, &t) {
+						errors.HandleUnauthorized(writer, err, msg)
+					} else {
+						errors.HandleError(writer, err, msg)
+					}
 
 					return
 				}
@@ -57,7 +66,15 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
-				errors.HandleError(writer, err, "cannot retrieve user and group from the request")
+
+				msg := "cannot retrieve user and group from the request"
+
+				var t *req.ErrUnauthorized
+				if pkgerrors.As(err, &t) {
+					errors.HandleUnauthorized(writer, err, msg)
+				} else {
+					errors.HandleError(writer, err, msg)
+				}
 
 				return
 			}

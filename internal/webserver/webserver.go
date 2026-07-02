@@ -348,7 +348,14 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 
 		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 		if err != nil {
-			server.HandleError(writer, err, "cannot retrieve user and group from the request")
+			msg := "cannot retrieve user and group from the request"
+
+			var t *req.ErrUnauthorized
+			if errors.As(err, &t) {
+				server.HandleUnauthorized(writer, err, msg)
+			} else {
+				server.HandleError(writer, err, msg)
+			}
 
 			return
 		}
@@ -550,7 +557,14 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 			if err != nil {
-				server.HandleError(writer, err, "cannot retrieve user and group from the request")
+				msg := "cannot retrieve user and group from the request"
+
+				var t *req.ErrUnauthorized
+				if errors.As(err, &t) {
+					server.HandleUnauthorized(writer, err, msg)
+				} else {
+					server.HandleError(writer, err, msg)
+				}
 
 				return
 			}
@@ -617,11 +631,11 @@ func (n *kubeFilter) recoveryMiddleware(next http.Handler) http.Handler {
 			}
 
 			if err, ok := recovered.(error); ok && errors.Is(err, http.ErrAbortHandler) {
-				return
+				panic(err)
 			}
 
 			n.log.Error(fmt.Errorf("%v", recovered), "panic while handling request")
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			server.HandleError(writer, fmt.Errorf("%v", recovered), "internal server error")
 		}()
 
 		next.ServeHTTP(writer, request)
