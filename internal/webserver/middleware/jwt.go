@@ -44,8 +44,6 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 				}
 
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
-					invalidatedToken.Insert(token)
-
 					errors.HandleUnauthorized(writer, goerrors.New(statusErr), "cannot authenticate the token due to error")
 
 					return

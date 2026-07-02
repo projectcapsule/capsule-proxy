@@ -4,6 +4,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"regexp"
 	"slices"
@@ -15,35 +16,33 @@ import (
 
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
-	"github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
+	weberrors "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 )
 
 func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			if ignoredUserGroups.Len() > 0 {
-				var (
-					err    error
-					user   string
-					groups []string
-				)
+			if ignoredUserGroups.Len() == 0 {
+				next.ServeHTTP(writer, request)
 
-				request, user, groups, err = req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
-				if err != nil {
-					log.Error(err, "Cannot retrieve username and group from request")
-					errors.HandleError(writer, err, "cannot retrieve user and group from the request")
+				return
+			}
 
-					return
-				}
+			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
+			if err != nil {
+				log.Error(err, "Cannot retrieve username and group from request")
+				handleResolveUserAndGroupsError(writer, err)
 
-				if slices.ContainsFunc(groups, func(group string) bool {
-					return ignoredUserGroups.Has(group)
-				}) {
-					log.V(5).Info("current user belongs to ignored groups", "user", user)
-					fn(writer, request)
+				return
+			}
 
-					return
-				}
+			if slices.ContainsFunc(groups, func(group string) bool {
+				return ignoredUserGroups.Has(group)
+			}) {
+				log.V(5).Info("current user belongs to ignored groups", "user", user)
+				fn(writer, request)
+
+				return
 			}
 
 			next.ServeHTTP(writer, request)
@@ -57,7 +56,7 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
-				errors.HandleError(writer, err, "cannot retrieve user and group from the request")
+				handleResolveUserAndGroupsError(writer, err)
 
 				return
 			}
@@ -82,4 +81,15 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 			impersonate(writer, request)
 		})
 	}
+}
+
+func handleResolveUserAndGroupsError(writer http.ResponseWriter, err error) {
+	var unauthorizedErr *req.ErrUnauthorized
+	if errors.As(err, &unauthorizedErr) {
+		weberrors.HandleUnauthorized(writer, err, "cannot retrieve user and group from the request")
+
+		return
+	}
+
+	weberrors.HandleError(writer, err, "cannot retrieve user and group from the request")
 }

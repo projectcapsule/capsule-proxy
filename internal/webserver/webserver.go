@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -23,7 +24,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	"golang.org/x/net/http/httpguts"
@@ -81,7 +82,7 @@ func NewKubeFilter(
 
 	reverseProxyTransport, err := opts.ReverseProxyTransport()
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create transport for reverse proxy")
+		return nil, pkgerrors.Wrap(err, "cannot create transport for reverse proxy")
 	}
 
 	reverseProxy.Transport = reverseProxyTransport
@@ -91,12 +92,12 @@ func NewKubeFilter(
 
 	err = corev1.AddToScheme(scheme)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot add corev1 to scheme")
+		return nil, pkgerrors.Wrap(err, "cannot add corev1 to scheme")
 	}
 
 	err = authorizationv1.AddToScheme(scheme)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot add authorizationv1 to scheme")
+		return nil, pkgerrors.Wrap(err, "cannot add authorizationv1 to scheme")
 	}
 
 	codecFactory := serializer.NewCodecFactory(scheme)
@@ -282,13 +283,13 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 	var r *http.Request
 
 	if r, err = http.NewRequestWithContext(req.Context(), http.MethodGet, url, nil); err != nil {
-		return errors.Wrap(err, "cannot create request")
+		return pkgerrors.Wrap(err, "cannot create request")
 	}
 
 	var resp *http.Response
 
 	if resp, err = clt.Do(r); err != nil {
-		return errors.Wrap(err, "cannot make local _healthz request")
+		return pkgerrors.Wrap(err, "cannot make local _healthz request")
 	}
 
 	defer func() {
@@ -348,7 +349,7 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 
 		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 		if err != nil {
-			server.HandleError(writer, err, "cannot retrieve user and group from the request")
+			n.handleResolveUserAndGroupsError(writer, err)
 
 			return
 		}
@@ -550,7 +551,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
 			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 			if err != nil {
-				server.HandleError(writer, err, "cannot retrieve user and group from the request")
+				n.handleResolveUserAndGroupsError(writer, err)
 
 				return
 			}
@@ -617,15 +618,26 @@ func (n *kubeFilter) recoveryMiddleware(next http.Handler) http.Handler {
 			}
 
 			if err, ok := recovered.(error); ok && errors.Is(err, http.ErrAbortHandler) {
-				return
+				panic(err)
 			}
 
 			n.log.Error(fmt.Errorf("%v", recovered), "panic while handling request")
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			server.HandleError(writer, fmt.Errorf("internal server error"), "panic while handling request")
 		}()
 
 		next.ServeHTTP(writer, request)
 	})
+}
+
+func (n *kubeFilter) handleResolveUserAndGroupsError(writer http.ResponseWriter, err error) {
+	var unauthorizedErr *req.ErrUnauthorized
+	if errors.As(err, &unauthorizedErr) {
+		server.HandleUnauthorized(writer, err, "cannot retrieve user and group from the request")
+
+		return
+	}
+
+	server.HandleError(writer, err, "cannot retrieve user and group from the request")
 }
 
 func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
