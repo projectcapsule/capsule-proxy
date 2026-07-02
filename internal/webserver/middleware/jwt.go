@@ -39,15 +39,21 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 				}
 				if err = client.Create(request.Context(), &tr); err != nil {
 					errors.HandleError(writer, err, "cannot create TokenReview")
+
+					return
 				}
 
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
 					invalidatedToken.Insert(token)
 
 					errors.HandleUnauthorized(writer, goerrors.New(statusErr), "cannot authenticate the token due to error")
+
+					return
 				}
 			case invalidatedToken.Has(token):
 				errors.HandleUnauthorized(writer, goerrors.New("token is invalid"), "cannot authenticate the token due to error")
+
+				return
 			}
 
 			next.ServeHTTP(writer, request)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 )
 
 func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
@@ -30,6 +31,9 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 				request, user, groups, err = req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
 				if err != nil {
 					log.Error(err, "Cannot retrieve username and group from request")
+					errors.HandleError(writer, err, "cannot retrieve user and group from the request")
+
+					return
 				}
 
 				if slices.ContainsFunc(groups, func(group string) bool {
@@ -53,6 +57,9 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
 			if err != nil {
 				log.Error(err, "Cannot retrieve username and group from request")
+				errors.HandleError(writer, err, "cannot retrieve user and group from the request")
+
+				return
 			}
 
 			log.V(10).Info("request groups", "groups", groups)
