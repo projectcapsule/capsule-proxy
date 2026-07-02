@@ -6,6 +6,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	goerrors "github.com/pkg/errors"
@@ -18,6 +19,8 @@ import (
 )
 
 func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
+	var mu sync.RWMutex
+
 	invalidatedToken := sets.New[string]()
 
 	return func(next http.Handler) http.Handler {
@@ -26,8 +29,12 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 
 			token := strings.ReplaceAll(request.Header.Get("Authorization"), "Bearer ", "")
 
+			mu.RLock()
+			tokenInvalidated := invalidatedToken.Has(token)
+			mu.RUnlock()
+
 			switch {
-			case len(token) > 0 && !invalidatedToken.Has(token):
+			case len(token) > 0 && !tokenInvalidated:
 				tr := authenticationv1.TokenReview{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "TokenReview",
@@ -39,15 +46,23 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 				}
 				if err = client.Create(request.Context(), &tr); err != nil {
 					errors.HandleError(writer, err, "cannot create TokenReview")
+
+					return
 				}
 
 				if statusErr := tr.Status.Error; len(statusErr) > 0 {
+					mu.Lock()
 					invalidatedToken.Insert(token)
+					mu.Unlock()
 
 					errors.HandleUnauthorized(writer, goerrors.New(statusErr), "cannot authenticate the token due to error")
+
+					return
 				}
-			case invalidatedToken.Has(token):
+			case tokenInvalidated:
 				errors.HandleUnauthorized(writer, goerrors.New("token is invalid"), "cannot authenticate the token due to error")
+
+				return
 			}
 
 			next.ServeHTTP(writer, request)

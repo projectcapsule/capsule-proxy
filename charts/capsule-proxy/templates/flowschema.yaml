@@ -40,4 +40,8 @@ spec:
           apiGroups: ["authorization.k8s.io"]
           resources: ["subjectaccessreviews"]
           clusterScope: true
+        - verbs: ["create"]
+          apiGroups: ["authentication.k8s.io"]
+          resources: ["tokenreviews"]
+          clusterScope: true
 {{- end }}

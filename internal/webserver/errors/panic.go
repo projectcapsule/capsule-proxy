@@ -27,12 +27,11 @@ func HandleUnauthorized(w http.ResponseWriter, err error, message string) {
 	}
 
 	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
 
 	//nolint:errchkjson
 	b, _ := json.Marshal(status)
 	_, _ = w.Write(b)
-
-	panic(message)
 }
 
 func HandleError(w http.ResponseWriter, err error, message string) {
@@ -42,15 +41,16 @@ func HandleError(w http.ResponseWriter, err error, message string) {
 			Kind:       "Status",
 			APIVersion: "v1",
 		},
+		Status:  metav1.StatusFailure,
 		Message: message,
 		Reason:  metav1.StatusReasonInternalError,
+		Code:    http.StatusInternalServerError,
 	}
 
 	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusInternalServerError)
 
 	//nolint:errchkjson
 	b, _ := json.Marshal(status)
 	_, _ = w.Write(b)
-
-	panic(message)
 }
