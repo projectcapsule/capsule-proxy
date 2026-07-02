@@ -22,7 +22,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
@@ -167,7 +166,7 @@ func (n *kubeFilter) NeedLeaderElection() bool {
 //nolint:funlen
 func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
-	r.Use(handlers.RecoveryHandler())
+	r.Use(n.recoveryMiddleware)
 
 	r.Path("/_healthz").Subrouter().HandleFunc("", func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
@@ -350,12 +349,16 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 		if err != nil {
 			server.HandleError(writer, err, "cannot retrieve user and group from the request")
+
+			return
 		}
 
 		//nolint:contextcheck
 		proxyTenants, err := n.getTenantsForOwner(request.Context(), username, groups)
 		if err != nil {
 			server.HandleError(writer, err, "cannot list Tenant resources")
+
+			return
 		}
 
 		obj, gvk, err := n.universalDecoder.Decode(body, nil, nil)
@@ -548,11 +551,15 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 			if err != nil {
 				server.HandleError(writer, err, "cannot retrieve user and group from the request")
+
+				return
 			}
 
 			proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
 			if err != nil {
 				server.HandleError(writer, err, "cannot list Tenant resources")
+
+				return
 			}
 
 			var selector labels.Selector
@@ -574,19 +581,23 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			case err != nil:
 				var t moderrors.Error
 				if errors.As(err, &t) {
+					writer.Header().Set("Content-Type", "application/json")
+
 					if t.Status().Code > 0 {
 						writer.WriteHeader(int(t.Status().Code))
+					} else {
+						writer.WriteHeader(http.StatusInternalServerError)
 					}
-
-					writer.Header().Set("Content-Type", "application/json")
 
 					b, _ := json.Marshal(t.Status())
 					_, _ = writer.Write(b)
 
-					panic(err.Error())
+					return
 				}
 
 				server.HandleError(writer, err, err.Error())
+
+				return
 			case selector == nil:
 				// if there's no selector, let it pass to the
 				n.impersonateHandler(writer, request)
@@ -595,6 +606,26 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			}
 		})
 	}
+}
+
+func (n *kubeFilter) recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		defer func() {
+			recovered := recover()
+			if recovered == nil {
+				return
+			}
+
+			if err, ok := recovered.(error); ok && errors.Is(err, http.ErrAbortHandler) {
+				return
+			}
+
+			n.log.Error(fmt.Errorf("%v", recovered), "panic while handling request")
+			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}()
+
+		next.ServeHTTP(writer, request)
+	})
 }
 
 func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
