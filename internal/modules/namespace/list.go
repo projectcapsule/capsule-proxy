@@ -11,7 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
@@ -23,13 +25,15 @@ import (
 
 type list struct {
 	roleBindingsReflector *controllers.RoleBindingReflector
+	reader                client.Reader
 	log                   logr.Logger
 	gk                    schema.GroupVersionKind
 }
 
-func List(roleBindingsReflector *controllers.RoleBindingReflector) modules.Module {
+func List(roleBindingsReflector *controllers.RoleBindingReflector, reader client.Reader) modules.Module {
 	return &list{
 		roleBindingsReflector: roleBindingsReflector,
+		reader:                reader,
 		log:                   ctrl.Log.WithName("namespace_list"),
 		gk: schema.GroupVersionKind{
 			Group:   corev1.GroupName,
@@ -69,11 +73,23 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 		}
 	}
 
+	// Namespaces can additionally be granted through cluster-scoped
+	// ClusterResources rules (e.g. GlobalProxySettings or ProxySettings) that
+	// select namespaces by label. This lets subjects that are not tenant owners
+	// list the matching namespaces. We resolve those rules to concrete namespace
+	// names and merge them, so a single name-based selector is produced.
+	clusterScoped, err := clusterScopedNamespaceNames(proxyRequest.GetHTTPRequest().Context(), l.reader, proxyTenants)
+	if err != nil {
+		return nil, errors.NewBadRequest(err, l.GroupKind())
+	}
+
+	userNamespaces = append(userNamespaces, clusterScoped...)
+
 	var r *labels.Requirement
 
 	switch {
 	case len(userNamespaces) > 0:
-		r, err = labels.NewRequirement(corev1.LabelMetadataName, selection.In, userNamespaces)
+		r, err = labels.NewRequirement(corev1.LabelMetadataName, selection.In, sets.List(sets.New(userNamespaces...)))
 	default:
 		r, err = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
 	}

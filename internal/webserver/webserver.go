@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -156,6 +157,12 @@ type kubeFilter struct {
 	protoEncoder          *protobuf.Serializer
 	universalDecoder      runtime.Decoder
 	scheme                *runtime.Scheme
+
+	// namespacedResources holds the set of proxied namespaced resources (keyed
+	// via authorization.NamespacedResourceKey) for which capsule-proxy serves
+	// cross-namespace (`-A`) list/watch queries. It is used to advertise that
+	// capability through the self review (auth review) APIs.
+	namespacedResources sets.Set[string]
 }
 
 // NeedLeaderElection starts the proxy (webserver) independently of controller manager
@@ -323,6 +330,12 @@ func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func hasBearerToken(request *http.Request) bool {
+	parts := strings.Fields(request.Header.Get("Authorization"))
+
+	return len(parts) >= 2 && strings.EqualFold(parts[0], "Bearer")
+}
+
 func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if !slices.Contains(authorization.Paths, request.URL.Path) {
@@ -331,8 +344,24 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Self-review requests are forwarded to the API server using the
+		// caller's own bearer token whenever one is available,
+		// instead of having the proxy impersonate the user together with every
+		// one of their groups.
+		//
+		// Impersonating a token that carries hundreds of groups makes the API
+		// server authorize each group impersonation individually, which is
+		// extremely slow.
+		// A self-review answered with the caller's own
+		// credentials returns the exact same result at a fraction of the cost.
+
 		w := httptest.NewRecorder()
-		next.ServeHTTP(w, request)
+
+		if hasBearerToken(request) {
+			n.reverseProxy.ServeHTTP(w, request)
+		} else {
+			next.ServeHTTP(w, request)
+		}
 
 		result := w.Result()
 
@@ -367,20 +396,27 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			n.log.Error(err, "cannot decode authorization object")
 		}
 
-		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, &obj, *gvk)
-		if err != nil {
+		if err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, n.namespacedResources, &obj, *gvk); err != nil {
 			n.log.Error(err, "cannot mutate authorization object")
 		}
 
-		if request.Header.Get("Content-Type") == "application/json" {
-			body, err = utils.JsonEncode(obj, n.scheme)
-			if err != nil {
-				n.log.Error(err, "cannot marshal Authorization object to json")
+		var mediaType string
+		if mediaType, _, err = mime.ParseMediaType(request.Header.Get("Content-Type")); err != nil {
+			n.log.Error(err, "failed to parse Content-Type header")
+		}
+
+		switch mediaType {
+		case "application/json":
+			if encoded, encodeErr := utils.JsonEncode(obj, n.scheme); encodeErr != nil {
+				n.log.Error(encodeErr, "cannot marshal Authorization object to json")
+			} else {
+				body = encoded
 			}
-		} else if request.Header.Get("Content-Type") == "application/vnd.kubernetes.protobuf" {
-			body, err = runtime.Encode(n.protoEncoder, obj)
-			if err != nil {
-				n.log.Error(err, "cannot marshal Authorization object to protobuf")
+		case "application/vnd.kubernetes.protobuf":
+			if encoded, encodeErr := runtime.Encode(n.protoEncoder, obj); encodeErr != nil {
+				n.log.Error(encodeErr, "cannot marshal Authorization object to protobuf")
+			} else {
+				body = encoded
 			}
 		}
 
@@ -479,7 +515,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	// We are using namespaces and tenants as default routes from the legacy
 	// system, as their outcome heavily relies on the tenants config/status
 	modList := []modules.Module{
-		namespace.List(n.roleBindingsReflector),
+		namespace.List(n.roleBindingsReflector, n.reader),
 		namespace.Get(n.roleBindingsReflector, n.reader),
 		tenants.List(),
 		tenants.Get(n.reader),
@@ -528,9 +564,12 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		panic(err)
 	}
 
+	n.namespacedResources = sets.New[string]()
+
 	for _, api := range apis {
 		n.log.V(6).Info("adding generic namespaced resource", "url", api.Path())
 		modList = append(modList, namespaced.CatchAll(n.reader, n.writer, api.Path()))
+		n.namespacedResources.Insert(authorization.NamespacedResourceKey(api.Group, api.URLName))
 	}
 
 	for _, i := range modList {
