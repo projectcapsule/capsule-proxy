@@ -96,11 +96,9 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 		if userNamespaces, err = l.rbReflector.GetUserNamespacesFromRequest(proxyRequest); err != nil {
 			return nil, errors.NewBadRequest(err, l.GroupKind())
 		}
+	}
 
-		if !sets.NewString(userNamespaces...).Has(name) {
-			return nil, errors.NewNotFoundError(name, l.GroupKind())
-		}
-	} else if !tenants.Has(tntName) && !matchesClusterScopedNamespace(proxyTenants, ns) {
+	if !tenants.Has(tntName) && !sets.NewString(userNamespaces...).Has(name) && !matchesClusterScopedNamespace(proxyTenants, ns) {
 		return nil, errors.NewNotFoundError(name, l.GroupKind())
 	}
 

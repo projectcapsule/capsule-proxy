@@ -200,7 +200,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.logLevel | int | `4` | Set the log verbosity of the capsule-proxy with a value from 1 to 10 |
 | options.oidcUsernameClaim | string | `"preferred_username"` | Specify if capsule-proxy will use SSL |
 | options.pprof | bool | `false` | Enable Pprof for profiling |
-| options.roleBindingReflector | bool | `false` | Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user. |
+| options.roleBindingReflector | bool | `false` | Enable reflection for RoleBindings labelled reflection.proxy.projectcapsule.dev/enabled=true. Namespace label reflection.proxy.projectcapsule.dev/lookup overrides the reflected tenant selector value. |
 | options.rolebindingsResyncPeriod | string | `"10h"` | Set the role bindings reflector resync period, a local cache to store mappings between users and their namespaces. [Use a lower value in case of flaky etcd server connections.](https://github.com/projectcapsule/capsule-proxy/issues/174) |
 | options.trustedProxyCidrs | list | `[]` | CIDR ranges of trusted proxies allowed to make requests to the proxy |
 

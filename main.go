@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	goflag "flag"
 	"fmt"
 	"os"
@@ -75,7 +76,7 @@ const (
 	WebhookLabler
 )
 
-//nolint:funlen,maintidx
+//nolint:cyclop,funlen,maintidx
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
@@ -210,7 +211,7 @@ func main() {
 		&roleBindingReflector,
 		"enable-reflector",
 		false,
-		"Enable rolebinding reflector. The reflector allows to list the namespaces, where a rolebinding mentions a user",
+		"Enable reflection for RoleBindings labelled reflection.proxy.projectcapsule.dev/enabled=true",
 	)
 	flag.BoolVar(
 		&enablePprof,
@@ -240,7 +241,7 @@ func main() {
 		&rolebindingsResyncPeriod,
 		"rolebindings-resync-period",
 		10*time.Hour,
-		"Resync period for rolebindings reflector",
+		"Resync period for the Role and RoleBinding reflector",
 	)
 	flag.Var(
 		enumflag.NewSlice(&authTypes, "string", authTypesMap, enumflag.EnumCaseSensitive), "auth-preferred-types",
@@ -352,6 +353,10 @@ First match is used and can be specified multiple times as comma separated value
 		ctrlConfig.PprofBindAddress = ":8082"
 	}
 
+	if !disableCaching && roleBindingReflector {
+		ctrlConfig.Cache.SyncPeriod = &rolebindingsResyncPeriod
+	}
+
 	mgr, err = ctrl.NewManager(config, ctrlConfig)
 	if err != nil {
 		log.Error(err, "cannot create new Manager")
@@ -363,7 +368,7 @@ First match is used and can be specified multiple times as comma separated value
 	if !disableCaching && roleBindingReflector {
 		log.Info("Creating the Rolebindings reflector")
 
-		if rbReflector, err = controllers.NewRoleBindingReflector(config, rolebindingsResyncPeriod); err != nil {
+		if rbReflector, err = controllers.NewRoleBindingReflector(context.Background(), mgr.GetCache()); err != nil {
 			log.Error(err, "cannot create Rolebindings reflector")
 			os.Exit(1)
 		}
