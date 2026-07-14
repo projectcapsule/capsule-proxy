@@ -76,7 +76,10 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	obj := &capsulev1beta2.Tenant{}
 	if err := g.client.Get(proxyRequest.GetHTTPRequest().Context(), types.NamespacedName{Name: name}, obj); err != nil {
-		return nil, errors.NewNotFoundError(name, g.GroupKind())
+		if client.IgnoreNotFound(err) == nil {
+			return nil, errors.NewNotFoundError(name, g.GroupKind())
+		}
+		return nil, err
 	}
 
 	if matchesClusterScopedTenant(proxyTenants, obj) {
