@@ -21,7 +21,7 @@ import (
 var _ = Describe("GlobalProxySettings resource lists", func() {
 	const selectionLabel = "proxy.projectcapsule.dev/e2e-selection"
 
-	var aliceClient *kubernetes.Clientset
+	var aliceClient, bobClient *kubernetes.Clientset
 
 	labelsFor := func(selection string) map[string]string {
 		labels := e2eLabels()
@@ -74,7 +74,7 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 							clusterResource("capsule.clastix.io", []string{"globalproxysettings"}, "wrong"),
 							clusterResource("rbac.authorization.k8s.io", []string{"clusterrolebindings"}, "wrong"),
 						},
-						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "alice"}},
+						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "bob"}},
 					},
 					{
 						// A correct wildcard rule for the wrong subject must not grant Alice access.
@@ -101,6 +101,8 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 
 		var err error
 		aliceClient, err = loadKubeConfig("alice")
+		Expect(err).NotTo(HaveOccurred())
+		bobClient, err = loadKubeConfig("bob")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -164,8 +166,8 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 		expectedNamespaces := []string{namespaces[0].Name, namespaces[1].Name, namespaces[2].Name}
 		expectedRoles := []string{roles[0].Name, roles[1].Name, roles[2].Name}
 
-		Eventually(func() ([]string, error) {
-			raw, err := aliceClient.RESTClient().Get().AbsPath("/apis/capsule.clastix.io/v1beta2/tenants").DoRaw(context.Background())
+		listTenants := func(clientset *kubernetes.Clientset) ([]string, error) {
+			raw, err := clientset.RESTClient().Get().AbsPath("/apis/capsule.clastix.io/v1beta2/tenants").DoRaw(context.Background())
 			if err != nil {
 				return nil, err
 			}
@@ -179,10 +181,10 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 			}
 
 			return names, nil
-		}, defaultTimeoutInterval, defaultPollInterval).Should(ConsistOf(expectedTenants))
+		}
 
-		Eventually(func() ([]string, error) {
-			list, err := aliceClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+		listNamespaces := func(clientset *kubernetes.Clientset) ([]string, error) {
+			list, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -192,10 +194,10 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 			}
 
 			return names, nil
-		}, defaultTimeoutInterval, defaultPollInterval).Should(ConsistOf(expectedNamespaces))
+		}
 
-		Eventually(func() ([]string, error) {
-			list, err := aliceClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
+		listClusterRoles := func(clientset *kubernetes.Clientset) ([]string, error) {
+			list, err := clientset.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -205,6 +207,23 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 			}
 
 			return names, nil
-		}, defaultTimeoutInterval, defaultPollInterval).Should(ConsistOf(expectedRoles))
+		}
+
+		Eventually(func() ([]string, error) { return listTenants(aliceClient) }, defaultTimeoutInterval, defaultPollInterval).
+			Should(ConsistOf(expectedTenants))
+		Eventually(func() ([]string, error) { return listNamespaces(aliceClient) }, defaultTimeoutInterval, defaultPollInterval).
+			Should(ConsistOf(expectedNamespaces))
+		Eventually(func() ([]string, error) { return listClusterRoles(aliceClient) }, defaultTimeoutInterval, defaultPollInterval).
+			Should(ConsistOf(expectedRoles))
+
+		// Bob only has rules whose GVKs do not match these endpoints. LIST must
+		// still succeed; the proxy adds a selector which deliberately matches no
+		// objects instead of returning an authorization or routing error.
+		Eventually(func() ([]string, error) { return listTenants(bobClient) }, defaultTimeoutInterval, defaultPollInterval).
+			Should(BeEmpty())
+		Eventually(func() ([]string, error) { return listNamespaces(bobClient) }, defaultTimeoutInterval, defaultPollInterval).
+			Should(BeEmpty())
+		Eventually(func() ([]string, error) { return listClusterRoles(bobClient) }, defaultTimeoutInterval, defaultPollInterval).
+			Should(BeEmpty())
 	})
 })
