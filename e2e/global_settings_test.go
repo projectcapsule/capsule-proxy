@@ -118,9 +118,15 @@ var _ = Describe("GlobalProxySettings", func() {
 	})
 
 	JustAfterEach(func() {
+		// Namespace does not support DELETE collection, so it must be removed by name.
+		Eventually(func() error {
+			return client.IgnoreNotFound(k8sClient.Delete(context.Background(), &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "globally-visible-namespace"},
+			}))
+		}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
+
 		// Define Resources which are lifecycled after each test
 		resourcesToClean := []client.Object{
-			&corev1.Namespace{},
 			&capsulev1beta2.Tenant{},
 			&v1beta1.GlobalProxySettings{},
 			&rbacv1.ClusterRole{},

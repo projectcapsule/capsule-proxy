@@ -66,15 +66,24 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "alice"}},
 					},
 					{
-						// These selectors match the negative-control objects, but their API
-						// groups and resource names are intentionally wrong.
+						// Bob has valid rules for all three endpoints, but this selector
+						// deliberately matches none of the test resources.
+						ClusterResources: []v1beta1.ClusterResource{
+							clusterResource("", []string{"namespaces"}, "missing"),
+							clusterResource("capsule.clastix.io", []string{"tenants"}, "missing"),
+							clusterResource("rbac.authorization.k8s.io", []string{"clusterroles"}, "missing"),
+						},
+						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "bob"}},
+					},
+					{
+						// Valid but different GVKs must not affect Alice's three lists.
 						ClusterResources: []v1beta1.ClusterResource{
 							clusterResource("storage.k8s.io", []string{"storageclasses"}, "wrong"),
 							clusterResource("", []string{"nodes"}, "wrong"),
 							clusterResource("capsule.clastix.io", []string{"globalproxysettings"}, "wrong"),
 							clusterResource("rbac.authorization.k8s.io", []string{"clusterrolebindings"}, "wrong"),
 						},
-						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "bob"}},
+						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "alice"}},
 					},
 					{
 						// A correct wildcard rule for the wrong subject must not grant Alice access.
@@ -107,8 +116,22 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 	})
 
 	JustAfterEach(func() {
+		for _, name := range []string{
+			"global-list-namespace-first-a",
+			"global-list-namespace-first-b",
+			"global-list-namespace-second",
+			"global-list-namespace-wrong",
+			"global-list-namespace-unmatched",
+		} {
+			name := name
+			Eventually(func() error {
+				return client.IgnoreNotFound(k8sClient.Delete(context.Background(), &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{Name: name},
+				}))
+			}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
+		}
+
 		resources := []client.Object{
-			&corev1.Namespace{},
 			&capsulev1beta2.Tenant{},
 			&rbacv1.ClusterRole{},
 			&v1beta1.GlobalProxySettings{},
@@ -216,7 +239,7 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 		Eventually(func() ([]string, error) { return listClusterRoles(aliceClient) }, defaultTimeoutInterval, defaultPollInterval).
 			Should(ConsistOf(expectedRoles))
 
-		// Bob only has rules whose GVKs do not match these endpoints. LIST must
+		// Bob has rules for these GVKs whose selector matches no objects. LIST must
 		// still succeed; the proxy adds a selector which deliberately matches no
 		// objects instead of returning an authorization or routing error.
 		Eventually(func() ([]string, error) { return listTenants(bobClient) }, defaultTimeoutInterval, defaultPollInterval).

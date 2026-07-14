@@ -79,6 +79,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 		if client.IgnoreNotFound(err) == nil {
 			return nil, errors.NewNotFoundError(name, g.GroupKind())
 		}
+
 		return nil, err
 	}
 
