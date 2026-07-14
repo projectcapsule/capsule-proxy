@@ -98,18 +98,12 @@ func TestReflectedTenantNamePriority(t *testing.T) {
 
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Labels: map[string]string{
-			NamespaceReflectionLookupLabel: "lookup-tenant",
-			capsulemeta.NewTenantLabel:     "new-label-tenant",
-			capsulemeta.TenantLabel:        "legacy-label-tenant",
+			capsulemeta.NewTenantLabel: "new-label-tenant",
+			capsulemeta.TenantLabel:    "legacy-label-tenant",
 		},
 		OwnerReferences: []metav1.OwnerReference{{Kind: "Tenant", Name: "owner-tenant"}},
 	}}
 
-	if got := reflectedTenantName(namespace); got != "lookup-tenant" {
-		t.Fatalf("expected lookup label to have priority, got %q", got)
-	}
-
-	delete(namespace.Labels, NamespaceReflectionLookupLabel)
 	if got := reflectedTenantName(namespace); got != "new-label-tenant" {
 		t.Fatalf("expected new tenant label, got %q", got)
 	}

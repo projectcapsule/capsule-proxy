@@ -1015,7 +1015,7 @@
                     "type": "boolean"
                 },
                 "roleBindingReflector": {
-                    "description": "Enable reflection for RoleBindings labelled reflection.proxy.projectcapsule.dev/enabled=true. Namespace label reflection.proxy.projectcapsule.dev/lookup overrides the reflected tenant selector value.",
+                    "description": "Enable reflection for RoleBindings labelled reflection.proxy.projectcapsule.dev/enabled=true.",
                     "type": "boolean"
                 },
                 "rolebindingsResyncPeriod": {

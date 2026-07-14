@@ -25,11 +25,10 @@ import (
 )
 
 const (
-	subjectIndex                   = "subjectIndex"
-	reflectionSubjectIndex         = "reflectionSubjectIndex"
-	RoleBindingReflectionLabel     = "reflection.proxy.projectcapsule.dev/enabled"
-	NamespaceReflectionLookupLabel = "reflection.proxy.projectcapsule.dev/lookup"
-	roleKind                       = "Role"
+	subjectIndex               = "subjectIndex"
+	reflectionSubjectIndex     = "reflectionSubjectIndex"
+	RoleBindingReflectionLabel = "reflection.proxy.projectcapsule.dev/enabled"
+	roleKind                   = "Role"
 )
 
 type RoleBindingReflector struct {
@@ -142,10 +141,6 @@ func (r *RoleBindingReflector) GetUserTenantNamesForResource(ctx context.Context
 }
 
 func reflectedTenantName(namespace *corev1.Namespace) string {
-	if value := namespace.Labels[NamespaceReflectionLookupLabel]; value != "" {
-		return value
-	}
-
 	if value := namespace.Labels[capsulemeta.NewTenantLabel]; value != "" {
 		return value
 	}
