@@ -100,7 +100,7 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 		if !sets.NewString(userNamespaces...).Has(name) {
 			return nil, errors.NewNotFoundError(name, l.GroupKind())
 		}
-	} else if !tenants.Has(tntName) {
+	} else if !tenants.Has(tntName) && !matchesClusterScopedNamespace(proxyTenants, ns) {
 		return nil, errors.NewNotFoundError(name, l.GroupKind())
 	}
 
