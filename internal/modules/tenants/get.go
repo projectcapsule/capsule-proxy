@@ -11,6 +11,7 @@ import (
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,7 +20,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
-	"github.com/projectcapsule/capsule-proxy/internal/types"
+	captypes "github.com/projectcapsule/capsule-proxy/internal/types"
 )
 
 type get struct {
@@ -37,9 +38,9 @@ func Get(client client.Reader) modules.Module {
 		client:       client,
 		log:          ctrl.Log.WithName("tenant_get"),
 		gk: schema.GroupVersionKind{
-			Group:   types.CapsuleGroup,
+			Group:   captypes.CapsuleGroup,
 			Version: "*",
-			Kind:    types.Tenants,
+			Kind:    captypes.Tenants,
 		},
 	}
 }
@@ -53,7 +54,7 @@ func (g get) GroupKind() schema.GroupKind {
 }
 
 func (g get) Path() string {
-	return "/apis/" + types.CapsuleGroup + "/v1beta2/" + types.Tenants + "/{name}"
+	return "/apis/" + captypes.CapsuleGroup + "/v1beta2/" + captypes.Tenants + "/{name}"
 }
 
 func (g get) Methods() []string {
@@ -70,6 +71,15 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	}
 
 	if userTenants.Has(name) {
+		return labels.NewSelector(), nil
+	}
+
+	obj := &capsulev1beta2.Tenant{}
+	if err := g.client.Get(proxyRequest.GetHTTPRequest().Context(), types.NamespacedName{Name: name}, obj); err != nil {
+		return nil, errors.NewNotFoundError(name, g.GroupKind())
+	}
+
+	if matchesClusterScopedTenant(proxyTenants, obj) {
 		return labels.NewSelector(), nil
 	}
 
