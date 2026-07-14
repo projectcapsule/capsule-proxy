@@ -517,7 +517,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 	modList := []modules.Module{
 		namespace.List(n.roleBindingsReflector, n.reader),
 		namespace.Get(n.roleBindingsReflector, n.reader),
-		tenants.List(),
+		tenants.List(n.reader),
 		tenants.Get(n.reader),
 	}
 

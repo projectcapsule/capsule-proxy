@@ -10,7 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
@@ -20,13 +22,15 @@ import (
 )
 
 type list struct {
-	log logr.Logger
-	gk  schema.GroupVersionKind
+	reader client.Reader
+	log    logr.Logger
+	gk     schema.GroupVersionKind
 }
 
-func List() modules.Module {
+func List(reader client.Reader) modules.Module {
 	return &list{
-		log: ctrl.Log.WithName("tenant_list"),
+		reader: reader,
+		log:    ctrl.Log.WithName("tenant_list"),
 		gk: schema.GroupVersionKind{
 			Group:   types.CapsuleGroup,
 			Version: "*",
@@ -51,12 +55,19 @@ func (l list) Methods() []string {
 	return []string{http.MethodGet}
 }
 
-func (l list) Handle(proxyTenants []*tenant.ProxyTenant, _ request.Request) (selector labels.Selector, err error) {
+func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	userTenants := make([]string, 0, len(proxyTenants))
 
 	for _, tnt := range proxyTenants {
 		userTenants = append(userTenants, tnt.Tenant.Name)
 	}
+
+	clusterScoped, err := clusterScopedTenantNames(proxyRequest.GetHTTPRequest().Context(), l.reader, proxyTenants)
+	if err != nil {
+		return nil, errors.NewBadRequest(err, l.GroupKind())
+	}
+
+	userTenants = sets.List(sets.New(append(userTenants, clusterScoped...)...))
 
 	var r *labels.Requirement
 
