@@ -86,7 +86,7 @@ func (l catchall) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest reques
 			}
 
 			if err = l.writer.Create(proxyRequest.GetHTTPRequest().Context(), &sar); err != nil {
-				return nil, fmt.Errorf("unable to check if user can list %s/%s", group, kind)
+				return nil, fmt.Errorf("unable to check if user can list %s/%s: %w", group, kind, err)
 			}
 
 			allowed = sar.Status.Allowed
