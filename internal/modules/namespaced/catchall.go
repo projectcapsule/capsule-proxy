@@ -5,7 +5,6 @@ package namespaced
 
 import (
 	"fmt"
-	"strings"
 
 	capsulelabels "github.com/projectcapsule/capsule/pkg/api/meta"
 	v1 "k8s.io/api/authorization/v1"
@@ -14,22 +13,29 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
 type catchall struct {
-	path   string
-	reader client.Reader
-	writer client.Writer
+	path                  string
+	group                 string
+	version               string
+	resource              string
+	writer                client.Writer
+	roleBindingsReflector *controllers.RoleBindingReflector
 }
 
-func CatchAll(client client.Reader, writer client.Writer, path string) modules.Module {
+func CatchAll(writer client.Writer, roleBindingsReflector *controllers.RoleBindingReflector, path, group, version, resource string) modules.Module {
 	return &catchall{
-		path:   path,
-		reader: client,
-		writer: writer,
+		path:                  path,
+		group:                 group,
+		version:               version,
+		resource:              resource,
+		writer:                writer,
+		roleBindingsReflector: roleBindingsReflector,
 	}
 }
 
@@ -52,22 +58,6 @@ func (l catchall) Methods() []string {
 func (l catchall) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	user, groups, _ := proxyRequest.GetUserAndGroups()
 
-	var group, version, kind string
-
-	url := proxyRequest.GetHTTPRequest().URL.Path
-
-	parts := strings.Split(url, "/")
-
-	switch len(parts) {
-	case 5:
-		group = parts[2]
-		version = parts[3]
-		kind = parts[4]
-	case 4:
-		version = parts[2]
-		kind = parts[3]
-	}
-
 	var sourceTenants []string
 
 	for _, tnt := range proxyTenants {
@@ -80,13 +70,13 @@ func (l catchall) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest reques
 			sar.Spec.ResourceAttributes = &v1.ResourceAttributes{
 				Namespace: ns,
 				Verb:      "list",
-				Group:     group,
-				Version:   version,
-				Resource:  kind,
+				Group:     l.group,
+				Version:   l.version,
+				Resource:  l.resource,
 			}
 
 			if err = l.writer.Create(proxyRequest.GetHTTPRequest().Context(), &sar); err != nil {
-				return nil, fmt.Errorf("unable to check if user can list %s/%s", group, kind)
+				return nil, fmt.Errorf("unable to check if user can list %s/%s: %w", l.group, l.resource, err)
 			}
 
 			allowed = sar.Status.Allowed
@@ -97,6 +87,17 @@ func (l catchall) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest reques
 		if allowed {
 			sourceTenants = append(sourceTenants, tnt.Tenant.Name)
 		}
+	}
+
+	if l.roleBindingsReflector != nil {
+		tenantNames, reflectionErr := l.roleBindingsReflector.GetUserTenantNamesForResource(
+			proxyRequest.GetHTTPRequest().Context(), user, groups, "list", l.group, l.resource,
+		)
+		if reflectionErr != nil {
+			return nil, reflectionErr
+		}
+
+		sourceTenants = append(sourceTenants, tenantNames...)
 	}
 
 	var r *labels.Requirement

@@ -568,7 +568,14 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 	for _, api := range apis {
 		n.log.V(6).Info("adding generic namespaced resource", "url", api.Path())
-		modList = append(modList, namespaced.CatchAll(n.reader, n.writer, api.Path()))
+		modList = append(modList, namespaced.CatchAll(
+			n.writer,
+			n.roleBindingsReflector,
+			api.Path(),
+			api.Group,
+			api.Version,
+			api.URLName,
+		))
 		n.namespacedResources.Insert(authorization.NamespacedResourceKey(api.Group, api.URLName))
 	}
 

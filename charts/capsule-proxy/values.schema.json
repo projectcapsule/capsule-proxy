@@ -1015,7 +1015,7 @@
                     "type": "boolean"
                 },
                 "roleBindingReflector": {
-                    "description": "Enable the rolebinding reflector, which allows to list the namespaces, where a rolebinding mentions a user.",
+                    "description": "Enable reflection for RoleBindings labelled reflection.proxy.projectcapsule.dev/enabled=true.",
                     "type": "boolean"
                 },
                 "rolebindingsResyncPeriod": {

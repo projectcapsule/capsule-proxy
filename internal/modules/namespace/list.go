@@ -62,15 +62,17 @@ func (l list) Methods() []string {
 func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
 	var userNamespaces []string
 
+	for _, tnt := range proxyTenants {
+		userNamespaces = append(userNamespaces, tnt.Tenant.Status.Namespaces...)
+	}
+
 	if l.roleBindingsReflector != nil {
-		userNamespaces, err = l.roleBindingsReflector.GetUserNamespacesFromRequest(proxyRequest)
-		if err != nil {
-			return nil, errors.NewBadRequest(err, l.GroupKind())
+		reflectedNamespaces, reflectionErr := l.roleBindingsReflector.GetUserNamespacesFromRequest(proxyRequest)
+		if reflectionErr != nil {
+			return nil, errors.NewBadRequest(reflectionErr, l.GroupKind())
 		}
-	} else {
-		for _, tnt := range proxyTenants {
-			userNamespaces = append(userNamespaces, tnt.Tenant.Status.Namespaces...)
-		}
+
+		userNamespaces = append(userNamespaces, reflectedNamespaces...)
 	}
 
 	// Namespaces can additionally be granted through cluster-scoped

@@ -184,6 +184,7 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "options.leaderElection=true" \
+		--set "options.roleBindingReflector=true" \
 		--set "service.type=NodePort" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
@@ -200,6 +201,7 @@ else
 		--set "options.logLevel=10" \
 		--set "options.pprof=true" \
 		--set "options.leaderElection=true" \
+		--set "options.roleBindingReflector=true" \
 		--set "service.type=NodePort" \
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
