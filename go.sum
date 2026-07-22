@@ -209,6 +209,8 @@ github.com/projectcapsule/capsule v0.13.0 h1:Ucf1eEykHKd/+ldQU+mupaLlgUiWX4RJwBl
 github.com/projectcapsule/capsule v0.13.0/go.mod h1:31bHFA3xRYeh8n+uV5nmVzGu1GYkREhajY3hYe7wqYQ=
 github.com/projectcapsule/capsule v0.13.2 h1:MvSGvwszQWg6WrJud+USeHjeBnai0JXbrUifFaTOvY4=
 github.com/projectcapsule/capsule v0.13.2/go.mod h1:QuNfwc1IkAhWZyWvWTL58P/PYjpPeAf6wqKzysWNLG0=
+github.com/projectcapsule/capsule v0.13.9 h1:bFZDcj6g3MAFusj88dfbHheWKrAdGnK1AvjAd0MMau8=
+github.com/projectcapsule/capsule v0.13.9/go.mod h1:YS2bdNjnBw+OwcFGw/W3kHYUATfFE1O/Gtg6HeBDMKs=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3/go.mod h1:/TN21ttK/J9q6uSwhBd54HahCDft0ttaMvbicHlPoso=
 github.com/prometheus/client_golang v1.23.2 h1:Je96obch5RDVy3FDMndoUsjAhG5Edi49h0RJWRi/o0o=
