@@ -4,6 +4,7 @@
 package webserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,18 +29,24 @@ import (
 	"github.com/gorilla/mux"
 	pkgerrors "github.com/pkg/errors"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsulemeta "github.com/projectcapsule/capsule/pkg/api/meta"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	"golang.org/x/net/http/httpguts"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/runtime/serializer/protobuf"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/featuregate"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
@@ -68,6 +76,32 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/utils"
 	server "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
+)
+
+const (
+	// namespaceReadinessTimeout bounds how long the proxy will delay a namespace-create
+	// response while waiting for Capsule to finish provisioning the requesting tenant
+	// owner's RoleBinding in the new namespace. Capsule provisions this RBAC
+	// asynchronously after the Namespace object is already persisted and returned to the
+	// client, so a caller that immediately acts within the namespace it was just handed
+	// (as Helm's `--create-namespace` does) can otherwise be told the namespace exists
+	// while still getting 403s inside it. See
+	// https://github.com/projectcapsule/capsule/issues/1895.
+	//
+	// On timeout the response is released as-is: the namespace was already created
+	// successfully, so failing the response at this point would misreport a successful
+	// creation as an error. The wait is bounded end-to-end by deriving a context with this
+	// deadline, so even a slow or hung API-server List cannot exceed it.
+	namespaceReadinessTimeout      = 3 * time.Second
+	namespaceReadinessPollInterval = 25 * time.Millisecond
+
+	// namespaceReadinessSettleBuffer is an extra wait applied after the first matching
+	// RoleBinding is seen. Capsule creates one RoleBinding per ClusterRole configured on the
+	// tenant owner (e.g. a tenant owner with clusterRoles [cluster-admin,
+	// capsule-namespace-deleter] gets two), and they don't necessarily land atomically —
+	// waiting for only the first one can still release the response before the others (and
+	// whatever specific permission the caller's very next request needs) have caught up.
+	namespaceReadinessSettleBuffer = 250 * time.Millisecond
 )
 
 func NewKubeFilter(
@@ -104,7 +138,18 @@ func NewKubeFilter(
 	codecFactory := serializer.NewCodecFactory(scheme)
 	universalDecoder := codecFactory.UniversalDeserializer()
 
-	return &kubeFilter{
+	// rbacClient is best-effort: it backs the namespace-readiness gate
+	// (waitForOwnerRoleBinding). If it can't be built we log and continue with a nil client
+	// — the gate degrades to a no-op (see waitForOwnerRoleBinding's nil check) rather than
+	// taking down proxy startup for a feature that is itself designed to fail open.
+	rbacClient, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		ctrl.Log.WithName("proxy").Error(err, "cannot create kubernetes clientset for namespace RBAC readiness checks; namespace-creation readiness gating disabled")
+
+		rbacClient = nil
+	}
+
+	kf := &kubeFilter{
 		mgr:                        mgr,
 		gates:                      gates,
 		reader:                     clientOverride,
@@ -124,12 +169,17 @@ func NewKubeFilter(
 		serverOptions:              srv,
 		log:                        ctrl.Log.WithName("proxy"),
 		roleBindingsReflector:      rbReflector,
+		rbacClient:                 rbacClient,
 		protoEncoder:               protoEncoder,
 		universalDecoder:           universalDecoder,
 		scheme:                     scheme,
 		trustedProxyCIDRs:          opts.TrustedProxyCIDRs(),
 		xfcc_header:                opts.XFCCHeader(),
-	}, nil
+	}
+
+	reverseProxy.ModifyResponse = kf.gateNamespaceCreationResponse
+
+	return kf, nil
 }
 
 type kubeFilter struct {
@@ -148,6 +198,7 @@ type kubeFilter struct {
 	serverOptions              options.ServerOptions
 	log                        logr.Logger
 	roleBindingsReflector      *controllers.RoleBindingReflector
+	rbacClient                 kubernetes.Interface
 	gates                      featuregate.FeatureGate
 	xfcc_header                string
 	trustedProxyCIDRs          []*net.IPNet
@@ -494,6 +545,318 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 	for _, group := range groups {
 		request.Header.Add(authenticationv1.ImpersonateGroupHeader, group)
 	}
+}
+
+// gateNamespaceCreationResponse is the single ModifyResponse entry point for both fixes
+// addressing https://github.com/projectcapsule/capsule/issues/1895:
+//
+//   - maskForbiddenForMissingNamespace rewrites a 403 into the 404 a privileged caller would
+//     see, when a tenant owner's namespace-scoped GET fails only because the target
+//     namespace doesn't exist yet. Without this, clients with idiomatic "GET, if 404 then
+//     create" workflows (Helm's `--create-namespace` among them) treat the 403 as a fatal
+//     error and abort before ever attempting to create the namespace.
+//   - waitForOwnerCreationResponse delays a successful namespace-create response until the
+//     tenant owner's RoleBinding has actually landed in the new namespace, closing the
+//     separate (and separately real) race between namespace creation and Capsule's async
+//     RBAC provisioning for whatever request comes immediately after.
+func (n *kubeFilter) gateNamespaceCreationResponse(resp *http.Response) error {
+	if resp.StatusCode == http.StatusForbidden {
+		return n.maskForbiddenForMissingNamespace(resp)
+	}
+
+	return n.waitForOwnerCreationResponse(resp)
+}
+
+// namespacedResourcePathPattern matches a GET-by-name request for a namespaced resource:
+// /api/v1/namespaces/{ns}/{resource}/{name} or
+// /apis/{group}/{version}/namespaces/{ns}/{resource}/{name}. It intentionally does not match
+// collection requests (LIST, no trailing {name}) or subresources (an extra path segment
+// after {name}, e.g. .../pods/{name}/log).
+var namespacedResourcePathPattern = regexp.MustCompile(`^(?:/api/v1|/apis/[^/]+/[^/]+)/namespaces/([^/]+)/([^/]+)/([^/]+)$`)
+
+// maskForbiddenForMissingNamespace rewrites a 403 into the 404 a privileged user would see
+// when a tenant owner's namespace-scoped GET fails only because the target namespace
+// doesn't exist yet. Kubernetes RBAC authorizes namespace-scoped requests using RoleBindings
+// that live inside that namespace, so a namespace that hasn't been created yet can never
+// have one — meaning any tenant owner probing a resource there always gets 403 Forbidden,
+// never the 404 Not Found a cluster-wide-privileged caller gets for the same nonexistent
+// namespace.
+//
+// The rewrite is deliberately narrow, so it never becomes a cross-tenant existence oracle:
+// it applies only when the target namespace name falls within the namespace-naming space of
+// a tenant the caller actually owns (see namespaceClaimableByOwner) AND the namespace is
+// confirmed not to exist. A caller can therefore only ever learn "a namespace I'm entitled
+// to create doesn't exist yet" — information they already have (they can list their own
+// tenant's namespaces). A 403 for any namespace outside the caller's own tenants, or for one
+// that genuinely exists, is passed through unchanged.
+func (n *kubeFilter) maskForbiddenForMissingNamespace(resp *http.Response) error {
+	if resp.Request.Method != http.MethodGet {
+		return nil
+	}
+
+	username := resp.Request.Header.Get(authenticationv1.ImpersonateUserHeader)
+	if username == "" {
+		return nil
+	}
+
+	match := namespacedResourcePathPattern.FindStringSubmatch(resp.Request.URL.Path)
+	if match == nil {
+		return nil
+	}
+
+	namespaceName, resource, name := match[1], match[2], match[3]
+
+	groups := resp.Request.Header.Values(authenticationv1.ImpersonateGroupHeader)
+
+	// Ownership gate: only mask for a namespace the caller could legitimately create as one
+	// of their own tenants' namespaces. Without this, the 403-vs-404 distinction would let
+	// any tenant owner probe the existence of arbitrary namespaces cluster-wide.
+	if !n.namespaceClaimableByOwner(resp.Request.Context(), username, groups, namespaceName) {
+		return nil
+	}
+
+	var namespaceObj corev1.Namespace
+	if err := n.reader.Get(resp.Request.Context(), client.ObjectKey{Name: namespaceName}, &namespaceObj); err == nil || !apierrors.IsNotFound(err) {
+		// Namespace exists, or we couldn't tell — this is a genuine permission denial,
+		// leave it as-is.
+		return nil
+	}
+
+	status := apierrors.NewNotFound(schema.GroupResource{Resource: resource}, name).Status()
+
+	body, err := json.Marshal(status)
+	if err != nil {
+		return nil //nolint:nilerr // best-effort; fall back to the original 403 on marshal failure
+	}
+
+	_ = resp.Body.Close()
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	resp.StatusCode = http.StatusNotFound
+	resp.Status = fmt.Sprintf("%d %s", http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	resp.ContentLength = int64(len(body))
+	resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
+	resp.Header.Set("Content-Type", "application/json")
+
+	n.log.V(4).Info("masked forbidden as not-found for missing namespace", "namespace", namespaceName, "resource", resource, "name", name, "username", username)
+
+	return nil
+}
+
+// namespaceClaimableByOwner reports whether namespaceName falls within the namespace-naming
+// space of a tenant owned by the caller — i.e. it equals an owned tenant's name or is
+// prefixed by "<tenant>-". This mirrors Capsule's own forceTenantPrefix boundary and is the
+// only relationship the proxy can establish for a namespace that does not exist yet (it has
+// no owner reference or tenant label to consult). Callers with no owned tenants, or probing
+// a name outside all of their tenants' prefixes, get false.
+func (n *kubeFilter) namespaceClaimableByOwner(ctx context.Context, username string, groups []string, namespaceName string) bool {
+	proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
+	if err != nil {
+		n.log.V(4).Info("cannot resolve tenant owners while masking namespace lookup", "namespace", namespaceName, "error", err.Error())
+
+		return false
+	}
+
+	for _, pt := range proxyTenants {
+		tenantName := pt.Tenant.GetName()
+		if namespaceName == tenantName || strings.HasPrefix(namespaceName, tenantName+"-") {
+			return true
+		}
+	}
+
+	return false
+}
+
+// waitForOwnerCreationResponse delays a successful namespace-create response until the
+// requesting tenant owner's RoleBinding has actually landed in the new namespace, or until
+// namespaceReadinessTimeout elapses. See the namespaceReadinessTimeout doc comment and
+// https://github.com/projectcapsule/capsule/issues/1895 for why this exists.
+//
+// This has to match both the classic collection-POST create (`POST /api/v1/namespaces`)
+// and a Server-Side Apply create (`PATCH /api/v1/namespaces/<name>`) — Helm 4 defaults
+// `--server-side` to true, so `helm install --create-namespace` goes through the SSA path,
+// not a plain POST. Kubernetes returns 201 for both when the object didn't previously exist,
+// which is what distinguishes a genuine creation (something to gate) from an update to an
+// existing namespace (RBAC already settled, nothing to wait for) on the same PATCH verb.
+func (n *kubeFilter) waitForOwnerCreationResponse(resp *http.Response) error {
+	if resp.StatusCode != http.StatusCreated {
+		return nil
+	}
+
+	if resp.Request.Method != http.MethodPost && resp.Request.Method != http.MethodPatch {
+		return nil
+	}
+
+	if !isNamespaceCollectionOrObjectPath(resp.Request.URL.Path) {
+		return nil
+	}
+
+	// A server-side dry-run create (`?dryRun=All`) returns 201 but persists nothing — no
+	// Namespace and no RoleBinding are actually created — so there is nothing to wait for.
+	// Without this, every dry-run namespace create would block for the full readiness
+	// timeout polling for a RoleBinding that will never appear.
+	if resp.Request.URL.Query().Get("dryRun") != "" {
+		return nil
+	}
+
+	username := resp.Request.Header.Get(authenticationv1.ImpersonateUserHeader)
+	groups := resp.Request.Header.Values(authenticationv1.ImpersonateGroupHeader)
+
+	if username == "" {
+		// Not an impersonated request (e.g. a call authenticated with the proxy's own
+		// bearer token) — nothing to gate.
+		return nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil //nolint:nilerr // best-effort gate; never fail a response that already succeeded upstream
+	}
+
+	_ = resp.Body.Close()
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+
+	var namespace corev1.Namespace
+	if err := json.Unmarshal(body, &namespace); err != nil || namespace.Name == "" {
+		return nil
+	}
+
+	tenantName := namespace.Labels[capsulemeta.TenantLabel]
+	if tenantName == "" {
+		// Not a Capsule tenant namespace.
+		return nil
+	}
+
+	if !n.isTenantOwner(resp.Request.Context(), tenantName, username, groups) {
+		// Whoever created this namespace isn't a registered owner of its tenant (e.g. a
+		// cluster administrator using capsule-proxy directly). Capsule only provisions an
+		// owner RoleBinding for registered tenant owners, so there's nothing to wait for
+		// and waiting here would only add latency to a request that already works.
+		return nil
+	}
+
+	n.waitForOwnerRoleBinding(resp.Request.Context(), username, groups, namespace.Name)
+
+	return nil
+}
+
+// isNamespaceCollectionOrObjectPath reports whether path is the namespaces collection
+// endpoint ("/api/v1/namespaces") or a single namespace's object endpoint
+// ("/api/v1/namespaces/<name>") — not a subresource of it (e.g. .../status, .../finalize).
+func isNamespaceCollectionOrObjectPath(path string) bool {
+	const collectionPath = "/api/v1/namespaces"
+
+	if path == collectionPath {
+		return true
+	}
+
+	name, ok := strings.CutPrefix(path, collectionPath+"/")
+
+	return ok && name != "" && !strings.Contains(name, "/")
+}
+
+func (n *kubeFilter) isTenantOwner(ctx context.Context, tenantName, username string, groups []string) bool {
+	proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
+	if err != nil {
+		n.log.V(4).Info("cannot resolve tenant owners while gating namespace creation", "tenant", tenantName, "error", err.Error())
+
+		return false
+	}
+
+	for _, pt := range proxyTenants {
+		if pt.Tenant.GetName() == tenantName {
+			return true
+		}
+	}
+
+	return false
+}
+
+// waitForOwnerRoleBinding polls the API server directly for a RoleBinding in namespace
+// whose subjects include username or one of groups. It intentionally doesn't use the
+// optional roleBindingsReflector (disabled by default via --enable-reflector=false): this
+// gate needs to work regardless of that setting, and a namespace-scoped List is cheap
+// enough to issue synchronously here — it's bounded to at most namespaceReadinessTimeout /
+// namespaceReadinessPollInterval calls, and only for genuine tenant-owner namespace
+// creations (see isTenantOwner above).
+//
+// The whole wait is bounded by a context deadline derived from namespaceReadinessTimeout, so
+// that even a single slow or hung List call cannot hold the client's response open past the
+// documented bound: once the deadline passes, the in-flight List is cancelled and the
+// response is released (fail-open).
+func (n *kubeFilter) waitForOwnerRoleBinding(ctx context.Context, username string, groups []string, namespace string) {
+	if n.rbacClient == nil {
+		return
+	}
+
+	start := time.Now()
+
+	ctx, cancel := context.WithTimeout(ctx, namespaceReadinessTimeout)
+	defer cancel()
+
+	groupSet := sets.New(groups...)
+
+	for {
+		ready, err := n.hasMatchingRoleBinding(ctx, username, groupSet, namespace)
+		if err != nil {
+			// Includes context deadline exceeded — fail open, the namespace is already
+			// created and the response must not be held any longer.
+			n.log.V(4).Info("stopped waiting for owner RoleBinding readiness", "namespace", namespace, "username", username, "waited", time.Since(start), "reason", err.Error())
+
+			return
+		}
+
+		if ready {
+			// A tenant owner can have more than one ClusterRole configured, and Capsule
+			// creates one RoleBinding per ClusterRole — they don't necessarily land in the
+			// same instant. Give any siblings a short window to catch up too, rather than
+			// releasing the response the moment the very first one appears. Cap the buffer
+			// at the remaining deadline so it can't push total latency past the bound.
+			settle := namespaceReadinessSettleBuffer
+			if remaining := time.Until(start.Add(namespaceReadinessTimeout)); remaining < settle {
+				settle = remaining
+			}
+
+			if settle > 0 {
+				time.Sleep(settle)
+			}
+
+			n.log.V(5).Info("owner RoleBinding ready", "namespace", namespace, "username", username, "waited", time.Since(start))
+
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			n.log.Info("timed out waiting for owner RoleBinding to be provisioned; releasing namespace-create response anyway", "namespace", namespace, "username", username, "timeout", namespaceReadinessTimeout)
+
+			return
+		case <-time.After(namespaceReadinessPollInterval):
+		}
+	}
+}
+
+func (n *kubeFilter) hasMatchingRoleBinding(ctx context.Context, username string, groups sets.Set[string], namespace string) (bool, error) {
+	list, err := n.rbacClient.RbacV1().RoleBindings(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	for _, rb := range list.Items {
+		for _, subject := range rb.Subjects {
+			switch subject.Kind {
+			case rbacv1.UserKind:
+				if subject.Name == username {
+					return true, nil
+				}
+			case rbacv1.GroupKind:
+				if groups.Has(subject.Name) {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	return false, nil
 }
 
 func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulerbac.OwnerListSpec) []v1beta1.OwnerSpec {
