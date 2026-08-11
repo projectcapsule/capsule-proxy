@@ -439,7 +439,12 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector) {
+func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector, username string) {
+	// Requests handled with a selector are forwarded using the proxy ServiceAccount,
+	// so the Kubernetes audit event cannot retain the original user through
+	// impersonation. Record that identity before replacing the bearer token.
+	n.log.V(4).Info("proxying filtered request", "username", username, "method", request.Method, "uri", request.URL.Path)
+
 	req.SanitizeImpersonationHeaders(request)
 
 	selectorValue := selector.String()
@@ -649,7 +654,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 				// if there's no selector, let it pass to the
 				n.impersonateHandler(writer, request)
 			default:
-				n.handleRequest(request, selector)
+				n.handleRequest(request, selector, username)
 			}
 		})
 	}
