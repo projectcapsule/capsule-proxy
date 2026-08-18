@@ -177,7 +177,7 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		&& mv alice-oil.kubeconfig alice.kubeconfig \
 		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.server http://127.0.0.1:9001
 	@echo "Installing Capsule-Proxy using HELM..."
-	@helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
+	@helm upgrade --force-conflicts --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=$(VERSION)" \
 		--set "options.enableSSL=false" \
@@ -191,11 +191,13 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "serviceMonitor.enabled=false" \
 		--set "options.generateCertificates=false" \
 		--set "certManager.generateCertificates=false" \
-		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
+		--set "options.additionalSANs={localhost, proxy.capsule.local}"
+		--set "options.ignoredUsernames={admin}" \
+		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true}"
 else
 	@echo "Running in HTTPS mode"
 	@echo "Installing Capsule-Proxy using HELM..."
-	@helm upgrade --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
+	@helm upgrade --force-conflicts --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
 		--set "image.pullPolicy=Never" \
 		--set "image.tag=$(VERSION)" \
 		--set "options.logLevel=10" \
@@ -206,21 +208,24 @@ else
 		--set "kind=DaemonSet" \
 		--set "daemonset.hostNetwork=true" \
 		--set "serviceMonitor.enabled=false" \
+		--set "certManager.generateCertificates=false" \
 		--set "options.generateCertificates=false" \
-		--set "certManager.certificate.ipAddresses={127.0.0.1}" \
-		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true,--feature-gates=ProxyAllNamespaced=true}"
+		--set "options.oidcUsernameClaim=name" \
+		--set "options.additionalSANs={localhost, proxy.capsule.local}" \
+		--set "options.ignoredUsernames={admin}" \
+		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true}"
 endif
 	@kubectl rollout restart ds capsule-proxy -n capsule-system || true
 	$(MAKE) generate-kubeconfigs
 
 generate-kubeconfigs:
-	CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') ; \
+	CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy -o jsonpath='{.data.ca}') ; \
 	if [ -z "$$CA_B64" ]; then \
-	  echo "ERROR: secret capsule-system/capsule-proxy-root-secret missing .data[ca.crt]" ; \
+	  echo "ERROR: secret capsule-system/capsule-proxy missing .data[ca]" ; \
 	  exit 1 ; \
 	fi;
 	@cd hack \
-		&& CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') \
+		&& CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy -o jsonpath='{.data.ca}') \
 		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- alice oil projectcapsule.dev,capsule.clastix.io \
 		&& mv alice-oil.kubeconfig alice.kubeconfig \
 		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64"  \

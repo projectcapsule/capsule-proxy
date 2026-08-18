@@ -6,11 +6,82 @@ package clusterscoped
 import (
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	// adjust import to your actual api package
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
+
+func TestGetClusterScopeRequirementsFiltersByOperation(t *testing.T) {
+	t.Parallel()
+
+	gvk := &schema.GroupVersionKind{Group: "storage.k8s.io", Version: "v1", Kind: "storageclasses"}
+	proxyTenants := []*tenant.ProxyTenant{{
+		ClusterResources: []v1beta1.ClusterResource{
+			clusterResourceRule(nil, "default"),
+			clusterResourceRule([]v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationList}, "list-only"),
+			clusterResourceRule([]v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationGet}, "get-only"),
+		},
+	}}
+
+	tests := []struct {
+		name      string
+		operation v1beta1.ClusterResourceOperation
+		want      []string
+	}{
+		{name: "list includes default and list-only", operation: v1beta1.ClusterResourceOperationList, want: []string{"default", "list-only"}},
+		{name: "get includes default, legacy list, and get-only", operation: v1beta1.ClusterResourceOperationGet, want: []string{"default", "list-only", "get-only"}},
+		{name: "unsupported operation matches nothing", operation: "Update", want: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			requirements := GetClusterScopeRequirements(gvk, tt.operation, proxyTenants)
+			for _, value := range []string{"default", "list-only", "get-only"} {
+				got := matchesAny(requirements, labels.Set{"access": value})
+				want := contains(tt.want, value)
+				if got != want {
+					t.Fatalf("access=%q matched=%t, want %t", value, got, want)
+				}
+			}
+		})
+	}
+}
+
+func clusterResourceRule(operations []v1beta1.ClusterResourceOperation, access string) v1beta1.ClusterResource {
+	return v1beta1.ClusterResource{
+		APIGroups:  []string{"storage.k8s.io"},
+		Resources:  []string{"storageclasses"},
+		Operations: operations,
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"access": access},
+		},
+	}
+}
+
+func matchesAny(requirements []labels.Requirement, set labels.Set) bool {
+	for _, requirement := range requirements {
+		if requirement.Matches(set) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func contains(values []string, candidate string) bool {
+	for _, value := range values {
+		if value == candidate {
+			return true
+		}
+	}
+
+	return false
+}
 
 func TestMatchPattern(t *testing.T) {
 	t.Parallel()

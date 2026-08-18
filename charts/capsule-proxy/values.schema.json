@@ -990,6 +990,10 @@
                     "description": "Define which groups must be ignored while proxying requests",
                     "type": "array"
                 },
+                "ignoredUsernames": {
+                    "description": "Define which usernames must be ignored while proxying requests",
+                    "type": "array"
+                },
                 "impersonationGroupRegexp": {
                     "description": "Regular expression to match the groups which are considered for impersonation",
                     "type": "string"

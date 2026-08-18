@@ -306,6 +306,8 @@ options:
   capsuleConfigurationName: default
   # -- Define which groups must be ignored while proxying requests
   ignoredUserGroups: []
+  # -- Define which usernames must be ignored while proxying requests
+  ignoredUsernames: []
   # --  Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)
   ignoredImpersonationGroups: []
   # -- Regular expression to match the groups which are considered for impersonation

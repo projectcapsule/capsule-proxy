@@ -68,6 +68,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/utils"
 	server "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
+	"github.com/projectcapsule/capsule-proxy/internal/webserver/namespacegate"
 )
 
 func NewKubeFilter(
@@ -104,6 +105,12 @@ func NewKubeFilter(
 	codecFactory := serializer.NewCodecFactory(scheme)
 	universalDecoder := codecFactory.UniversalDeserializer()
 
+	namespaceResponseGate := namespacegate.New(
+		mgr.GetAPIReader(),
+		ctrl.Log.WithName("proxy").WithName("namespace_gate"),
+	)
+	reverseProxy.ModifyResponse = namespaceResponseGate.ModifyResponse
+
 	return &kubeFilter{
 		mgr:                        mgr,
 		gates:                      gates,
@@ -113,6 +120,7 @@ func NewKubeFilter(
 		allowedPaths:               sets.New(opts.AllowedPaths()...),
 		authTypes:                  opts.AuthTypes(),
 		ignoredUserGroups:          sets.New(opts.IgnoredGroupNames()...),
+		ignoredUsernames:           sets.New(opts.IgnoredUsernames()...),
 		ignoredImpersonationGroups: opts.IgnoredImpersonationsGroups(),
 		impersonationGroupsRegexp:  opts.ImpersonationGroupsRegexp(),
 		skipImpersonationReview:    opts.SkipImpersonationReview(),
@@ -137,6 +145,7 @@ type kubeFilter struct {
 	allowedPaths               sets.Set[string]
 	authTypes                  []req.AuthType
 	ignoredUserGroups          sets.Set[string]
+	ignoredUsernames           sets.Set[string]
 	ignoredImpersonationGroups []string
 	impersonationGroupsRegexp  *regexp.Regexp
 	skipImpersonationReview    bool
@@ -591,7 +600,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 		sr.Use(
 			middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 			middleware.CheckJWTMiddleware(n.writer),
-			middleware.CheckUserInIgnoredGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
+			middleware.CheckUserInIgnoredIdentityMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUsernames, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
 			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
 		)
 		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	authorizationv1 "k8s.io/api/authorization/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -67,9 +68,18 @@ func TestMutateAuthorization_SelfSubjectRulesReviewMerges(t *testing.T) {
 		{
 			ClusterResources: []v1beta1.ClusterResource{
 				{
-					APIGroups:  []string{"storage.k8s.io"},
-					Resources:  []string{"storageclasses"},
+					APIGroups: []string{"storage.k8s.io"},
+					Resources: []string{"storageclasses"},
+				},
+				{
+					APIGroups:  []string{"rbac.authorization.k8s.io"},
+					Resources:  []string{"clusterroles"},
 					Operations: []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationList},
+				},
+				{
+					APIGroups:  []string{""},
+					Resources:  []string{"nodes"},
+					Operations: []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationGet},
 				},
 			},
 		},
@@ -94,6 +104,15 @@ func TestMutateAuthorization_SelfSubjectRulesReviewMerges(t *testing.T) {
 	if !hasResourceRule(rules, "storage.k8s.io", "storageclasses", "list") {
 		t.Errorf("expected injected cluster resource rule, got %+v", rules)
 	}
+	if !hasResourceRule(rules, "storage.k8s.io", "storageclasses", "get") {
+		t.Errorf("expected omitted operations to inject the default get verb, got %+v", rules)
+	}
+	if !hasResourceRule(rules, "rbac.authorization.k8s.io", "clusterroles", "get") {
+		t.Errorf("expected legacy list rule to inject get for backward compatibility, got %+v", rules)
+	}
+	if hasResourceRule(rules, "", "nodes", "list") {
+		t.Errorf("expected explicit get-only rule not to inject list, got %+v", rules)
+	}
 
 	if !review.Status.Incomplete {
 		t.Errorf("expected Incomplete flag from the API server to be preserved")
@@ -101,6 +120,58 @@ func TestMutateAuthorization_SelfSubjectRulesReviewMerges(t *testing.T) {
 
 	if len(review.Status.NonResourceRules) != 1 {
 		t.Errorf("expected NonResourceRules from the API server to be preserved, got %+v", review.Status.NonResourceRules)
+	}
+}
+
+func TestMutateAuthorization_SelfSubjectAccessReviewClusterResourceOperations(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		operations []v1beta1.ClusterResourceOperation
+		verb       string
+		want       bool
+	}{
+		{name: "default get", verb: "get", want: true},
+		{name: "default list", verb: "list", want: true},
+		{name: "explicit get", operations: []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationGet}, verb: "get", want: true},
+		{name: "legacy list includes get", operations: []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationList}, verb: "get", want: true},
+		{name: "list excluded by get-only rule", operations: []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationGet}, verb: "list"},
+		{name: "mutation verbs are never granted", verb: "update"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			review := &authorizationv1.SelfSubjectAccessReview{
+				Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{
+					Group:    "storage.k8s.io",
+					Version:  "v1",
+					Resource: "storageclasses",
+					Verb:     tt.verb,
+				}},
+				Status: authorizationv1.SubjectAccessReviewStatus{Denied: true},
+			}
+			proxyTenants := []*tenant.ProxyTenant{{ClusterResources: []v1beta1.ClusterResource{{
+				APIGroups:  []string{"storage.k8s.io"},
+				Resources:  []string{"storageclasses"},
+				Operations: tt.operations,
+				Selector:   &metav1.LabelSelector{MatchLabels: map[string]string{"shared": "true"}},
+			}}}}
+
+			var obj runtime.Object = review
+			if err := MutateAuthorization(true, proxyTenants, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if review.Status.Allowed != tt.want {
+				t.Fatalf("allowed=%t, want %t", review.Status.Allowed, tt.want)
+			}
+			if tt.want && review.Status.Denied {
+				t.Fatal("expected Denied to be cleared when proxy grants access")
+			}
+		})
 	}
 }
 

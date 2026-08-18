@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
@@ -28,7 +29,11 @@ func namespacesGVK() *schema.GroupVersionKind {
 // subjects granted access via GlobalProxySettings or ProxySettings can list the
 // corresponding namespaces without being tenant owners.
 func clusterScopedNamespaceNames(ctx context.Context, reader client.Reader, proxyTenants []*tenant.ProxyTenant) ([]string, error) {
-	_, requirements := clusterscoped.GetClusterScopeRequirements(namespacesGVK(), proxyTenants)
+	requirements := clusterscoped.GetClusterScopeRequirements(
+		namespacesGVK(),
+		v1beta1.ClusterResourceOperationList,
+		proxyTenants,
+	)
 	if len(requirements) == 0 {
 		return nil, nil
 	}
@@ -56,7 +61,11 @@ func clusterScopedNamespaceNames(ctx context.Context, reader client.Reader, prox
 // ProxySettings), allowing subjects granted access through those rules to get
 // the namespace without being tenant owners.
 func matchesClusterScopedNamespace(proxyTenants []*tenant.ProxyTenant, ns *corev1.Namespace) bool {
-	_, requirements := clusterscoped.GetClusterScopeRequirements(namespacesGVK(), proxyTenants)
+	requirements := clusterscoped.GetClusterScopeRequirements(
+		namespacesGVK(),
+		v1beta1.ClusterResourceOperationGet,
+		proxyTenants,
+	)
 
 	nsLabels := labels.Set(ns.GetLabels())
 	for _, requirement := range requirements {

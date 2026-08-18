@@ -194,6 +194,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | options.generateCertificates | bool | `false` | Specify if capsule-proxy will generate self-signed SSL certificates |
 | options.ignoredImpersonationGroups | list | `[]` | Names of the groups which are not used for impersonation (considered after impersonation-group-regexp) |
 | options.ignoredUserGroups | list | `[]` | Define which groups must be ignored while proxying requests |
+| options.ignoredUsernames | list | `[]` | Define which usernames must be ignored while proxying requests |
 | options.impersonationGroupRegexp | string | `""` | Regular expression to match the groups which are considered for impersonation |
 | options.leaderElection | bool | `false` | Set leader election to true if you are running n-replicas |
 | options.listeningPort | int | `9001` | Set the listening port of the capsule-proxy |

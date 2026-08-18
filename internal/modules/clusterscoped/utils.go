@@ -14,38 +14,45 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
-// GetClusterScopeRequirements calculates requirements for a given GroupVersionKind based on the ProxyTenants clusterResource configurations.
-func GetClusterScopeRequirements(gvk *schema.GroupVersionKind, proxyTenants []*tenant.ProxyTenant) (operations []v1beta1.ClusterResourceOperation, requirements []labels.Requirement) {
-	operations = []v1beta1.ClusterResourceOperation{}
+// GetClusterScopeRequirements calculates requirements for a given
+// GroupVersionKind and operation based on the ProxyTenants clusterResource
+// configurations. Filtering per rule ensures a GET-only selector does not
+// affect LIST. Legacy LIST rules include GET for v1beta1 compatibility.
+func GetClusterScopeRequirements(
+	gvk *schema.GroupVersionKind,
+	operation v1beta1.ClusterResourceOperation,
+	proxyTenants []*tenant.ProxyTenant,
+) (requirements []labels.Requirement) {
 	requirements = []labels.Requirement{}
 
 	for _, pt := range proxyTenants {
 		for _, cr := range pt.ClusterResources {
-			if matchResource(gvk, cr) {
-				// Append Operations
-				//nolint:staticcheck
-				operations = append(operations, cr.Operations...)
-
-				// Append Selector
-				selector, err := metav1.LabelSelectorAsSelector(cr.Selector)
-				if err != nil {
-					continue
-				}
-
-				reqs, selectable := selector.Requirements()
-				if !selectable {
-					continue
-				}
-
-				requirements = append(requirements, reqs...)
+			if !matchResource(gvk, cr) || !cr.AllowsOperation(operation) {
+				continue
 			}
+
+			selector, err := metav1.LabelSelectorAsSelector(cr.Selector)
+			if err != nil {
+				continue
+			}
+
+			reqs, selectable := selector.Requirements()
+			if !selectable {
+				continue
+			}
+
+			requirements = append(requirements, reqs...)
 		}
 	}
 
-	return operations, requirements
+	return requirements
 }
 
 func matchResource(gvk *schema.GroupVersionKind, cr v1beta1.ClusterResource) bool {
+	if gvk == nil {
+		return false
+	}
+
 	kindMatch := false
 
 	for _, r := range cr.Resources {

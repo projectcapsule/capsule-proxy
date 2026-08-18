@@ -13,6 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
@@ -56,7 +57,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	_, requirements := GetClusterScopeRequirements(gvk, proxyTenants)
+	requirements := GetClusterScopeRequirements(gvk, v1beta1.ClusterResourceOperationList, proxyTenants)
 	if len(requirements) > 0 {
 		switch httpRequest.Method {
 		case http.MethodGet:

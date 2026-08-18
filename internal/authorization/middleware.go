@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 	"github.com/projectcapsule/capsule-proxy/internal/types"
@@ -82,17 +83,14 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 			Kind:    attributes.Resource,
 		}
 
-		verbs, req := clusterscoped.GetClusterScopeRequirements(&accessReviewGvk, proxyTenants)
-		if len(req) == 0 {
+		operation, supported := clusterResourceOperation(attributes.Verb)
+		if !supported {
 			return nil
 		}
 
-		for _, verb := range verbs {
-			if strings.EqualFold(attributes.Verb, verb.String()) {
-				grantAccess(accessReview)
-
-				return nil
-			}
+		requirements := clusterscoped.GetClusterScopeRequirements(&accessReviewGvk, operation, proxyTenants)
+		if len(requirements) > 0 {
+			grantAccess(accessReview)
 		}
 	case "SelfSubjectRulesReview":
 		//nolint:forcetypeassert
@@ -135,8 +133,7 @@ func getAllResourceRules(proxyTenants []*tenant.ProxyTenant) []authorizationv1.R
 		for _, cr := range pt.ClusterResources {
 			verbs := []string{}
 
-			//nolint:staticcheck
-			for _, op := range cr.Operations {
+			for _, op := range cr.EffectiveOperations() {
 				verbs = append(verbs, strings.ToLower(op.String()))
 			}
 
@@ -149,4 +146,15 @@ func getAllResourceRules(proxyTenants []*tenant.ProxyTenant) []authorizationv1.R
 	}
 
 	return resourceRules
+}
+
+func clusterResourceOperation(verb string) (v1beta1.ClusterResourceOperation, bool) {
+	switch {
+	case strings.EqualFold(verb, listVerb):
+		return v1beta1.ClusterResourceOperationList, true
+	case strings.EqualFold(verb, "get"):
+		return v1beta1.ClusterResourceOperationGet, true
+	default:
+		return "", false
+	}
 }
