@@ -56,6 +56,7 @@ func (r ClusterResource) EffectiveOperations() []ClusterResourceOperation {
 	if list {
 		operations = append(operations, ClusterResourceOperationList)
 	}
+
 	if get {
 		operations = append(operations, ClusterResourceOperationGet)
 	}

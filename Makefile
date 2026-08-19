@@ -219,13 +219,13 @@ endif
 	$(MAKE) generate-kubeconfigs
 
 generate-kubeconfigs:
-	CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy -o jsonpath='{.data.ca}') ; \
+	CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') ; \
 	if [ -z "$$CA_B64" ]; then \
-	  echo "ERROR: secret capsule-system/capsule-proxy missing .data[ca]" ; \
+	  echo "ERROR: secret capsule-system/capsule-proxy-root-secret missing .data[ca.crt]" ; \
 	  exit 1 ; \
 	fi;
 	@cd hack \
-		&& CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy -o jsonpath='{.data.ca}') \
+		&& CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') \
 		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- alice oil projectcapsule.dev,capsule.clastix.io \
 		&& mv alice-oil.kubeconfig alice.kubeconfig \
 		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64"  \

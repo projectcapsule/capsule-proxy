@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -18,34 +19,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const namespacesPathSegment = "namespaces"
+
 type resourceRequest struct {
 	group, namespace, resource, name string
 }
 
 func namespacedResourceRequest(path string) (resourceRequest, bool) {
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
-	if slicesContainEmpty(parts) {
+	if slices.Contains(parts, "") {
 		return resourceRequest{}, false
 	}
 
 	switch {
-	case len(parts) == 6 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "namespaces":
+	case len(parts) == 6 && parts[0] == "api" && parts[1] == "v1" && parts[2] == namespacesPathSegment:
 		return resourceRequest{namespace: parts[3], resource: parts[4], name: parts[5]}, true
-	case len(parts) == 7 && parts[0] == "apis" && parts[3] == "namespaces":
+	case len(parts) == 7 && parts[0] == "apis" && parts[3] == namespacesPathSegment:
 		return resourceRequest{group: parts[1], namespace: parts[4], resource: parts[5], name: parts[6]}, true
 	default:
 		return resourceRequest{}, false
 	}
-}
-
-func slicesContainEmpty(values []string) bool {
-	for _, value := range values {
-		if value == "" {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (g *Gate) maskForbiddenForMissingNamespace(response *http.Response) {
@@ -74,6 +67,7 @@ func (g *Gate) maskForbiddenForMissingNamespace(response *http.Response) {
 		schema.GroupResource{Group: resource.group, Resource: resource.resource},
 		resource.name,
 	).ErrStatus
+
 	body, err := json.Marshal(status)
 	if err != nil {
 		return
