@@ -443,7 +443,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 	// Requests handled with a selector are forwarded using the proxy ServiceAccount,
 	// so the Kubernetes audit event cannot retain the original user through
 	// impersonation. Record that identity before replacing the bearer token.
-	n.log.V(4).Info("proxying filtered request", "username", username, "method", request.Method, "uri", request.URL.Path)
+	n.log.V(5).Info("proxying filtered request", "username", username, "method", request.Method, "uri", request.URL.Path)
 
 	req.SanitizeImpersonationHeaders(request)
 
