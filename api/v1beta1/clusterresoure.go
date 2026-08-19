@@ -76,7 +76,7 @@ type ClusterResource struct {
 	// Operations which can be executed on the selected resources. Only GET and
 	// LIST are supported. When omitted, both operations are enabled. LIST also
 	// enables GET for backward compatibility with existing v1beta1 rules.
-	// +kubebuilder:default={List,Get}
+	// +kubebuilder:default:={"List","Get"}
 	Operations []ClusterResourceOperation `json:"operations,omitempty"`
 
 	// Select all cluster scoped resources with the given label selector.
