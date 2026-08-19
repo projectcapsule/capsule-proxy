@@ -6,14 +6,18 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 )
 
 var _ = Describe("Namespaces", func() {
 	var aliceClient, bobClient *kubernetes.Clientset
+	var createdNamespaces []string
 
 	// Create Global Proxy Settings
 	wind := &capsulev1beta2.Tenant{
@@ -85,6 +89,7 @@ var _ = Describe("Namespaces", func() {
 	BeforeEach(func() {
 		var err error
 
+		createdNamespaces = nil
 		aliceClient, err = loadKubeConfig("alice")
 		Expect(err).ToNot(HaveOccurred())
 		bobClient, err = loadKubeConfig("bob")
@@ -100,8 +105,24 @@ var _ = Describe("Namespaces", func() {
 	})
 
 	JustAfterEach(func() {
+		for _, namespace := range createdNamespaces {
+			namespace := namespace
+			Eventually(func() error {
+				return client.IgnoreNotFound(k8sClient.Delete(context.Background(), &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{Name: namespace},
+				}))
+			}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), client.ObjectKey{Name: namespace}, &corev1.Namespace{})
+
+				return apierrors.IsNotFound(err)
+			}, defaultTimeoutInterval, defaultPollInterval).Should(BeTrue(), "namespace %q should be deleted", namespace)
+		}
+
 		for _, tnt := range []*capsulev1beta2.Tenant{solar, wind} {
-			Expect(k8sClient.Delete(context.TODO(), tnt)).Should(Succeed())
+			Eventually(func() error {
+				return client.IgnoreNotFound(k8sClient.Delete(context.Background(), tnt))
+			}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
 		}
 	})
 
@@ -111,12 +132,14 @@ var _ = Describe("Namespaces", func() {
 			"capsule.clastix.io/tenant": "wind",
 		}
 		NamespaceCreation(nsAlice1, wind.Spec.Owners[0], defaultTimeoutInterval).Should(Succeed())
+		createdNamespaces = append(createdNamespaces, nsAlice1.Name)
 
 		nsAlice2 := NewNamespace("")
 		nsAlice2.Labels = map[string]string{
 			"capsule.clastix.io/tenant": "wind",
 		}
 		NamespaceCreation(nsAlice2, wind.Spec.Owners[0], defaultTimeoutInterval).Should(Succeed())
+		createdNamespaces = append(createdNamespaces, nsAlice2.Name)
 
 		listNamespaces := func(clientset *kubernetes.Clientset) ([]string, error) {
 			ns, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
@@ -133,23 +156,27 @@ var _ = Describe("Namespaces", func() {
 
 		Eventually(func() ([]string, error) {
 			return listNamespaces(aliceClient)
-		}).Should(ConsistOf(nsAlice1.GetName(), nsAlice2.GetName()), "Alice should only have access to the expected namespaces, order does not matter")
+		}, defaultTimeoutInterval, defaultPollInterval).
+			Should(ConsistOf(nsAlice1.GetName(), nsAlice2.GetName()), "Alice should only have access to the expected namespaces, order does not matter")
 
 		nsBob1 := NewNamespace("")
 		nsBob1.Labels = map[string]string{
 			"capsule.clastix.io/tenant": "solar",
 		}
 		NamespaceCreation(nsBob1, solar.Spec.Owners[0], defaultTimeoutInterval).Should(Succeed())
+		createdNamespaces = append(createdNamespaces, nsBob1.Name)
 
 		nsBob2 := NewNamespace("")
 		nsBob2.Labels = map[string]string{
 			"capsule.clastix.io/tenant": "solar",
 		}
 		NamespaceCreation(nsBob2, solar.Spec.Owners[0], defaultTimeoutInterval).Should(Succeed())
+		createdNamespaces = append(createdNamespaces, nsBob2.Name)
 
 		Eventually(func() ([]string, error) {
 			return listNamespaces(bobClient)
-		}).Should(ConsistOf(nsBob1.GetName(), nsBob2.GetName()), "Alice should only have access to the expected namespaces, order does not matter")
+		}, defaultTimeoutInterval, defaultPollInterval).
+			Should(ConsistOf(nsBob1.GetName(), nsBob2.GetName()), "Bob should only have access to the expected namespaces, order does not matter")
 
 	})
 })

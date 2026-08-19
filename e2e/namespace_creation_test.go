@@ -95,6 +95,11 @@ var _ = Describe("Namespace create-if-missing clients", func() {
 					ObjectMeta: metav1.ObjectMeta{Name: namespace},
 				}))
 			}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), client.ObjectKey{Name: namespace}, &corev1.Namespace{})
+
+				return apierrors.IsNotFound(err)
+			}, defaultTimeoutInterval, defaultPollInterval).Should(BeTrue(), "namespace %q should be deleted", namespace)
 		}
 
 		for _, tenant := range []*capsulev1beta2.Tenant{aliceTenant, bobTenant} {
