@@ -24,13 +24,7 @@ KUBERNETES_SUPPORTED_VERSION ?= "v1.35.0"
 KUBECTL ?= kubectl
 HELM ?= helm
 
-OS := $(shell uname)
 SRC_ROOT = $(shell git rev-parse --show-toplevel)
-ifeq ($(OS),Darwin)
-	ROOTCA=~/Library/Application\ Support/mkcert/rootCA.pem
-else
-	ROOTCA=~/.local/share/mkcert/rootCA.pem
-endif
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -167,6 +161,26 @@ e2e-load-image: kind ko-build-all
 e2e-destroy: kind
 	$(KIND) delete cluster --name capsule
 
+.PHONY: ensure-e2e-certificate
+ensure-e2e-certificate: mkcert
+	@CA_VALUE=$$($(KUBECTL) --namespace capsule-system get secret capsule-proxy \
+		--output go-template='{{ with index .data "ca" }}{{ . | base64decode }}{{ end }}' 2>/dev/null || true); \
+	if [ -n "$$CA_VALUE" ]; then \
+		echo "Reusing CA from secret capsule-system/capsule-proxy"; \
+	else \
+		echo "Creating mkcert CA and secret capsule-system/capsule-proxy"; \
+		$(MKCERT) -install; \
+		$(MKCERT) -cert-file "$(SRC_ROOT)/hack/127.0.0.1.pem" \
+			-key-file "$(SRC_ROOT)/hack/127.0.0.1-key.pem" \
+			127.0.0.1 localhost proxy.capsule.local; \
+		CA_ROOT=$$($(MKCERT) -CAROOT); \
+		$(KUBECTL) --namespace capsule-system create secret generic capsule-proxy \
+			--from-file="tls.key=$(SRC_ROOT)/hack/127.0.0.1-key.pem" \
+			--from-file="tls.crt=$(SRC_ROOT)/hack/127.0.0.1.pem" \
+			--from-file="ca=$$CA_ROOT/rootCA.pem" \
+			--dry-run=client --output yaml | $(KUBECTL) apply --filename -; \
+	fi
+
 install-capsule-proxy: mkcert e2e-load-image
 	@echo "Installing Capsule-Proxy..."
 ifeq ($(CAPSULE_PROXY_MODE),http)
@@ -196,6 +210,7 @@ ifeq ($(CAPSULE_PROXY_MODE),http)
 		--set "options.extraArgs={--feature-gates=ProxyClusterScoped=true}"
 else
 	@echo "Running in HTTPS mode"
+	$(MAKE) ensure-e2e-certificate
 	@echo "Installing Capsule-Proxy using HELM..."
 	@helm upgrade --force-conflicts --install capsule-proxy ./charts/capsule-proxy -n capsule-system \
 		--set "image.pullPolicy=Never" \
@@ -218,14 +233,18 @@ endif
 	@kubectl rollout restart ds capsule-proxy -n capsule-system || true
 	$(MAKE) generate-kubeconfigs
 
-generate-kubeconfigs:
-	CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') ; \
-	if [ -z "$$CA_B64" ]; then \
-	  echo "ERROR: secret capsule-system/capsule-proxy-root-secret missing .data[ca.crt]" ; \
-	  exit 1 ; \
-	fi;
-	@cd hack \
-		&& CA_B64=$$(kubectl -n capsule-system get secret capsule-proxy-root-secret -o jsonpath='{.data.ca\.crt}') \
+generate-kubeconfigs: ensure-e2e-certificate
+	@CA_VALUE=$$($(KUBECTL) --namespace capsule-system get secret capsule-proxy \
+		--output go-template='{{ with index .data "ca" }}{{ . | base64decode }}{{ end }}'); \
+	if [ -z "$$CA_VALUE" ]; then \
+		echo "ERROR: secret capsule-system/capsule-proxy missing .data[ca]"; \
+		exit 1; \
+	fi; \
+	case "$$CA_VALUE" in \
+		"-----BEGIN CERTIFICATE-----"*) CA_B64=$$(printf '%s' "$$CA_VALUE" | base64 | tr -d '\r\n') ;; \
+		*) CA_B64=$$(printf '%s' "$$CA_VALUE" | tr -d '\r\n') ;; \
+	esac; \
+	cd hack \
 		&& curl -s https://raw.githubusercontent.com/projectcapsule/capsule/main/hack/create-user.sh | bash -s -- alice oil projectcapsule.dev,capsule.clastix.io \
 		&& mv alice-oil.kubeconfig alice.kubeconfig \
 		&& KUBECONFIG=alice.kubeconfig kubectl config set clusters.kind-capsule.certificate-authority-data "$$CA_B64"  \
