@@ -19,10 +19,10 @@ import (
 	weberrors "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 )
 
-func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUserGroups sets.Set[string], ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
+func CheckUserInIgnoredIdentityMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredUsernames, ignoredUserGroups sets.Set[string], ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, fn func(writer http.ResponseWriter, request *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			if ignoredUserGroups.Len() == 0 {
+			if ignoredUsernames.Len() == 0 && ignoredUserGroups.Len() == 0 {
 				next.ServeHTTP(writer, request)
 
 				return
@@ -36,10 +36,8 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 				return
 			}
 
-			if slices.ContainsFunc(groups, func(group string) bool {
-				return ignoredUserGroups.Has(group)
-			}) {
-				log.V(5).Info("current user belongs to ignored groups", "user", user)
+			if identityIsIgnored(user, groups, ignoredUsernames, ignoredUserGroups) {
+				log.V(5).Info("current user is ignored by proxy filtering", "user", user)
 				fn(writer, request)
 
 				return
@@ -48,6 +46,10 @@ func CheckUserInIgnoredGroupMiddleware(client client.Writer, log logr.Logger, cl
 			next.ServeHTTP(writer, request)
 		})
 	}
+}
+
+func identityIsIgnored(username string, groups []string, ignoredUsernames, ignoredUserGroups sets.Set[string]) bool {
+	return ignoredUsernames.Has(username) || slices.ContainsFunc(groups, ignoredUserGroups.Has)
 }
 
 func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {

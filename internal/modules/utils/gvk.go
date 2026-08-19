@@ -12,8 +12,13 @@ import (
 )
 
 // ReplacePluralWithKind returns the GroupVersionKind for a given plural name.
-func ReplacePluralWithKind(discoveryClient *discovery.DiscoveryClient, gvk *schema.GroupVersionKind) error {
-	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(gvk.Group + "/" + gvk.Version)
+func ReplacePluralWithKind(discoveryClient discovery.DiscoveryInterface, gvk *schema.GroupVersionKind) error {
+	groupVersion := gvk.Version
+	if gvk.Group != "" {
+		groupVersion = gvk.Group + "/" + gvk.Version
+	}
+
+	resourceList, err := discoveryClient.ServerResourcesForGroupVersion(groupVersion)
 	if err != nil {
 		return err
 	}
@@ -29,20 +34,21 @@ func ReplacePluralWithKind(discoveryClient *discovery.DiscoveryClient, gvk *sche
 	return fmt.Errorf("could not find GVK for plural name: %s", gvk.Kind)
 }
 
-// GetGVKFromURL since the URL is in the format /apis/{group}/{version}/{kind} or /api/{version}/{kind}, we can extract the GVK from the URL.
-// However the kind will be the plural form.
-func GetGVKFromURL(url string) *schema.GroupVersionKind {
-	parts := strings.Split(url, "/")
+// GetGVKFromURL extracts the GroupVersionKind from a cluster-scoped collection
+// or named-resource URL. Kind contains the plural API resource name until
+// ReplacePluralWithKind resolves it through discovery.
+func GetGVKFromURL(path string) *schema.GroupVersionKind {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
 
-	switch len(parts) {
-	case 5, 6:
+	switch {
+	case parts[0] == "api" && (len(parts) == 3 || len(parts) == 4):
 		return &schema.GroupVersionKind{
-			Group:   parts[2],
-			Version: parts[3],
-			Kind:    parts[4],
+			Version: parts[1],
+			Kind:    parts[2],
 		}
-	case 4:
+	case parts[0] == "apis" && (len(parts) == 4 || len(parts) == 5):
 		return &schema.GroupVersionKind{
+			Group:   parts[1],
 			Version: parts[2],
 			Kind:    parts[3],
 		}

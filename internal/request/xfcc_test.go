@@ -100,7 +100,7 @@ func TestHTTP_processXFCC(t *testing.T) {
 			headerVals: []string{
 				`Cert="hello-world"`,
 			},
-			wantErr: "invalid forwarded client certificate: Cert field is not valid PEM",
+			wantErr: "invalid forwarded client certificate: cert field is not valid PEM",
 		},
 		{
 			name:       "hash mismatch",
@@ -232,7 +232,7 @@ func TestParseXFCCCert(t *testing.T) {
 		{
 			name:    "not pem",
 			value:   url.QueryEscape("not-a-pem"),
-			wantErr: "Cert field is not valid PEM",
+			wantErr: "cert field is not valid PEM",
 		},
 		{
 			name:    "wrong pem block type",
@@ -242,7 +242,7 @@ func TestParseXFCCCert(t *testing.T) {
 		{
 			name:    "pem with trailing data",
 			value:   url.QueryEscape(valid.pem + "\ntrailing"),
-			wantErr: "Cert field contains trailing unexpected data",
+			wantErr: "cert field contains trailing unexpected data",
 		},
 	}
 

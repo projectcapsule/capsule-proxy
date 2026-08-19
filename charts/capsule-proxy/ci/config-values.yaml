@@ -12,6 +12,10 @@ options:
   ignoredUserGroups:
     - "group-1"
     - "group-2"
+  # -- Define which usernames must be ignored while proxying requests
+  ignoredUsernames:
+    - "alice"
+    - "service-user"
   # --  Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)
   ignoredImpersonationGroups:
     - "group-1"

@@ -17,6 +17,7 @@ type ListenerOpts interface {
 	AuthTypes() []request.AuthType
 	KubernetesControlPlaneURL() *url.URL
 	IgnoredGroupNames() []string
+	IgnoredUsernames() []string
 	IgnoredImpersonationsGroups() []string
 	ImpersonationGroupsRegexp() *regexp.Regexp
 	PreferredUsernameClaim() string

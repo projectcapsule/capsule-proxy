@@ -69,17 +69,20 @@ spec:
                               type: string
                             type: array
                           operations:
+                            default:
+                            - List
+                            - Get
                             description: |-
-                              Deprecated: For all registered Routes only LIST ang GET requests will intercepted
-
-                              Operations which can be executed on the selected resources.
-                              Other permissions must be implemented via kubernetes native RBAC
+                              Operations which can be executed on the selected resources. Only GET and
+                              LIST are supported. When omitted, both operations are enabled. LIST also
+                              enables GET for backward compatibility with existing v1beta1 rules.
                             items:
-                              description: ClusterResourceOperation
+                              description: |-
+                                ClusterResourceOperation is an operation capsule-proxy can perform on a
+                                selected cluster-scoped resource.
                               enum:
                               - List
-                              - Update
-                              - Delete
+                              - Get
                               type: string
                             type: array
                           resources:

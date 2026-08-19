@@ -91,7 +91,7 @@ func main() {
 		err                                                                                                                                error
 		mgr                                                                                                                                ctrl.Manager
 		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr, xfccHeaderName string
-		capsuleUserGroups, ignoredUserGroups, ignoreImpersonationGroups, allowedPaths, trustedProxyCIDRStrings                             []string
+		capsuleUserGroups, ignoredUserGroups, ignoredUsernames, ignoreImpersonationGroups, allowedPaths, trustedProxyCIDRStrings           []string
 		listeningPort                                                                                                                      uint
 		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                                   bool
 		rolebindingsResyncPeriod                                                                                                           time.Duration
@@ -182,6 +182,12 @@ func main() {
 		"ignored-user-group",
 		[]string{},
 		"Names of the groups which requests must be ignored and proxy-passed to the upstream server",
+	)
+	flag.StringSliceVar(
+		&ignoredUsernames,
+		"ignored-username",
+		[]string{},
+		"Usernames whose requests must be ignored and proxy-passed to the upstream server",
 	)
 	flag.StringSliceVar(
 		&ignoreImpersonationGroups,
@@ -309,6 +315,7 @@ First match is used and can be specified multiple times as comma separated value
 	}
 
 	log.Info(fmt.Sprintf("The ignored User Groups are %v", ignoredUserGroups))
+	log.Info(fmt.Sprintf("The ignored Usernames are %v", ignoredUsernames))
 	log.Info(fmt.Sprintf("The OIDC username selected is %s", usernameClaimField))
 
 	if impersonationGroupsRegexp != "" {
@@ -408,6 +415,7 @@ First match is used and can be specified multiple times as comma separated value
 	if listenerOpts, err = options.NewKube(
 		authTypes,
 		ignoredUserGroups,
+		ignoredUsernames,
 		usernameClaimField,
 		config,
 		ignoreImpersonationGroups,

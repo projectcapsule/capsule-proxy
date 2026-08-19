@@ -130,7 +130,7 @@ func ValidateClusterResourceBlock(
 
 		if hasWildcard(clusterResource.Resources) {
 			for resourceName, resource := range resources {
-				if err := validateDiscoveredClusterResource(fieldPath, apiGroup, resourceName, resource); err != nil {
+				if err := validateDiscoveredClusterResource(fieldPath, apiGroup, resourceName, resource, clusterResource.EffectiveOperations()); err != nil {
 					errs = append(errs, err)
 				}
 			}
@@ -151,7 +151,7 @@ func ValidateClusterResourceBlock(
 				continue
 			}
 
-			if err := validateDiscoveredClusterResource(fieldPath, apiGroup, resourceName, resource); err != nil {
+			if err := validateDiscoveredClusterResource(fieldPath, apiGroup, resourceName, resource, clusterResource.EffectiveOperations()); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -165,6 +165,7 @@ func validateDiscoveredClusterResource(
 	apiGroup string,
 	resourceName string,
 	resource DiscoveredClusterResource,
+	operations []capsuleproxyv1beta1.ClusterResourceOperation,
 ) error {
 	var errs []error
 
@@ -177,12 +178,18 @@ func validateDiscoveredClusterResource(
 		))
 	}
 
-	if !slices.Contains(resource.Verbs, "list") {
+	for _, operation := range operations {
+		verb := strings.ToLower(operation.String())
+		if slices.Contains(resource.Verbs, verb) {
+			continue
+		}
+
 		errs = append(errs, fmt.Errorf(
-			"%s.resources: resource %q in API group %q does not support LIST",
+			"%s.resources: resource %q in API group %q does not support %s",
 			fieldPath,
 			resourceName,
 			apiGroup,
+			operation,
 		))
 	}
 
@@ -195,22 +202,19 @@ func validateClusterResourceOperations(
 ) error {
 	var errs []error
 
-	//nolint:staticcheck
 	for operationIndex, operation := range clusterResource.Operations {
-		if operation == capsuleproxyv1beta1.ClusterResourceOperationList {
-			continue
-		}
-
-		if string(operation) == wildcard {
+		if operation == capsuleproxyv1beta1.ClusterResourceOperationList ||
+			operation == capsuleproxyv1beta1.ClusterResourceOperationGet {
 			continue
 		}
 
 		errs = append(errs, fmt.Errorf(
-			"%s.operations[%d]: unsupported operation %q, only %q is supported",
+			"%s.operations[%d]: unsupported operation %q, only %q and %q are supported",
 			fieldPath,
 			operationIndex,
 			operation,
 			capsuleproxyv1beta1.ClusterResourceOperationList,
+			capsuleproxyv1beta1.ClusterResourceOperationGet,
 		))
 	}
 

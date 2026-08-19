@@ -10,6 +10,7 @@ import (
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -18,7 +19,7 @@ import (
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 )
 
-var _ = Describe("GlobalProxySettings resource lists", func() {
+var _ = Describe("GlobalProxySettings resource access", func() {
 	const selectionLabel = "proxy.projectcapsule.dev/e2e-selection"
 
 	var aliceClient, bobClient *kubernetes.Clientset
@@ -40,6 +41,18 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 			},
 		}
 	}
+	defaultOperations := func(apiGroup string, resources []string, selection string) v1beta1.ClusterResource {
+		resource := clusterResource(apiGroup, resources, selection)
+		resource.Operations = nil
+
+		return resource
+	}
+	getResource := func(apiGroup string, resources []string, selection string) v1beta1.ClusterResource {
+		resource := clusterResource(apiGroup, resources, selection)
+		resource.Operations = []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationGet}
+
+		return resource
+	}
 
 	BeforeEach(func() {
 		settings := &v1beta1.GlobalProxySettings{
@@ -50,8 +63,9 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 						// Explicit resources across three different GVKs.
 						ClusterResources: []v1beta1.ClusterResource{
 							clusterResource("", []string{"namespaces"}, "first"),
+							defaultOperations("", []string{"persistentvolumes"}, "first"),
 							clusterResource("capsule.clastix.io", []string{"tenants"}, "first"),
-							clusterResource("rbac.authorization.k8s.io", []string{"clusterroles"}, "first"),
+							defaultOperations("rbac.authorization.k8s.io", []string{"clusterroles"}, "first"),
 						},
 						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "alice"}},
 					},
@@ -91,6 +105,13 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 							clusterResource("*", []string{"*"}, "wrong"),
 						},
 						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "somebody-else"}},
+					},
+					{
+						// GET can be enabled independently without including the resource in LIST.
+						ClusterResources: []v1beta1.ClusterResource{
+							getResource("rbac.authorization.k8s.io", []string{"clusterroles"}, "get-only"),
+						},
+						Subjects: []v1beta1.GlobalSubject{{Kind: "User", Name: "alice"}},
 					},
 				},
 			},
@@ -132,6 +153,7 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 		}
 
 		resources := []client.Object{
+			&corev1.PersistentVolume{},
 			&capsulev1beta2.Tenant{},
 			&rbacv1.ClusterRole{},
 			&v1beta1.GlobalProxySettings{},
@@ -141,7 +163,7 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 		}, defaultTimeoutInterval, defaultPollInterval).Should(Succeed())
 	})
 
-	It("combines resources and selectors while excluding incorrect rules", func() {
+	It("applies default and explicit LIST/GET operations without crossing selectors", func() {
 		owner := capsulerbac.OwnerListSpec{{
 			CoreOwnerSpec: capsulerbac.CoreOwnerSpec{
 				UserSpec: capsulerbac.UserSpec{Name: "global-list-resource-owner", Kind: "User"},
@@ -168,12 +190,25 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 			{ObjectMeta: metav1.ObjectMeta{Name: "global-list-role-second", Labels: labelsFor("second")}},
 			{ObjectMeta: metav1.ObjectMeta{Name: "global-list-role-wrong", Labels: labelsFor("wrong")}},
 			{ObjectMeta: metav1.ObjectMeta{Name: "global-list-role-unmatched", Labels: labelsFor("unmatched")}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "global-get-role", Labels: labelsFor("get-only")}},
+		}
+		persistentVolume := &corev1.PersistentVolume{
+			ObjectMeta: metav1.ObjectMeta{Name: "global-get-persistent-volume", Labels: labelsFor("first")},
+			Spec: corev1.PersistentVolumeSpec{
+				Capacity:                      corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Gi")},
+				AccessModes:                   []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+				PersistentVolumeSource: corev1.PersistentVolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{Path: "/tmp/global-get-persistent-volume"},
+				},
+			},
 		}
 
 		for _, objects := range [][]client.Object{
 			{tenants[0], tenants[1], tenants[2], tenants[3], tenants[4]},
 			{namespaces[0], namespaces[1], namespaces[2], namespaces[3], namespaces[4]},
-			{roles[0], roles[1], roles[2], roles[3], roles[4]},
+			{roles[0], roles[1], roles[2], roles[3], roles[4], roles[5]},
+			{persistentVolume},
 		} {
 			for _, object := range objects {
 				object := object
@@ -248,5 +283,25 @@ var _ = Describe("GlobalProxySettings resource lists", func() {
 			Should(BeEmpty())
 		Eventually(func() ([]string, error) { return listClusterRoles(bobClient) }, defaultTimeoutInterval, defaultPollInterval).
 			Should(BeEmpty())
+
+		// Omitted operations default to LIST and GET.
+		_, err := aliceClient.RbacV1().ClusterRoles().Get(context.Background(), roles[0].Name, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// An explicit GET-only rule permits a named read but does not leak the
+		// object into the collection result asserted above.
+		_, err = aliceClient.RbacV1().ClusterRoles().Get(context.Background(), roles[5].Name, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Existing v1beta1 settings commonly contain an explicit LIST because it
+		// was the only supported value. It must continue to authorize named GETs.
+		_, err = aliceClient.RbacV1().ClusterRoles().Get(context.Background(), roles[2].Name, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Core named-resource paths use /api/{version}/{resource}/{name}; this
+		// protects the persistent-volume regression where that path was parsed as
+		// a grouped API and fell through to the subject's native RBAC.
+		_, err = aliceClient.CoreV1().PersistentVolumes().Get(context.Background(), persistentVolume.Name, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
 	})
 })

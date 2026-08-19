@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
@@ -28,16 +29,16 @@ import (
 type get struct {
 	path      string
 	log       logr.Logger
-	discovery *discovery.DiscoveryClient
+	discovery discovery.DiscoveryInterface
 	reader    client.Reader
 	writer    client.Writer
 }
 
-func Get(discovery *discovery.DiscoveryClient, client client.Reader, writer client.Writer, path string) modules.Module {
+func Get(discoveryClient discovery.DiscoveryInterface, client client.Reader, writer client.Writer, path string) modules.Module {
 	return &get{
 		path:      path,
 		log:       ctrl.Log.WithName("clusterresource_get"),
-		discovery: discovery,
+		discovery: discoveryClient,
 		reader:    client,
 		writer:    writer,
 	}
@@ -64,7 +65,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	_, requirements := GetClusterScopeRequirements(gvk, proxyTenants)
+	requirements := GetClusterScopeRequirements(gvk, v1beta1.ClusterResourceOperationGet, proxyTenants)
 
 	if len(requirements) > 0 {
 		switch httpRequest.Method {

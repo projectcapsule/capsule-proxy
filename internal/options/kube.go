@@ -24,6 +24,7 @@ type kubeOpts struct {
 	allowedPaths               []string
 	url                        url.URL
 	ignoredGroups              []string
+	ignoredUsernames           []string
 	ignoredImpersonationGroups []string
 	skipImpersonationReview    bool
 	claimName                  string
@@ -36,6 +37,7 @@ type kubeOpts struct {
 func NewKube(
 	authTypes []request.AuthType,
 	ignoredGroups []string,
+	ignoredUsernames []string,
 	claimName string,
 	config *rest.Config,
 	ignoredImpersonationGroups []string,
@@ -67,6 +69,7 @@ func NewKube(
 		authTypes:                  authTypes,
 		url:                        *u,
 		ignoredGroups:              ignoredGroups,
+		ignoredUsernames:           ignoredUsernames,
 		ignoredImpersonationGroups: ignoredImpersonationGroups,
 		impersonationGroupsRegexp:  impersonationGroupsRegexp,
 		skipImpersonationReview:    skipImpersonationReview,
@@ -108,6 +111,10 @@ func (k kubeOpts) KubernetesControlPlaneURL() *url.URL {
 
 func (k kubeOpts) IgnoredGroupNames() []string {
 	return k.ignoredGroups
+}
+
+func (k kubeOpts) IgnoredUsernames() []string {
+	return k.ignoredUsernames
 }
 
 func (k kubeOpts) IgnoredImpersonationsGroups() []string {

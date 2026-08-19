@@ -62,6 +62,9 @@ spec:
     {{- range .Values.options.ignoredUserGroups }}
     - --ignored-user-group={{ . }}
     {{- end}}
+    {{- range .Values.options.ignoredUsernames }}
+    - --ignored-username={{ . }}
+    {{- end}}
     - --zap-log-level={{ .Values.options.logLevel }}
     - --enable-ssl={{ .Values.options.enableSSL }}
     - --oidc-username-claim={{ .Values.options.oidcUsernameClaim }}

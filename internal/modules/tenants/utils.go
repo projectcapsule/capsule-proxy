@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
@@ -26,7 +27,11 @@ func tenantsGVK() *schema.GroupVersionKind {
 }
 
 func clusterScopedTenantNames(ctx context.Context, reader client.Reader, proxyTenants []*tenant.ProxyTenant) ([]string, error) {
-	_, requirements := clusterscoped.GetClusterScopeRequirements(tenantsGVK(), proxyTenants)
+	requirements := clusterscoped.GetClusterScopeRequirements(
+		tenantsGVK(),
+		v1beta1.ClusterResourceOperationList,
+		proxyTenants,
+	)
 	if len(requirements) == 0 {
 		return nil, nil
 	}
@@ -50,7 +55,11 @@ func clusterScopedTenantNames(ctx context.Context, reader client.Reader, proxyTe
 }
 
 func matchesClusterScopedTenant(proxyTenants []*tenant.ProxyTenant, obj *capsulev1beta2.Tenant) bool {
-	_, requirements := clusterscoped.GetClusterScopeRequirements(tenantsGVK(), proxyTenants)
+	requirements := clusterscoped.GetClusterScopeRequirements(
+		tenantsGVK(),
+		v1beta1.ClusterResourceOperationGet,
+		proxyTenants,
+	)
 	tenantLabels := labels.Set(obj.GetLabels())
 
 	for _, requirement := range requirements {
