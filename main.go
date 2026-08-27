@@ -91,7 +91,7 @@ func main() {
 		err                                                                                                                                error
 		mgr                                                                                                                                ctrl.Manager
 		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr, xfccHeaderName string
-		ignoredUserGroups, ignoredUsernames, ignoreImpersonationGroups, allowedPaths, trustedProxyCIDRStrings                              []string
+		ignoredUserGroups, ignoredUsernames, ignoreImpersonationGroups, allowedPaths, publicPaths, trustedProxyCIDRStrings                 []string
 		listeningPort                                                                                                                      uint
 		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                                   bool
 		rolebindingsResyncPeriod                                                                                                           time.Duration
@@ -158,6 +158,12 @@ func main() {
 			"/api", "/apis", "/version",
 		},
 		"URL paths which are not inspected by capsule-proxy (still require valid authentication)",
+	)
+	flag.StringSliceVar(
+		&publicPaths,
+		"public-paths",
+		nil,
+		"URL paths passed directly to the upstream server without capsule-proxy authentication (trusted-proxy-cidrs still apply)",
 	)
 	flag.StringSliceVar(
 		&trustedProxyCIDRStrings,
@@ -424,6 +430,7 @@ First match is used and can be specified multiple times as comma separated value
 		trustedProxyCIDRStrings,
 		xfccHeaderName,
 		allowedPaths,
+		publicPaths,
 	); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)

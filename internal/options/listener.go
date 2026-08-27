@@ -28,4 +28,5 @@ type ListenerOpts interface {
 	TrustedProxyCIDRs() []*net.IPNet
 	XFCCHeader() string
 	AllowedPaths() []string
+	PublicPaths() []string
 }
