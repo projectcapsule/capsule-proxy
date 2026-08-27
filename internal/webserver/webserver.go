@@ -71,6 +71,8 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/namespacegate"
 )
 
+const bearerTokenReloadRetryDelay = time.Minute
+
 func NewKubeFilter(
 	opts options.ListenerOpts,
 	srv options.ServerOptions,
@@ -327,11 +329,23 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 }
 
 func (n *kubeFilter) BearerToken() string {
+	if n.bearerTokenFile == "" {
+		return n.bearerToken
+	}
+
 	if time.Now().After(n.bearerTokenExpirationTime) {
-		n.log.V(5).Info("Token expired. Reading new token from file", "token", n.bearerToken, "token file", n.bearerTokenFile)
-		token, _ := os.ReadFile(n.bearerTokenFile)
+		n.log.V(5).Info("Token expired. Reading new token from file", "token file", n.bearerTokenFile)
+
+		token, err := os.ReadFile(n.bearerTokenFile)
+		if err != nil {
+			n.bearerTokenExpirationTime = time.Now().Add(bearerTokenReloadRetryDelay)
+			n.log.Error(err, "cannot read bearer token from file", "token file", n.bearerTokenFile)
+
+			return n.bearerToken
+		}
+
 		n.bearerToken = string(token)
-		n.bearerTokenExpirationTime = bearerExpirationTime(string(token))
+		n.bearerTokenExpirationTime = bearerExpirationTime(n.bearerToken)
 	}
 
 	return n.bearerToken
@@ -481,7 +495,7 @@ func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Select
 	request.URL.RawQuery = q.Encode()
 
 	if token := n.BearerToken(); len(token) > 0 {
-		n.log.V(10).Info("Updating the token", "token", token)
+		n.log.V(10).Info("Updating the authorization header with the proxy bearer token")
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
 }
@@ -825,8 +839,15 @@ func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
 }
 
 func bearerExpirationTime(tokenString string) time.Time {
-	token, _, _ := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
-	claims, _ := token.Claims.(jwt.MapClaims)
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil || token == nil {
+		return time.Time{}
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return time.Time{}
+	}
 
 	var mil int64
 
