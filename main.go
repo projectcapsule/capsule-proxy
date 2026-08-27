@@ -91,7 +91,7 @@ func main() {
 		err                                                                                                                                error
 		mgr                                                                                                                                ctrl.Manager
 		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr, xfccHeaderName string
-		capsuleUserGroups, ignoredUserGroups, ignoredUsernames, ignoreImpersonationGroups, allowedPaths, trustedProxyCIDRStrings           []string
+		ignoredUserGroups, ignoredUsernames, ignoreImpersonationGroups, allowedPaths, trustedProxyCIDRStrings                              []string
 		listeningPort                                                                                                                      uint
 		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                                   bool
 		rolebindingsResyncPeriod                                                                                                           time.Duration
@@ -152,7 +152,7 @@ func main() {
 		"The address the metric endpoint binds to.",
 	)
 	flag.StringSliceVar(
-		&capsuleUserGroups,
+		&allowedPaths,
 		"allowed-paths",
 		[]string{
 			"/api", "/apis", "/version",
