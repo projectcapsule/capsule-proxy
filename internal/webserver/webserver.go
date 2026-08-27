@@ -190,6 +190,14 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 		_, _ = writer.Write([]byte("ok"))
 	})
 
+	// Served without authentication: clients retrieve this document before
+	// they have any credentials (e.g. oc login --web). The upstream API
+	// server answers the path anonymously. Trusted-source restrictions and
+	// GET/HEAD methods still apply.
+	oauthMetadata := r.Path("/.well-known/oauth-authorization-server").Subrouter()
+	oauthMetadata.Use(middleware.RequireTrustedSourceMiddleware(n.log, n.trustedProxyCIDRs))
+	oauthMetadata.Methods(http.MethodGet, http.MethodHead).Handler(n.reverseProxy)
+
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
 	root.Use(
