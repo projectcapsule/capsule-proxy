@@ -320,6 +320,10 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 }
 
 func (n *kubeFilter) BearerToken() string {
+	if n.bearerTokenFile == "" {
+		return n.bearerToken
+	}
+
 	if time.Now().After(n.bearerTokenExpirationTime) {
 		n.log.V(5).Info("Token expired. Reading new token from file", "token", n.bearerToken, "token file", n.bearerTokenFile)
 		token, _ := os.ReadFile(n.bearerTokenFile)
@@ -818,8 +822,15 @@ func (n *kubeFilter) removingHopByHopHeaders(request *http.Request) {
 }
 
 func bearerExpirationTime(tokenString string) time.Time {
-	token, _, _ := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
-	claims, _ := token.Claims.(jwt.MapClaims)
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil || token == nil {
+		return time.Time{}
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return time.Time{}
+	}
 
 	var mil int64
 
