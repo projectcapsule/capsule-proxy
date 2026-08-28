@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 
@@ -22,6 +23,7 @@ import (
 type kubeOpts struct {
 	authTypes                  []request.AuthType
 	allowedPaths               []string
+	publicPaths                []string
 	url                        url.URL
 	ignoredGroups              []string
 	ignoredUsernames           []string
@@ -46,7 +48,13 @@ func NewKube(
 	trustedProxyCIDRStrings []string,
 	xfcc_header string,
 	allowedPaths []string,
+	publicPaths []string,
 ) (ListenerOpts, error) {
+	overlappingPaths := sets.New(allowedPaths...).Intersection(sets.New(publicPaths...))
+	if overlappingPaths.Len() > 0 {
+		return nil, fmt.Errorf("allowed paths and public paths must not overlap: %v", sets.List(overlappingPaths))
+	}
+
 	u, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create Kubernetes Options due to failed URL parsing: %w", err)
@@ -78,6 +86,7 @@ func NewKube(
 		trustedProxyCIDRs:          trustedProxyCIDRs,
 		xfcc_header:                xfcc_header,
 		allowedPaths:               allowedPaths,
+		publicPaths:                publicPaths,
 	}, nil
 }
 
@@ -87,6 +96,10 @@ func (k kubeOpts) AuthTypes() []request.AuthType {
 
 func (k kubeOpts) AllowedPaths() []string {
 	return k.allowedPaths
+}
+
+func (k kubeOpts) PublicPaths() []string {
+	return k.publicPaths
 }
 
 func (k kubeOpts) TrustedProxyCIDRs() []*net.IPNet {

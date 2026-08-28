@@ -120,6 +120,7 @@ func NewKubeFilter(
 		writer:                     mgr.GetClient(),
 		managerReader:              mgr.GetClient(),
 		allowedPaths:               sets.New(opts.AllowedPaths()...),
+		publicPaths:                sets.New(opts.PublicPaths()...),
 		authTypes:                  opts.AuthTypes(),
 		ignoredUserGroups:          sets.New(opts.IgnoredGroupNames()...),
 		ignoredUsernames:           sets.New(opts.IgnoredUsernames()...),
@@ -145,6 +146,7 @@ func NewKubeFilter(
 type kubeFilter struct {
 	mgr                        ctrl.Manager
 	allowedPaths               sets.Set[string]
+	publicPaths                sets.Set[string]
 	authTypes                  []req.AuthType
 	ignoredUserGroups          sets.Set[string]
 	ignoredUsernames           sets.Set[string]
@@ -182,6 +184,18 @@ func (n *kubeFilter) NeedLeaderElection() bool {
 	return false
 }
 
+func (n *kubeFilter) registerRootMiddlewares(root *mux.Router) {
+	root.Use(
+		middleware.RequireTrustedSourceMiddleware(n.log, n.trustedProxyCIDRs),
+		middleware.CheckPaths(n.log, n.publicPaths, n.reverseProxy.ServeHTTP),
+		n.authorizationMiddleware,
+		n.reverseProxyMiddleware,
+		middleware.LoggerMiddleware(n.log),
+		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
+		middleware.CheckJWTMiddleware(n.writer),
+	)
+}
+
 //nolint:funlen
 func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
@@ -194,14 +208,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 
 	root := r.PathPrefix("").Subrouter()
 	n.registerModules(ctx, root)
-	root.Use(
-		middleware.RequireTrustedSourceMiddleware(n.log, n.trustedProxyCIDRs),
-		n.authorizationMiddleware,
-		n.reverseProxyMiddleware,
-		middleware.LoggerMiddleware(n.log),
-		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckJWTMiddleware(n.writer),
-	)
+	n.registerRootMiddlewares(root)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
 	})
