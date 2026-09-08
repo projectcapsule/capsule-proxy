@@ -184,18 +184,6 @@ func (n *kubeFilter) NeedLeaderElection() bool {
 	return false
 }
 
-func (n *kubeFilter) registerRootMiddlewares(root *mux.Router) {
-	root.Use(
-		middleware.RequireTrustedSourceMiddleware(n.log, n.trustedProxyCIDRs),
-		middleware.CheckPaths(n.log, n.publicPaths, n.reverseProxy.ServeHTTP),
-		n.authorizationMiddleware,
-		n.reverseProxyMiddleware,
-		middleware.LoggerMiddleware(n.log),
-		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
-		middleware.CheckJWTMiddleware(n.writer),
-	)
-}
-
 //nolint:funlen
 func (n *kubeFilter) Start(ctx context.Context) error {
 	r := mux.NewRouter()
@@ -349,6 +337,18 @@ func (n *kubeFilter) BearerToken() string {
 	}
 
 	return n.bearerToken
+}
+
+func (n *kubeFilter) registerRootMiddlewares(root *mux.Router) {
+	root.Use(
+		middleware.RequireTrustedSourceMiddleware(n.log, n.trustedProxyCIDRs),
+		middleware.CheckPaths(n.log, n.publicPaths, n.reverseProxy.ServeHTTP),
+		n.authorizationMiddleware,
+		n.reverseProxyMiddleware,
+		middleware.LoggerMiddleware(n.log),
+		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
+		middleware.CheckJWTMiddleware(n.writer),
+	)
 }
 
 func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
