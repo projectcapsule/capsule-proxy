@@ -140,7 +140,7 @@ e2e-legacy-exec:
 
 .PHONY: e2e-exec
 e2e-exec: ginkgo
-	$(GINKGO) -v -tags e2e ./e2e
+	$(GINKGO) -v -tags e2e $(E2E_ARGS) ./e2e
 
 .PHONY: e2e-build
 e2e-build: kind
@@ -287,8 +287,12 @@ rbac-fix:
 
 # Run tests
 .PHONY: test
-test: test-clean generate manifests test-clean
-	@GO111MODULE=on go test -v $(go list ./... | grep -v /e2e/) -coverprofile coverage.out
+test:
+	@go test -race -coverprofile coverage.out ./...
+
+.PHONY: test-cli
+test-cli:
+	@go test -race -v -run '^TestCLI' .
 
 .PHONY: test-clean
 test-clean: ## Clean tests cache

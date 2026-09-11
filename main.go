@@ -5,10 +5,8 @@ package main
 
 import (
 	"context"
-	goflag "flag"
 	"fmt"
 	"os"
-	"time"
 
 	capsulev1beta1 "github.com/projectcapsule/capsule/api/v1beta1"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
@@ -16,24 +14,18 @@ import (
 	"github.com/projectcapsule/capsule/pkg/runtime/indexers/tenant"
 	flag "github.com/spf13/pflag"
 	"github.com/thediveo/enumflag"
-	"go.uber.org/zap/zapcore"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/component-base/featuregate"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	"github.com/projectcapsule/capsule-proxy/internal/features"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
 	"github.com/projectcapsule/capsule-proxy/internal/options"
-	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver"
 )
 
@@ -76,7 +68,6 @@ const (
 	WebhookLabler
 )
 
-//nolint:cyclop,funlen,maintidx
 func main() {
 	scheme := runtime.NewScheme()
 	log := ctrl.Log.WithName("main")
@@ -88,216 +79,21 @@ func main() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
 	var (
-		err                                                                                                                                error
-		mgr                                                                                                                                ctrl.Manager
-		namespace, certPath, keyPath, usernameClaimField, capsuleConfigurationName, impersonationGroupsRegexp, metricsAddr, xfccHeaderName string
-		ignoredUserGroups, ignoredUsernames, ignoreImpersonationGroups, allowedPaths, publicPaths, trustedProxyCIDRStrings                 []string
-		listeningPort                                                                                                                      uint
-		bindSsl, disableCaching, enablePprof, enableLeaderElection, roleBindingReflector                                                   bool
-		rolebindingsResyncPeriod                                                                                                           time.Duration
-		clientConnectionQPS                                                                                                                float32
-		clientConnectionBurst                                                                                                              int32
-		webhookPort                                                                                                                        int
-		hooks                                                                                                                              []WebhookType
+		err       error
+		mgr       ctrl.Manager
+		namespace string
 	)
 
-	gates := featuregate.NewFeatureGate()
-
-	utilruntime.Must(gates.Add(map[featuregate.Feature]featuregate.FeatureSpec{
-		features.ProxyAllNamespaced: {
-			Default:       false,
-			LockToDefault: false,
-			PreRelease:    featuregate.Alpha,
-		},
-		features.SkipImpersonationReview: {
-			Default:       false,
-			LockToDefault: false,
-			PreRelease:    featuregate.Alpha,
-		},
-		features.ProxyClusterScoped: {
-			Default:       false,
-			LockToDefault: false,
-			PreRelease:    featuregate.Alpha,
-		},
-	}))
-
-	authTypes := []request.AuthType{
-		request.TLSCertificate,
-		request.BearerToken,
-	}
-
-	authTypesMap := map[request.AuthType][]string{
-		request.BearerToken:          {request.BearerToken.String()},
-		request.TLSCertificate:       {request.TLSCertificate.String()},
-		request.XForwardedClientCert: {request.XForwardedClientCert.String()},
-	}
-
-	flag.IntVar(
-		&webhookPort,
-		"webhook-port",
-		9443,
-		"The port the webhook server binds to.",
-	)
-	flag.BoolVar(
-		&enableLeaderElection,
-		"enable-leader-election",
-		false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.",
-	)
-	flag.StringVar(
-		&metricsAddr,
-		"metrics-addr",
-		":8080",
-		"The address the metric endpoint binds to.",
-	)
-	flag.StringSliceVar(
-		&allowedPaths,
-		"allowed-paths",
-		[]string{
-			"/api", "/apis", "/version",
-		},
-		"URL paths which are not inspected by capsule-proxy (still require valid authentication)",
-	)
-	flag.StringSliceVar(
-		&publicPaths,
-		"public-paths",
-		nil,
-		"URL paths passed directly to the upstream server without capsule-proxy authentication (trusted-proxy-cidrs still apply)",
-	)
-	flag.StringSliceVar(
-		&trustedProxyCIDRStrings,
-		"trusted-proxy-cidrs",
-		nil,
-		"CIDR ranges of trusted proxies allowed to send forwarded client certificate headers",
-	)
-	flag.StringVar(
-		&xfccHeaderName,
-		"xfcc-header-name",
-		"X-Forwarded-Client-Cert",
-		"Name of the header inspected for forwarded client certificates",
-	)
-	flag.StringVar(
-		&capsuleConfigurationName,
-		"capsule-configuration-name",
-		"default",
-		"Name of the CapsuleConfiguration used to retrieve the Capsule user groups names",
-	)
-	flag.StringSliceVar(
-		&ignoredUserGroups,
-		"ignored-user-group",
-		[]string{},
-		"Names of the groups which requests must be ignored and proxy-passed to the upstream server",
-	)
-	flag.StringSliceVar(
-		&ignoredUsernames,
-		"ignored-username",
-		[]string{},
-		"Usernames whose requests must be ignored and proxy-passed to the upstream server",
-	)
-	flag.StringSliceVar(
-		&ignoreImpersonationGroups,
-		"ignored-impersonation-group",
-		[]string{},
-		"Names of the groups which are not used for impersonation (considered after impersonation-group-regexp)",
-	)
-	flag.StringVar(
-		&impersonationGroupsRegexp,
-		"impersonation-group-regexp",
-		"",
-		"Regular expression to match the groups which are considered for impersonation",
-	)
-	flag.UintVar(
-		&listeningPort,
-		"listening-port",
-		9001,
-		"HTTP port the proxy listens to (default: 9001)",
-	)
-	flag.StringVar(
-		&usernameClaimField,
-		"oidc-username-claim",
-		"preferred_username",
-		"The OIDC field name used to identify the user (default: preferred_username)",
-	)
-	flag.BoolVar(
-		&roleBindingReflector,
-		"enable-reflector",
-		false,
-		"Enable reflection for RoleBindings labelled reflection.proxy.projectcapsule.dev/enabled=true",
-	)
-	flag.BoolVar(
-		&enablePprof,
-		"enable-pprof",
-		false,
-		"Enables Pprof endpoint for profiling (not recommend in production)",
-	)
-	flag.BoolVar(
-		&bindSsl,
-		"enable-ssl",
-		true,
-		"Enable the bind on HTTPS for secure communication (default: true)",
-	)
-	flag.StringVar(
-		&certPath,
-		"ssl-cert-path",
-		"",
-		"Path to the TLS certificate (default: /opt/capsule-proxy/tls.crt)",
-	)
-	flag.StringVar(
-		&keyPath,
-		"ssl-key-path",
-		"",
-		"Path to the TLS certificate key (default: /opt/capsule-proxy/tls.key)",
-	)
-	flag.DurationVar(
-		&rolebindingsResyncPeriod,
-		"rolebindings-resync-period",
-		10*time.Hour,
-		"Resync period for the Role and RoleBinding reflector",
-	)
-	flag.Var(
-		enumflag.NewSlice(&authTypes, "string", authTypesMap, enumflag.EnumCaseSensitive), "auth-preferred-types",
-		`Authentication types to be used for requests. Possible Auth Types: [BearerToken, TLSCertificate, XForwardedClientCert]
-First match is used and can be specified multiple times as comma separated values or by using the flag multiple times.`,
-	)
-	flag.BoolVar(
-		&disableCaching,
-		"disable-caching",
-		false,
-		"Disable the go-client caching to hit directly the Kubernetes API Server, it disables any local caching as the rolebinding reflector (default: false)",
-	)
-	flag.Float32Var(
-		&clientConnectionQPS,
-		"client-connection-qps",
-		20.0,
-		"QPS to use for interacting with kubernetes apiserver.",
-	)
-	flag.Int32Var(
-		&clientConnectionBurst,
-		"client-connection-burst",
-		30,
-		"Burst to use for interacting with kubernetes apiserver.",
-	)
-	gates.AddFlag(flag.CommandLine)
-
-	opts := zap.Options{
-		EncoderConfigOptions: append([]zap.EncoderConfigOption{}, func(config *zapcore.EncoderConfig) {
-			config.EncodeTime = zapcore.ISO8601TimeEncoder
-		}),
-	}
-
-	var goFlagSet goflag.FlagSet
-
-	opts.BindFlags(&goFlagSet)
-	flag.CommandLine.AddGoFlagSet(&goFlagSet)
+	c := &cliOptions{}
+	c.bindFlags(flag.CommandLine)
 	flag.Parse()
 
-	logger := zap.New(zap.UseFlagOptions(&opts))
+	logger := zap.New(zap.UseFlagOptions(&c.logOptions))
 
 	ctrl.SetLogger(logger)
 
-	for feat := range gates.GetAll() {
-		log.Info("feature gate status", "name", feat, "enabled", gates.Enabled(feat))
+	for feat := range c.gates.GetAll() {
+		log.Info("feature gate status", "name", feat, "enabled", c.gates.Enabled(feat))
 	}
 
 	if namespace = os.Getenv("NAMESPACE"); len(namespace) == 0 {
@@ -306,33 +102,27 @@ First match is used and can be specified multiple times as comma separated value
 	}
 
 	log.Info("---")
-	log.Info(fmt.Sprintf("Manager listening on port %d", listeningPort))
-	log.Info(fmt.Sprintf("Listening on HTTPS: %t", bindSsl))
+	log.Info(fmt.Sprintf("Manager listening on port %d", c.listeningPort))
+	log.Info(fmt.Sprintf("Listening on HTTPS: %t", c.bindSsl))
 
-	if !bindSsl {
-		switch {
-		case len(certPath) > 0:
-			log.Info("cannot use a Certificate when TLS/SSL mode is disabled")
-			os.Exit(1)
-		case len(keyPath) > 0:
-			log.Info("cannot use a Certificate key when TLS/SSL mode is disabled")
-			os.Exit(1)
-		}
+	if err = c.validateTLS(); err != nil {
+		log.Info(err.Error())
+		os.Exit(1)
 	}
 
-	log.Info(fmt.Sprintf("The ignored User Groups are %v", ignoredUserGroups))
-	log.Info(fmt.Sprintf("The ignored Usernames are %v", ignoredUsernames))
-	log.Info(fmt.Sprintf("The OIDC username selected is %s", usernameClaimField))
+	log.Info(fmt.Sprintf("The ignored User Groups are %v", c.ignoredUserGroups))
+	log.Info(fmt.Sprintf("The ignored Usernames are %v", c.ignoredUsernames))
+	log.Info(fmt.Sprintf("The OIDC username selected is %s", c.usernameClaimField))
 
-	if impersonationGroupsRegexp != "" {
-		log.Info(fmt.Sprintf("The Group impersonation Regexp %s", impersonationGroupsRegexp))
+	if c.impersonationGroupsRegexp != "" {
+		log.Info(fmt.Sprintf("The Group impersonation Regexp %s", c.impersonationGroupsRegexp))
 	}
 
-	if len(ignoreImpersonationGroups) > 0 {
-		log.Info(fmt.Sprintf("The Groups dropped for impersonation %s", ignoreImpersonationGroups))
+	if len(c.ignoreImpersonationGroups) > 0 {
+		log.Info(fmt.Sprintf("The Groups dropped for impersonation %s", c.ignoreImpersonationGroups))
 	}
 
-	if gates.Enabled(features.SkipImpersonationReview) {
+	if c.gates.Enabled(features.SkipImpersonationReview) {
 		log.Info("SECURITY IMPLICATION: Skipping Impersonation reviews are enabled!")
 	}
 
@@ -340,35 +130,8 @@ First match is used and can be specified multiple times as comma separated value
 	log.Info("Creating the manager")
 
 	config := ctrl.GetConfigOrDie()
-	config.QPS = clientConnectionQPS
-	config.Burst = int(clientConnectionBurst)
-
-	// Base Config
-	ctrlConfig := ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
-		},
-		HealthProbeBindAddress:  ":8081",
-		LeaderElection:          false,
-		LeaderElectionNamespace: namespace,
-		LeaderElectionID:        "42dadw1.proxy.projectcapsule.dev",
-	}
-
-	if len(hooks) > 0 {
-		ctrlConfig.WebhookServer = ctrlwebhook.NewServer(ctrlwebhook.Options{
-			Port: webhookPort,
-		})
-	}
-
-	// Conditional config
-	if enablePprof {
-		ctrlConfig.PprofBindAddress = ":8082"
-	}
-
-	if !disableCaching && roleBindingReflector {
-		ctrlConfig.Cache.SyncPeriod = &rolebindingsResyncPeriod
-	}
+	c.configureClient(config)
+	ctrlConfig := c.managerOptions(namespace, scheme)
 
 	mgr, err = ctrl.NewManager(config, ctrlConfig)
 	if err != nil {
@@ -378,7 +141,7 @@ First match is used and can be specified multiple times as comma separated value
 
 	var rbReflector *controllers.RoleBindingReflector
 
-	if !disableCaching && roleBindingReflector {
+	if c.reflectorEnabled() {
 		log.Info("Creating the Rolebindings reflector")
 
 		if rbReflector, err = controllers.NewRoleBindingReflector(context.Background(), mgr.GetCache()); err != nil {
@@ -418,43 +181,24 @@ First match is used and can be specified multiple times as comma separated value
 
 	var listenerOpts options.ListenerOpts
 
-	if listenerOpts, err = options.NewKube(
-		authTypes,
-		ignoredUserGroups,
-		ignoredUsernames,
-		usernameClaimField,
-		config,
-		ignoreImpersonationGroups,
-		impersonationGroupsRegexp,
-		gates.Enabled(features.SkipImpersonationReview),
-		trustedProxyCIDRStrings,
-		xfccHeaderName,
-		allowedPaths,
-		publicPaths,
-	); err != nil {
+	if listenerOpts, err = c.listenerOptions(config); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
 
 	var serverOpts options.ServerOptions
 
-	if serverOpts, err = options.NewServer(bindSsl, listeningPort, certPath, keyPath, config); err != nil {
+	if serverOpts, err = c.serverOptions(config); err != nil {
 		log.Error(err, "cannot create Kubernetes options")
 		os.Exit(1)
 	}
 
-	var clientOverride client.Reader
-
-	if disableCaching {
-		clientOverride = mgr.GetAPIReader()
-	} else {
-		clientOverride = mgr.GetClient()
-	}
+	clientOverride := c.reader(mgr)
 
 	r, err := webserver.NewKubeFilter(
 		listenerOpts,
 		serverOpts,
-		gates,
+		c.gates,
 		rbReflector,
 		clientOverride,
 		mgr)
@@ -468,10 +212,7 @@ First match is used and can be specified multiple times as comma separated value
 		os.Exit(1)
 	}
 
-	if err = (&controllers.CapsuleConfiguration{
-		Client:                   mgr.GetClient(),
-		CapsuleConfigurationName: capsuleConfigurationName,
-	}).SetupWithManager(ctx, mgr); err != nil {
+	if err = c.capsuleConfigurationController(mgr.GetClient()).SetupWithManager(ctx, mgr); err != nil {
 		log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
 		os.Exit(1)
 	}

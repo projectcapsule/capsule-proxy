@@ -1,5 +1,12 @@
 # How to
 
+## Tests
+
+Run `make test` for unit tests with the race detector, or `make test-cli` for CLI
+argument coverage. End-to-end tests require the `e2e` build tag and a running
+Kubernetes/Capsule/proxy environment. See [the regression test guide](e2e/README.md)
+for setup, focused suite commands, coverage, and known CLI discrepancies.
+
 ## Chart Development
 
 ### Chart Linting
@@ -43,8 +50,8 @@ localhost-key.pem localhost.pem
 
 ```bash
 # Set KUBECONFIG environment variable with the Kubernetes configuration file if you are not currently using it.
-# export KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> or just type it before the command, i.e. `KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> go run main.go ...`
-$ go run main.go --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem  --enable-ssl=true
+# export KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> or just type it before the command, i.e. `KUBECONFIG=<YOUR KUBERNETES CONFIGURATION FILE> go run . ...`
+$ go run . --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.pem  --enable-ssl=true
 ```
 
 4. Edit the `KUBECONFIG` file (you should make a copy and work on it) as follows:
@@ -82,4 +89,3 @@ $ curl -H "Authorization: Bearer $TOKEN" http://localhost:9001/api/v1/namespaces
 ```
 
 > **NOTE**: `kubectl` will not work against a http server.
-

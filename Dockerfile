@@ -3,13 +3,13 @@ WORKDIR /workspace
 COPY go.mod go.mod
 COPY go.sum go.sum
 RUN go mod download
-COPY main.go main.go
+COPY main.go cli.go ./
 COPY internal internal
 COPY api api
 ARG GCFLAGS=""
 ARG TARGETARCH
 ARG LDFLAGS=""
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -trimpath -ldflags="${LDFLAGS}" -gcflags "${GCFLAGS}" -a -o capsule-proxy main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -trimpath -ldflags="${LDFLAGS}" -gcflags "${GCFLAGS}" -a -o capsule-proxy .
 
 FROM golang:1.26 as dlv
 RUN CGO_ENABLED=0 go install github.com/go-delve/delve/cmd/dlv@latest

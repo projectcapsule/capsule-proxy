@@ -1,3 +1,5 @@
+//go:build e2e
+
 //nolint:all
 package e2e_test
 
