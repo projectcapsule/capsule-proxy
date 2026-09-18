@@ -312,6 +312,83 @@
                     "description": "Don't use Host Users (User Namespaces)",
                     "type": "boolean"
                 },
+                "httproute": {
+                    "type": "object",
+                    "properties": {
+                        "annotations": {
+                            "description": "Annotations to add to the httproute.",
+                            "type": "object"
+                        },
+                        "enabled": {
+                            "description": "Specifies whether an httproute should be created.",
+                            "type": "boolean"
+                        },
+                        "hostnames": {
+                            "description": "List of hostnames for HTTPRoute",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "labels": {
+                            "description": "Labels to add to the httproute.",
+                            "type": "object"
+                        },
+                        "parentRefs": {
+                            "description": "Gateway API parentRefs (list of Gateway references)",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "group": {
+                                        "type": "string"
+                                    },
+                                    "kind": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "namespace": {
+                                        "type": "string"
+                                    },
+                                    "port": {
+                                        "type": "integer"
+                                    },
+                                    "sectionName": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "rules": {
+                            "description": "Rules Configuration Allows advanced routing with matches and filters",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "filters": {
+                                        "type": "array"
+                                    },
+                                    "matches": {
+                                        "type": "array"
+                                    },
+                                    "timeouts": {
+                                        "type": "object",
+                                        "properties": {
+                                            "backendRequest": {
+                                                "type": "string"
+                                            },
+                                            "request": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 "image": {
                     "type": "object",
                     "properties": {
@@ -813,6 +890,83 @@
         "hostUsers": {
             "description": "Don't use Host Users (User Namespaces)",
             "type": "boolean"
+        },
+        "httproute": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the httproute.",
+                    "type": "object"
+                },
+                "enabled": {
+                    "description": "Specifies whether an httproute should be created.",
+                    "type": "boolean"
+                },
+                "hostnames": {
+                    "description": "List of hostnames for HTTPRoute",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the httproute.",
+                    "type": "object"
+                },
+                "parentRefs": {
+                    "description": "Gateway API parentRefs (list of Gateway references)",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "group": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "namespace": {
+                                "type": "string"
+                            },
+                            "port": {
+                                "type": "integer"
+                            },
+                            "sectionName": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "rules": {
+                    "description": "Rules Configuration Allows advanced routing with matches and filters",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "filters": {
+                                "type": "array"
+                            },
+                            "matches": {
+                                "type": "array"
+                            },
+                            "timeouts": {
+                                "type": "object",
+                                "properties": {
+                                    "backendRequest": {
+                                        "type": "string"
+                                    },
+                                    "request": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         },
         "image": {
             "type": "object",
