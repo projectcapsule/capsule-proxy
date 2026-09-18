@@ -1,0 +1,55 @@
+{{- if $.Values.gangplank.enabled -}}
+  {{- if .Values.gangplank.httproute.enabled -}}
+    {{- $fullName := include "gangplank.fullname" . -}}
+    {{- $svcPort := .Values.gangplank.service.port -}}
+---
+{{- if .Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1/HTTPRoute" }}
+apiVersion: gateway.networking.k8s.io/v1
+{{- else }}
+apiVersion: gateway.networking.k8s.io/v1beta1
+{{- end }}
+kind: HTTPRoute
+metadata:
+  name: {{ $fullName }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "gangplank.labels" . | nindent 4 }}
+    {{- if .Values.gangplank.httproute.labels }}
+    {{- toYaml .Values.gangplank.httproute.labels | nindent 4 }}
+    {{- end }}
+  {{- with .Values.gangplank.httproute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.gangplank.httproute.parentRefs }}
+  parentRefs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.gangplank.httproute.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range $.Values.gangplank.httproute.rules }}
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: {{ $fullName }}
+          port: {{ $svcPort }}
+          weight: 1
+      {{- with .matches }}
+      matches:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .filters }}
+      filters:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .timeouts }}
+      timeouts:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end -}}
