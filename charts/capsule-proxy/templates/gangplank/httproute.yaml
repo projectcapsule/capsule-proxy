@@ -5,8 +5,10 @@
 ---
 {{- if .Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1/HTTPRoute" }}
 apiVersion: gateway.networking.k8s.io/v1
-{{- else }}
+{{- else if .Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1beta1/HTTPRoute" }}
 apiVersion: gateway.networking.k8s.io/v1beta1
+{{- else }}
+{{- fail "HTTPRoute is enabled, but no supported Gateway API HTTPRoute version is installed" }}
 {{- end }}
 kind: HTTPRoute
 metadata:
