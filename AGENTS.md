@@ -1,15 +1,23 @@
 # Agent instructions for Capsule Proxy
 
-These instructions apply throughout this repository. Capsule Proxy's central design
-goal is **tenant-aware access to the Kubernetes API**: exposing the resources a
-caller may access through authentication, authorization, tenant-scoped selectors,
-and controlled forwarding. Capsule supplies tenant membership and namespace state;
-this repository implements the proxy and its access settings. Tenant isolation,
-Kubernetes API compatibility, and request latency remain core requirements. Extend
-the existing design and follow the conventions of the package you are changing.
+These instructions apply throughout this repository. Capsule Proxy's primary focus
+is **speed: acting only as a thin intermediary to the Kubernetes API, with minimal
+added latency and minimal deviations from native API behavior**. Its role is to
+authenticate, enforce the necessary tenant access boundaries, and forward requests
+efficiently. Kubernetes remains responsible for API semantics and resource
+lifecycle; Capsule supplies tenant membership and namespace state. Preserve
+tenant isolation while minimizing work in the proxy. Extend the existing design
+and follow the conventions of the package you are changing.
 
 ## Required outcomes
 
+- **Prioritize speed and low overhead.** Minimize added latency, allocations,
+  buffering, and API round trips on every request without weakening isolation.
+- **Preserve Kubernetes API behavior by default.** Limit request and response
+  changes to what secure forwarding and tenant access require; justify and test
+  every necessary deviation.
+- **Keep the proxy an intermediary.** Delegate native API validation, persistence,
+  and resource lifecycle to Kubernetes and tenant reconciliation to Capsule.
 - **Implement access features through the existing proxy modules and settings
   APIs.** Extend the relevant request path, `ProxySetting`, or
   `GlobalProxySettings` instead of introducing a parallel permission mechanism.
@@ -43,13 +51,23 @@ the existing design and follow the conventions of the package you are changing.
   Explain the impact in each area, address findings and feedback, and repeat the
   review and relevant validation until the completion criteria below are met.
 
-## Primary design direction: tenant-aware Kubernetes API access
+## Primary design direction: a fast, minimal Kubernetes API intermediary
 
-Start feature design by identifying the caller, API group/resource, operation, and
-resource scope. Establish which existing policy grants access, how the request is
-filtered, which identity reaches the upstream API server, and what the caller can
-observe. A successful response alone does not prove the access boundary is correct.
+Start feature design with the native Kubernetes request and response. Identify the
+smallest intervention needed for tenant access, its added cost, and any observable
+deviation from the upstream API. Prefer forwarding through the existing path with
+minimal work. Establish the caller, resource scope, access policy, and upstream
+identity; a successful response alone does not prove the access boundary is correct.
 
+- Keep Kubernetes responsible for its API semantics. Avoid duplicating API-server
+  validation, storage, resource lifecycle, or general-purpose policy processing in
+  the proxy. Extend proxy settings only to express the access the intermediary needs.
+- Preserve upstream request/response behavior outside the necessary access changes.
+  Explain why each new rewrite, synthesized response, or interception is required
+  and test both its intended effect and unaffected Kubernetes behavior.
+- Evaluate the cost of every additional lookup, review, decode/encode, copy, and
+  buffer. Choose the least work that preserves authorization and correctness; use
+  measurements to justify added work on common paths.
 - Start with `internal/modules/`, `internal/webserver/webserver.go`, and
   `internal/tenant/`. Reuse `modules.Module` and the existing registration path for
   intercepted resource operations; keep resource-specific behavior in its module.
@@ -219,6 +237,9 @@ can affect every proxied Kubernetes request, including long-lived watches.
 
 ### Preserve the proxy pipeline
 
+- Forward requests and responses with only the transformations needed for secure
+  tenant access. Preserve upstream errors and protocol behavior; keep existing
+  exceptions narrowly scoped and cover ordinary pass-through behavior in tests.
 - Reuse `internal/webserver/webserver.go`, its middleware chains, and
   `modules.Module`. Preserve route ordering, discovery registration, feature gates,
   and fallback impersonation. Test the composed chain when changing short circuits.
@@ -335,6 +356,11 @@ or document their measured cost and required correctness tradeoff for review. If
 API round trips, contention, streaming, or forwarding behavior changes, also
 validate with a real-cluster workload. Fake-client benchmark timings alone cannot
 establish production proxy latency.
+
+Measure the proxy's added overhead separately from upstream API-server work where
+possible. For real-cluster comparisons, record direct and proxied request latency
+and throughput under comparable identities, permissions, and workloads, and explain
+any differences that prevent an equivalent comparison.
 
 ## Unit tests: required for every change
 
@@ -606,7 +632,9 @@ declare the change fully validated while required evidence is missing.
   `.github/workflows/check-commit.yml`, `.github/workflows/check-pr.yml`, and the
   repository's contribution guidance for Conventional Commit messages and titles.
 
-Before declaring completion, verify that the change serves tenant-aware API access,
+Before declaring completion, verify that the change keeps the proxy a fast, thin
+intermediary with minimal deviations from Kubernetes API behavior. Justify any
+added request cost or API deviation. Verify that it serves tenant-aware access,
 uses the existing proxy/settings extension points, follows the repository
 structure, reuses available code, includes unit and tenant-aware positive/negative
 e2e coverage for behavior changes, includes benchmarks for new or materially
