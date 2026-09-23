@@ -147,7 +147,7 @@ func TestRoleBindingIndexesScopeOnlyResourceReflection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(indexed) != 1 || indexed[0] != "User-alice" {
+	if len(indexed) != 1 || indexed[0] != subjectIndexKey("User", "", "alice") {
 		t.Fatalf("expected labelled binding to be indexed, got %v", indexed)
 	}
 
@@ -155,7 +155,7 @@ func TestRoleBindingIndexesScopeOnlyResourceReflection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(indexed) != 1 || indexed[0] != "User-alice" {
+	if len(indexed) != 1 || indexed[0] != subjectIndexKey("User", "", "alice") {
 		t.Fatalf("expected unlabelled binding in the namespace index, got %v", indexed)
 	}
 
@@ -165,5 +165,42 @@ func TestRoleBindingIndexesScopeOnlyResourceReflection(t *testing.T) {
 	}
 	if len(indexed) != 0 {
 		t.Fatalf("expected unlabelled binding not to be in the resource reflection index, got %v", indexed)
+	}
+}
+
+func TestSubjectIndexKeysDoNotCollide(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		left  rbacv1.Subject
+		right rbacv1.Subject
+	}{
+		{
+			name:  "service accounts with hyphens",
+			left:  rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant-a", Name: "reader"},
+			right: rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant", Name: "a-reader"},
+		},
+		{
+			name:  "identical groups remain equal",
+			left:  rbacv1.Subject{Kind: rbacv1.GroupKind, Name: "team-a"},
+			right: rbacv1.Subject{Kind: rbacv1.GroupKind, Name: "team-a"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			left, _ := OwnerRoleBindingsIndexFunc(roleBinding("tenant-a", "role", tt.left))
+			right, _ := OwnerRoleBindingsIndexFunc(roleBinding("tenant-b", "role", tt.right))
+			if tt.name == "identical groups remain equal" {
+				if left[0] != right[0] {
+					t.Fatalf("identical subjects produced different keys: %q and %q", left[0], right[0])
+				}
+				return
+			}
+			if left[0] == right[0] {
+				t.Fatalf("distinct subjects collided at %q", left[0])
+			}
+		})
 	}
 }
