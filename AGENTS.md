@@ -535,7 +535,7 @@ and `go.mod` instead of independently selecting newer tools.
 | Go lint | `make golint`; use `make golint-fix` deliberately and inspect automatic fixes. Format changed files, including tests. |
 | Deep-copy generation | `make generate`. |
 | CRD generation | `make manifests`. Generation and manifests are separate targets; run both when API changes require both. |
-| Build proxy | `go build -o bin/capsule-proxy .`. The entry point is at the repository root. |
+| Build proxy | `mkdir -p bin && go build -o bin/capsule-proxy .`. The entry point is at the repository root. |
 | Prepare local e2e cluster | `make e2e-build`, then `make e2e-install`. The first creates the KinD cluster; the second installs dependencies and builds/loads/installs the proxy. Requires Docker and the target's cluster tooling. |
 | Update proxy in test cluster | `make install-capsule-proxy` rebuilds/loads/installs the proxy and regenerates test kubeconfigs; verify rollout and image before testing. |
 | Scoped local e2e | `make e2e-exec E2E_ARGS='--label-filter=namespaced'`. Replace the example label with the new feature/impacted component selection. |
