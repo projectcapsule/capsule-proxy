@@ -325,38 +325,15 @@
                         },
                         "hostnames": {
                             "description": "List of hostnames for HTTPRoute",
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
+                            "type": "array"
                         },
                         "labels": {
                             "description": "Labels to add to the httproute.",
                             "type": "object"
                         },
                         "parentRefs": {
-                            "description": "Gateway API parentRefs (list of Gateway references)",
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "group": {
-                                        "type": "string"
-                                    },
-                                    "kind": {
-                                        "type": "string"
-                                    },
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "namespace": {
-                                        "type": "string"
-                                    },
-                                    "sectionName": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
+                            "description": "Gateway API parentRefs (list of Gateway references) Must reference an existing Gateway resource",
+                            "type": "array"
                         },
                         "rules": {
                             "description": "Rules Configuration Allows advanced routing with matches and filters",
@@ -364,20 +341,22 @@
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "filters": {
-                                        "type": "array"
-                                    },
                                     "matches": {
-                                        "type": "array"
-                                    },
-                                    "timeouts": {
-                                        "type": "object",
-                                        "properties": {
-                                            "backendRequest": {
-                                                "type": "string"
-                                            },
-                                            "request": {
-                                                "type": "string"
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "path": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "type": {
+                                                            "type": "string"
+                                                        },
+                                                        "value": {
+                                                            "type": "string"
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -901,41 +880,15 @@
                 },
                 "hostnames": {
                     "description": "List of hostnames for HTTPRoute",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                    "type": "array"
                 },
                 "labels": {
                     "description": "Labels to add to the httproute.",
                     "type": "object"
                 },
                 "parentRefs": {
-                    "description": "Gateway API parentRefs (list of Gateway references)",
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "group": {
-                                "type": "string"
-                            },
-                            "kind": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "namespace": {
-                                "type": "string"
-                            },
-                            "port": {
-                                "type": "integer"
-                            },
-                            "sectionName": {
-                                "type": "string"
-                            }
-                        }
-                    }
+                    "description": "Gateway API parentRefs (list of Gateway references) Must reference an existing Gateway resource",
+                    "type": "array"
                 },
                 "rules": {
                     "description": "Rules Configuration Allows advanced routing with matches and filters",
@@ -943,20 +896,22 @@
                     "items": {
                         "type": "object",
                         "properties": {
-                            "filters": {
-                                "type": "array"
-                            },
                             "matches": {
-                                "type": "array"
-                            },
-                            "timeouts": {
-                                "type": "object",
-                                "properties": {
-                                    "backendRequest": {
-                                        "type": "string"
-                                    },
-                                    "request": {
-                                        "type": "string"
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "path": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string"
+                                                },
+                                                "value": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
