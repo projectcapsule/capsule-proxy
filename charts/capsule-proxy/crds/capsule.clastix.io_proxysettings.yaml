@@ -55,7 +55,11 @@ spec:
                 items:
                   properties:
                     clusterResources:
-                      description: Cluster Resources for tenant Owner.
+                      description: |-
+                        Deprecated: ClusterResources cannot be granted through a namespaced
+                        ProxySetting. Use administrator-managed GlobalProxySettings instead.
+                        This field is retained to decode existing objects, but is ignored by the
+                        proxy and must be omitted or empty in new settings.
                       items:
                         description: ClusterResource Specification
                         properties:
@@ -144,6 +148,7 @@ spec:
                         - resources
                         - selector
                         type: object
+                      maxItems: 0
                       type: array
                     kind:
                       description: Kind of tenant owner. Possible values are "User",

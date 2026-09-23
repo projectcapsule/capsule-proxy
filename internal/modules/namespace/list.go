@@ -76,7 +76,7 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	}
 
 	// Namespaces can additionally be granted through cluster-scoped
-	// ClusterResources rules (e.g. GlobalProxySettings or ProxySettings) that
+	// ClusterResources rules from GlobalProxySettings that
 	// select namespaces by label. This lets subjects that are not tenant owners
 	// list the matching namespaces. We resolve those rules to concrete namespace
 	// names and merge them, so a single name-based selector is produced.

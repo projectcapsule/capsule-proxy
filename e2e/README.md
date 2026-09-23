@@ -18,6 +18,7 @@ make e2e                         # provision, install, and run the entire suite
 make e2e-exec                    # run against an already provisioned cluster
 make e2e-exec E2E_ARGS='--label-filter=namespaced'
 make e2e-exec E2E_ARGS='--label-filter=reflection'
+make e2e-exec E2E_ARGS='--label-filter=proxysetting-security'
 ```
 
 The new `namespaced` and `reflection` suites generate unique tenant, namespace,
@@ -47,6 +48,19 @@ go test -tags e2e ./e2e -run TestE2e -timeout 30m -args \
 The proxy must run with reflection and caching enabled. The standard e2e install
 also enables `ProxyClusterScoped`. Capsule's webhooks must be reachable; an API
 server with offline admission webhooks is not a usable e2e environment.
+
+The `proxysetting-security` suite also requires the updated ProxySetting CRD. It
+creates two real tenants, gives one owner namespaced ProxySetting write access,
+checks create/update/patch rejection of cluster-resource grants, and verifies
+tenant-scoped delegation and administrator-controlled global grants, including
+non-owner access and revocation. The suite runs serially and requires a disposable
+cluster: one case temporarily removes the namespaced field's `maxItems` constraint
+to store a pre-upgrade grant, restores it (also registered as cleanup), then proves
+the running proxy ignores that stored grant. Run the full
+label with `ProxyClusterScoped=true`; with the gate disabled, select
+`--label-filter='proxysetting-security && !proxysetting-global'`. Unit regressions
+additionally cover User, Group, and ServiceAccount grants, both gate settings,
+subject boundaries, forwarding constraints, and namespace-read call counts.
 
 ## Coverage
 

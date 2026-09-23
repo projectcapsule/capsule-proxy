@@ -14,7 +14,11 @@ type OwnerSpec struct {
 	Kind capsulerbac.OwnerKind `json:"kind"`
 	// Name of tenant owner.
 	Name string `json:"name"`
-	// Cluster Resources for tenant Owner.
+	// Deprecated: ClusterResources cannot be granted through a namespaced
+	// ProxySetting. Use administrator-managed GlobalProxySettings instead.
+	// This field is retained to decode existing objects, but is ignored by the
+	// proxy and must be omitted or empty in new settings.
+	// +kubebuilder:validation:MaxItems=0
 	ClusterResources []ClusterResource `json:"clusterResources,omitempty"`
 	// Deprecated: Use Global Proxy Settings instead (https://projectcapsule.dev/docs/proxy/proxysettings/#globalproxysettings)
 	//
