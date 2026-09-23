@@ -534,6 +534,41 @@ ingress:
   # -- Set the tls configuration for the capsule-proxy ingress.
   tls: []
 
+# HTTPRoute
+httproute:
+  # -- Specifies whether an httproute should be created.
+  enabled: false
+  # -- Labels to add to the httproute.
+  labels: {}
+  # -- Annotations to add to the httproute.
+  annotations: {}
+  # -- Gateway API parentRefs (list of Gateway references)
+  # Must reference an existing Gateway resource
+  parentRefs: []
+  #  - name: example-gateway
+  #    namespace: gateway-system
+  #    sectionName: https
+  # -- List of hostnames for HTTPRoute
+  hostnames: []
+  #  - projectcapsule.dev
+  # -- Rules Configuration Allows advanced routing with matches and filters
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      # Optional filters:
+      # filters:
+      #   - type: RequestHeaderModifier
+      #     requestHeaderModifier:
+      #       add:
+      #         - name: X-Custom-Header
+      #           value: value
+      # Optional timeouts configuration:
+      # timeouts:
+      #  request: 30s
+      #  backendRequest: 30s
+
 # ServiceMonitor
 serviceMonitor:
   # -- Enable ServiceMonitor
@@ -821,6 +856,40 @@ gangplank:
     #  - secretName: chart-example-tls
     #    hosts:
     #      - chart-example.local
+
+  httproute:
+    # -- Specifies whether an httproute should be created.
+    enabled: false
+    # -- Labels to add to the httproute.
+    labels: {}
+    # -- Annotations to add to the httproute.
+    annotations: {}
+    # -- Gateway API parentRefs (list of Gateway references)
+    # Must reference an existing Gateway resource
+    parentRefs: []
+    #  - name: example-gateway
+    #    namespace: gateway-system
+    #    sectionName: https
+    # -- List of hostnames for HTTPRoute
+    hostnames: []
+    #  - chart-example.local
+    # -- Rules Configuration Allows advanced routing with matches and filters
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+        # Optional filters:
+        # filters:
+        #   - type: RequestHeaderModifier
+        #     requestHeaderModifier:
+        #       add:
+        #         - name: X-Custom-Header
+        #           value: value
+        # Optional timeouts configuration:
+        # timeouts:
+        #  request: 30s
+        #  backendRequest: 30s
 
   serviceAccount:
     # Specifies whether a service account should be created

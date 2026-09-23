@@ -143,6 +143,12 @@ If you only need to make minor customizations, you can specify them on the comma
 | extraManifests | list | `[]` | Array of additional resources to be created alongside Capsule-Proxy helm chart |
 | hostNetwork | bool | `false` | When deployed as DaemonSet use |
 | hostUsers | bool | `true` | Don't use Host Users (User Namespaces) |
+| httproute.annotations | object | `{}` | Annotations to add to the httproute. |
+| httproute.enabled | bool | `false` | Specifies whether an httproute should be created. |
+| httproute.hostnames | list | `[]` | List of hostnames for HTTPRoute |
+| httproute.labels | object | `{}` | Labels to add to the httproute. |
+| httproute.parentRefs | list | `[]` | Gateway API parentRefs (list of Gateway references) Must reference an existing Gateway resource |
+| httproute.rules | list | `[{"matches":[{"path":{"type":"PathPrefix","value":"/"}}]}]` | Rules Configuration Allows advanced routing with matches and filters |
 | image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy. |
 | image.registry | string | `"ghcr.io"` | Set the image registry for capsule-proxy |
 | image.repository | string | `"projectcapsule/capsule-proxy"` | Set the image repository for capsule-proxy. |
@@ -310,6 +316,12 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | gangplank.envFrom | list | `[]` |  |
 | gangplank.envs | object | `{}` |  |
 | gangplank.hostUsers | bool | `true` | Don't use Host Users (User Namespaces) |
+| gangplank.httproute.annotations | object | `{}` | Annotations to add to the httproute. |
+| gangplank.httproute.enabled | bool | `false` | Specifies whether an httproute should be created. |
+| gangplank.httproute.hostnames | list | `[]` | List of hostnames for HTTPRoute |
+| gangplank.httproute.labels | object | `{}` | Labels to add to the httproute. |
+| gangplank.httproute.parentRefs | list | `[]` | Gateway API parentRefs (list of Gateway references) Must reference an existing Gateway resource |
+| gangplank.httproute.rules | list | `[{"matches":[{"path":{"type":"PathPrefix","value":"/"}}]}]` | Rules Configuration Allows advanced routing with matches and filters |
 | gangplank.image.pullPolicy | string | `"IfNotPresent"` |  |
 | gangplank.image.repository | string | `"registry.sighup.io/fury/gangplank"` |  |
 | gangplank.image.tag | string | `"v1.2.0"` |  |
