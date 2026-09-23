@@ -230,13 +230,13 @@ func (r *RoleBindingReflector) getRoleBindingsForSubject(ctx context.Context, us
 			return nil, errors.Wrap(err, "Unable to parse serviceAccount name")
 		}
 
-		keys = append(keys, fmt.Sprintf("%s-%s-%s", capsulerbac.ServiceAccountOwner, namespace, name))
+		keys = append(keys, subjectIndexKey(capsulerbac.ServiceAccountOwner.String(), namespace, name))
 	} else {
-		keys = append(keys, fmt.Sprintf("%s-%s", capsulerbac.UserOwner, username))
+		keys = append(keys, subjectIndexKey(capsulerbac.UserOwner.String(), "", username))
 	}
 
 	for _, group := range groups {
-		keys = append(keys, fmt.Sprintf("%s-%s", capsulerbac.GroupOwner, group))
+		keys = append(keys, subjectIndexKey(capsulerbac.GroupOwner.String(), "", group))
 	}
 
 	bindings := map[string]*rbacv1.RoleBinding{}
@@ -328,18 +328,16 @@ func OwnerRoleBindingsIndexFunc(obj any) (result []string, err error) {
 	rb := obj.(*rbacv1.RoleBinding)
 
 	for _, subject := range rb.Subjects {
-		parts := []string{subject.Kind}
-
-		if len(subject.Namespace) > 0 {
-			parts = append(parts, subject.Namespace)
-		}
-
-		parts = append(parts, subject.Name)
-
-		result = append(result, strings.Join(parts, "-"))
+		result = append(result, subjectIndexKey(subject.Kind, subject.Namespace, subject.Name))
 	}
 
 	return result, nil
+}
+
+// subjectIndexKey encodes each component with its length so separators in
+// Kubernetes subject names cannot make distinct subjects share an index key.
+func subjectIndexKey(kind, namespace, name string) string {
+	return fmt.Sprintf("%s:%d:%s:%d:%s", kind, len(namespace), namespace, len(name), name)
 }
 
 func ReflectionRoleBindingsIndexFunc(obj any) ([]string, error) {

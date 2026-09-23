@@ -12,6 +12,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -147,7 +148,7 @@ func TestRoleBindingIndexesScopeOnlyResourceReflection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(indexed) != 1 || indexed[0] != "User-alice" {
+	if len(indexed) != 1 || indexed[0] != subjectIndexKey("User", "", "alice") {
 		t.Fatalf("expected labelled binding to be indexed, got %v", indexed)
 	}
 
@@ -155,7 +156,7 @@ func TestRoleBindingIndexesScopeOnlyResourceReflection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(indexed) != 1 || indexed[0] != "User-alice" {
+	if len(indexed) != 1 || indexed[0] != subjectIndexKey("User", "", "alice") {
 		t.Fatalf("expected unlabelled binding in the namespace index, got %v", indexed)
 	}
 
@@ -165,5 +166,40 @@ func TestRoleBindingIndexesScopeOnlyResourceReflection(t *testing.T) {
 	}
 	if len(indexed) != 0 {
 		t.Fatalf("expected unlabelled binding not to be in the resource reflection index, got %v", indexed)
+	}
+}
+
+func TestServiceAccountSubjectLookupDoesNotCollide(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	if err := rbacv1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+
+	first := roleBinding("tenant-a", "first", rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant-a", Name: "reader"})
+	second := roleBinding("tenant-b", "second", rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant", Name: "a-reader"})
+	reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(first, second).
+		WithIndex(&rbacv1.RoleBinding{}, subjectIndex, func(obj client.Object) []string {
+			values, _ := OwnerRoleBindingsIndexFunc(obj)
+
+			return values
+		}).Build()
+	reflector := &RoleBindingReflector{reader: reader, results: map[string]cachedReflectionResult{}}
+
+	for _, test := range []struct {
+		username string
+		want     string
+	}{
+		{serviceaccount.MakeUsername("tenant-a", "reader"), "tenant-a"},
+		{serviceaccount.MakeUsername("tenant", "a-reader"), "tenant-b"},
+	} {
+		bindings, err := reflector.getRoleBindingsForSubject(context.Background(), test.username, nil, subjectIndex)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bindings) != 1 || bindings[0].Namespace != test.want {
+			t.Fatalf("lookup for %q returned %v, want only %s", test.username, bindings, test.want)
+		}
 	}
 }
