@@ -12,6 +12,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -168,39 +169,37 @@ func TestRoleBindingIndexesScopeOnlyResourceReflection(t *testing.T) {
 	}
 }
 
-func TestSubjectIndexKeysDoNotCollide(t *testing.T) {
+func TestServiceAccountSubjectLookupDoesNotCollide(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name  string
-		left  rbacv1.Subject
-		right rbacv1.Subject
-	}{
-		{
-			name:  "service accounts with hyphens",
-			left:  rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant-a", Name: "reader"},
-			right: rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant", Name: "a-reader"},
-		},
-		{
-			name:  "identical groups remain equal",
-			left:  rbacv1.Subject{Kind: rbacv1.GroupKind, Name: "team-a"},
-			right: rbacv1.Subject{Kind: rbacv1.GroupKind, Name: "team-a"},
-		},
+	scheme := runtime.NewScheme()
+	if err := rbacv1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			left, _ := OwnerRoleBindingsIndexFunc(roleBinding("tenant-a", "role", tt.left))
-			right, _ := OwnerRoleBindingsIndexFunc(roleBinding("tenant-b", "role", tt.right))
-			if tt.name == "identical groups remain equal" {
-				if left[0] != right[0] {
-					t.Fatalf("identical subjects produced different keys: %q and %q", left[0], right[0])
-				}
-				return
-			}
-			if left[0] == right[0] {
-				t.Fatalf("distinct subjects collided at %q", left[0])
-			}
-		})
+	first := roleBinding("tenant-a", "first", rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant-a", Name: "reader"})
+	second := roleBinding("tenant-b", "second", rbacv1.Subject{Kind: rbacv1.ServiceAccountKind, Namespace: "tenant", Name: "a-reader"})
+	reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(first, second).
+		WithIndex(&rbacv1.RoleBinding{}, subjectIndex, func(obj client.Object) []string {
+			values, _ := OwnerRoleBindingsIndexFunc(obj)
+
+			return values
+		}).Build()
+	reflector := &RoleBindingReflector{reader: reader, results: map[string]cachedReflectionResult{}}
+
+	for _, test := range []struct {
+		username string
+		want     string
+	}{
+		{serviceaccount.MakeUsername("tenant-a", "reader"), "tenant-a"},
+		{serviceaccount.MakeUsername("tenant", "a-reader"), "tenant-b"},
+	} {
+		bindings, err := reflector.getRoleBindingsForSubject(context.Background(), test.username, nil, subjectIndex)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bindings) != 1 || bindings[0].Namespace != test.want {
+			t.Fatalf("lookup for %q returned %v, want only %s", test.username, bindings, test.want)
+		}
 	}
 }
