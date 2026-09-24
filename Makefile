@@ -36,14 +36,6 @@ endif
 license-headers: nwa
 	$(NWA) config
 
-####################
-# -- Docker
-####################
-
-dlv-build:
-	docker build . --build-arg "GCFLAGS=all=-N -l" --tag projectcapsule/capsule-proxy:dlv --target dlv
-
-
 KO_PLATFORM     ?= $(GOOS)/$(GO_ARCH)
 KOCACHE         ?= /tmp/ko-cache
 KO_TAGS         ?= "latest"

@@ -13,7 +13,6 @@ on:
       - '.ko.yaml'
       - 'go.*'
       - '*.go'
-      - 'Dockerfile'
       - 'Makefile'
 
 jobs:

@@ -58,15 +58,9 @@ $ go run . --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.
 
 In some cases, you would need to debug the in-cluster mode and [`delve`](https://github.com/go-delve/delve) plays a big role here.
 
-1. build the Docker image with `delve` issuing `make dlv-build`
-2. with the `clastix/capsule-proxy:dlv` produced Docker image, publish it or load it to your [KinD](https://github.com/kubernetes-sigs/kind) instance (`kind load docker-image --name capsule --nodes capsule-control-plane clastix/capsule-proxy:dlv`)
-3. change the Deployment image using `kubectl edit` or `kubectl set image deployment/capsule-proxy capsule-proxy=clastix/capsule-proxy:dlv`
-4. wait for the image rollout (`kubectl -n capsule-system rollout status deployment/capsule-proxy`)
-5. perform the port-forwarding with `kubectl -n capsule-system port-forward $(kubectl -n capsule-system get pods -l app.kubernetes.io/name=capsule-proxy --output name) 2345:2345`
-6. connect using your `delve` options
-
-> _Nota Bene_: the application could be killed by the Liveness Probe since delve will wait for the debugger connection before starting it.
-> Feel free to edit and remove the probes to avoid this kind of issue.
+Build and load images with the ko workflow (`make ko-build-all`). For interactive
+debugging, build the binary with Go's normal debug flags and run it under Delve
+locally; the repository no longer maintains a dedicated debug container image.
 
 ## HTTP support
 
