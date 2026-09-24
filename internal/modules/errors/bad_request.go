@@ -34,14 +34,12 @@ func (b badRequest) Error() string {
 
 func (b badRequest) Status() *metav1.Status {
 	return &metav1.Status{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       types.StatusKind,
-			APIVersion: types.V1,
-		},
-		Reason:  metav1.StatusReasonBadRequest,
-		Message: b.message,
-		Status:  metav1.StatusFailure,
-		Code:    http.StatusBadRequest,
-		Details: b.details,
+		Kind:       types.StatusKind,
+		APIVersion: types.V1,
+		Reason:     metav1.StatusReasonBadRequest,
+		Message:    b.message,
+		Status:     metav1.StatusFailure,
+		Code:       http.StatusBadRequest,
+		Details:    b.details,
 	}
 }

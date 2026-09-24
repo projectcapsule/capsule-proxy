@@ -37,14 +37,12 @@ func (e notFoundError) Error() string {
 
 func (e notFoundError) Status() *metav1.Status {
 	return &metav1.Status{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       types.StatusKind,
-			APIVersion: types.V1,
-		},
-		Reason:  metav1.StatusReasonNotFound,
-		Message: e.message,
-		Status:  metav1.StatusFailure,
-		Code:    http.StatusNotFound,
-		Details: e.details,
+		Kind:       types.StatusKind,
+		APIVersion: types.V1,
+		Reason:     metav1.StatusReasonNotFound,
+		Message:    e.message,
+		Status:     metav1.StatusFailure,
+		Code:       http.StatusNotFound,
+		Details:    e.details,
 	}
 }

@@ -7,15 +7,75 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
 )
+
+func TestHandleResolveUserAndGroupsError(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name   string
+		err    error
+		code   int
+		reason metav1.StatusReason
+	}{
+		{"unauthorized", req.NewErrUnauthorized("denied"), http.StatusForbidden, metav1.StatusReasonForbidden},
+		{"wrapped unauthorized", fmt.Errorf("identity: %w", req.NewErrUnauthorized("denied")), http.StatusForbidden, metav1.StatusReasonForbidden},
+		{"joined unauthorized", errors.Join(errors.New("review"), req.NewErrUnauthorized("denied")), http.StatusForbidden, metav1.StatusReasonForbidden},
+		{"internal error", errors.New("review unavailable"), http.StatusInternalServerError, metav1.StatusReasonInternalError},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			response := httptest.NewRecorder()
+			handleResolveUserAndGroupsError(response, tt.err)
+			var status metav1.Status
+			if err := json.Unmarshal(response.Body.Bytes(), &status); err != nil {
+				t.Fatal(err)
+			}
+			if response.Code != tt.code || status.Code != int32(tt.code) || status.Reason != tt.reason {
+				t.Fatalf("response = %d, %+v; want %d, %s", response.Code, status, tt.code, tt.reason)
+			}
+			if status.Kind != "Status" || status.APIVersion != "v1" || !strings.Contains(status.Message, tt.err.Error()) {
+				t.Fatalf("unexpected Kubernetes Status: %+v", status)
+			}
+		})
+	}
+}
+
+func BenchmarkHandleResolveUserAndGroupsError(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		err  error
+		code int
+	}{
+		{"unauthorized", req.NewErrUnauthorized("denied"), http.StatusForbidden},
+		{"wrapped", fmt.Errorf("identity: %w", req.NewErrUnauthorized("denied")), http.StatusForbidden},
+		{"internal", errors.New("review unavailable"), http.StatusInternalServerError},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				response := httptest.NewRecorder()
+				handleResolveUserAndGroupsError(response, tt.err)
+				if response.Code != tt.code {
+					b.Fatalf("response code = %d, want %d", response.Code, tt.code)
+				}
+			}
+		})
+	}
+}
 
 func TestIdentityIsIgnored(t *testing.T) {
 	t.Parallel()
@@ -79,6 +139,7 @@ func TestCheckUserInIgnoredIdentityMiddleware(t *testing.T) {
 		ignoredUsernames sets.Set[string]
 		ignoredGroups    sets.Set[string]
 		wantBypass       bool
+		wantDenied       bool
 	}{
 		{
 			name:             "ignored username bypasses filtering",
@@ -103,6 +164,12 @@ func TestCheckUserInIgnoredIdentityMiddleware(t *testing.T) {
 			ignoredUsernames: sets.New("bob"),
 			ignoredGroups:    sets.New("platform"),
 		},
+		{
+			name:             "missing identity is rejected before either handler",
+			ignoredUsernames: sets.New("bob"),
+			ignoredGroups:    sets.New("platform"),
+			wantDenied:       true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,6 +180,9 @@ func TestCheckUserInIgnoredIdentityMiddleware(t *testing.T) {
 			request.TLS = &tls.ConnectionState{PeerCertificates: []*x509.Certificate{{
 				Subject: pkix.Name{CommonName: tt.username, Organization: tt.groups},
 			}}}
+			if tt.wantDenied {
+				request.TLS = nil
+			}
 
 			bypassed := false
 			continued := false
@@ -130,7 +200,14 @@ func TestCheckUserInIgnoredIdentityMiddleware(t *testing.T) {
 				func(http.ResponseWriter, *http.Request) { bypassed = true },
 			)
 			handler := middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { continued = true }))
-			handler.ServeHTTP(httptest.NewRecorder(), request)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if tt.wantDenied {
+				if response.Code != http.StatusForbidden || bypassed || continued {
+					t.Fatalf("unauthenticated request: status=%d, bypass=%t, continued=%t", response.Code, bypassed, continued)
+				}
+				return
+			}
 
 			if bypassed != tt.wantBypass {
 				t.Fatalf("bypass called = %v, want %v", bypassed, tt.wantBypass)

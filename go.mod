@@ -42,7 +42,6 @@ require (
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
-	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
@@ -52,7 +51,6 @@ require (
 	github.com/go-openapi/swag/cmdutils v0.29.2 // indirect
 	github.com/go-openapi/swag/conv v0.29.2 // indirect
 	github.com/go-openapi/swag/fileutils v0.29.2 // indirect
-	github.com/go-openapi/swag/jsonname v0.26.0 // indirect
 	github.com/go-openapi/swag/jsonutils v0.29.2 // indirect
 	github.com/go-openapi/swag/loading v0.29.2 // indirect
 	github.com/go-openapi/swag/mangling v0.29.2 // indirect
@@ -105,10 +103,10 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20260911184034-7970a1e230da // indirect
+	// Keep aligned with k8s.io/apimachinery: newer revisions use incompatible structured-merge-diff/v7 types.
+	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	sigs.k8s.io/json v0.0.0-20260909141634-11ed52e25bc5 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
-	sigs.k8s.io/structured-merge-diff/v7 v7.0.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )

@@ -4,13 +4,60 @@
 package validation
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sdiscovery "k8s.io/client-go/discovery"
 
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 )
+
+type preferredResourcesDiscovery struct {
+	k8sdiscovery.DiscoveryInterface
+	err error
+}
+
+func (d preferredResourcesDiscovery) ServerPreferredResources() ([]*metav1.APIResourceList, error) {
+	return []*metav1.APIResourceList{{
+		GroupVersion: "v1",
+		APIResources: []metav1.APIResource{{Name: "nodes", Kind: "Node", Verbs: metav1.Verbs{"get", "list"}}},
+	}}, d.err
+}
+
+func TestDiscoverClusterResourcesPartialFailure(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name      string
+		err       error
+		wantError bool
+	}{
+		{name: "complete discovery"},
+		{name: "partial discovery", err: &k8sdiscovery.ErrGroupDiscoveryFailed{}},
+		{name: "wrapped partial discovery", err: fmt.Errorf("discovery: %w", &k8sdiscovery.ErrGroupDiscoveryFailed{})},
+		{name: "unrelated error", err: errors.New("discovery unavailable"), wantError: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			index, err := DiscoverClusterResources(preferredResourcesDiscovery{err: tt.err})
+			if tt.wantError {
+				if !errors.Is(err, tt.err) || index != nil {
+					t.Fatalf("discovery = %v, %v; want original failure and no index", index, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resource := index.byGroup[""]["nodes"]; resource.Resource != "nodes" || len(resource.Kinds) != 1 || resource.Kinds[0] != "Node" {
+				t.Fatalf("partial discovery lost available resources: %+v", resource)
+			}
+		})
+	}
+}
 
 func TestValidateClusterResourceOperationsAndDiscoveryVerbs(t *testing.T) {
 	t.Parallel()

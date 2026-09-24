@@ -231,7 +231,8 @@ func (h http) processBearerToken() (username string, groups []string, err error)
 // If there is no Authorizaion Bearer, then try finding the Bearer in Websocket Protocols header. This is for browser support.
 func (h http) bearerToken() (string, error) {
 	tradBearer := strings.TrimPrefix(h.Header.Get("Authorization"), "Bearer ")
-	wsHeader := h.Header.Get("Sec-Websocket-Protocol")
+	// Use net/http's canonical spelling to avoid allocating during header lookup.
+	wsHeader := h.Header.Get("Sec-Websocket-Protocol") //nolint:canonicalheader
 
 	switch {
 	case tradBearer != "":

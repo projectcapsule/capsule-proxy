@@ -16,14 +16,12 @@ import (
 func HandleUnauthorized(w http.ResponseWriter, err error, message string) {
 	message = fmt.Sprintf("%s: %s", message, err.Error())
 	status := &metav1.Status{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       types.StatusKind,
-			APIVersion: types.V1,
-		},
-		Status:  metav1.StatusFailure,
-		Message: message,
-		Reason:  metav1.StatusReasonForbidden,
-		Code:    http.StatusForbidden,
+		Kind:       types.StatusKind,
+		APIVersion: types.V1,
+		Status:     metav1.StatusFailure,
+		Message:    message,
+		Reason:     metav1.StatusReasonForbidden,
+		Code:       http.StatusForbidden,
 	}
 
 	w.Header().Set("content-type", "application/json")
@@ -37,14 +35,12 @@ func HandleUnauthorized(w http.ResponseWriter, err error, message string) {
 func HandleError(w http.ResponseWriter, err error, message string) {
 	message = fmt.Sprintf("%s: %s", message, err.Error())
 	status := &metav1.Status{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Status",
-			APIVersion: "v1",
-		},
-		Status:  metav1.StatusFailure,
-		Message: message,
-		Reason:  metav1.StatusReasonInternalError,
-		Code:    http.StatusInternalServerError,
+		Kind:       "Status",
+		APIVersion: "v1",
+		Status:     metav1.StatusFailure,
+		Message:    message,
+		Reason:     metav1.StatusReasonInternalError,
+		Code:       http.StatusInternalServerError,
 	}
 
 	w.Header().Set("content-type", "application/json")

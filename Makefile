@@ -472,11 +472,12 @@ nwa:
 	$(call go-install-tool,$(NWA),github.com/$(NWA_LOOKUP)@$(NWA_VERSION))
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := v2.12.2
+GOLANGCI_LINT_VERSION  := v2.13.2
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
-golangci-lint: ## Download golangci-lint locally if necessary.
-	@test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) -h | grep -q $(GOLANGCI_LINT_VERSION) || \
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/$(GOLANGCI_LINT_LOOKUP)/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION))
+.PHONY: golangci-lint
+golangci-lint: | $(LOCALBIN) ## Download golangci-lint locally if necessary.
+	@test "$$('$(GOLANGCI_LINT)' version --short 2>/dev/null)" = "$(patsubst v%,%,$(GOLANGCI_LINT_VERSION))" || \
+	GOBIN="$(LOCALBIN)" go install github.com/$(GOLANGCI_LINT_LOOKUP)/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

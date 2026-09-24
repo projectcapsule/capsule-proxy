@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
@@ -45,11 +44,9 @@ func discoverAPI(config *rest.Config) ([]utils.ProxyGroupVersionKind, error) {
 			}
 
 			out = append(out, utils.ProxyGroupVersionKind{
-				GroupVersionKind: schema.GroupVersionKind{
-					Group:   group,
-					Version: version,
-					Kind:    i.Kind,
-				},
+				Group:   group,
+				Version: version,
+				Kind:    i.Kind,
 				URLName: i.Name,
 			})
 		}
@@ -102,11 +99,9 @@ func serverPreferredResources(discoveryClient *discovery.DiscoveryClient) (out [
 			}
 
 			out = append(out, utils.ProxyGroupVersionKind{
-				GroupVersionKind: schema.GroupVersionKind{
-					Group:   group,
-					Version: version,
-					Kind:    i.Kind,
-				},
+				Group:   group,
+				Version: version,
+				Kind:    i.Kind,
 				URLName: i.Name,
 			})
 		}

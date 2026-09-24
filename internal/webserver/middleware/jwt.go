@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/mux"
 	goerrors "github.com/pkg/errors"
 	authenticationv1 "k8s.io/api/authentication/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -29,10 +28,8 @@ func CheckJWTMiddleware(client client.Writer) mux.MiddlewareFunc {
 			switch {
 			case len(token) > 0 && !invalidatedToken.Has(token):
 				tr := authenticationv1.TokenReview{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "TokenReview",
-						APIVersion: "authentication.k8s.io/v1",
-					},
+					Kind:       "TokenReview",
+					APIVersion: "authentication.k8s.io/v1",
 					Spec: authenticationv1.TokenReviewSpec{
 						Token: token,
 					},
