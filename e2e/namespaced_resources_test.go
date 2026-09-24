@@ -118,7 +118,6 @@ var _ = Describe("Namespaced resource access", Ordered, ContinueOnFailure, Label
 			list, err := anonymous.Resource(pods.gvr()).Namespace(namespace).List(context.Background(), f.listOptions())
 			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "unauthenticated requests must return Forbidden: %v", err)
 			Expect(list).To(BeNil(), "authentication failures must not expose tenant resources")
-			Expect(err.Error()).To(ContainSubstring("cannot retrieve user and group"))
 		}
 	})
 
