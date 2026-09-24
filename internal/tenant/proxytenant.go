@@ -37,15 +37,10 @@ func NewProxyTenant(
 	owners []v1beta1.OwnerSpec,
 	disableLegacyProxySettings bool,
 ) *ProxyTenant {
-	var (
-		tenantProxySettings    []capsulerbac.ProxySettings
-		tenantClusterResources []v1beta1.ClusterResource
-	)
+	var tenantProxySettings []capsulerbac.ProxySettings
 
 	for _, owner := range owners {
 		if owner.Name == ownerName && owner.Kind == ownerKind {
-			tenantClusterResources = owner.ClusterResources
-
 			if !disableLegacyProxySettings {
 				//nolint:staticcheck
 				tenantProxySettings = owner.ProxyOperations
@@ -53,10 +48,10 @@ func NewProxyTenant(
 		}
 	}
 
-	pt := &ProxyTenant{
-		Tenant:           tenant,
-		ClusterResources: tenantClusterResources,
-	}
+	// Namespaced ProxySettings are tenant-writable and cannot grant cluster-wide
+	// access. Ignore ClusterResources even on objects stored before CRD validation
+	// was tightened. Only NewClusterProxy may import those administrator grants.
+	pt := &ProxyTenant{Tenant: tenant}
 
 	if !disableLegacyProxySettings {
 		proxySettings := defaultProxySettings()

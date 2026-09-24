@@ -26,7 +26,7 @@ func namespacesGVK() *schema.GroupVersionKind {
 
 // clusterScopedNamespaceNames resolves the namespaces selected by cluster-scoped
 // ClusterResources rules (matching the namespaces resource) to their names, so
-// subjects granted access via GlobalProxySettings or ProxySettings can list the
+// subjects granted access via GlobalProxySettings can list the
 // corresponding namespaces without being tenant owners.
 func clusterScopedNamespaceNames(ctx context.Context, reader client.Reader, proxyTenants []*tenant.ProxyTenant) ([]string, error) {
 	requirements := clusterscoped.GetClusterScopeRequirements(
@@ -57,8 +57,8 @@ func clusterScopedNamespaceNames(ctx context.Context, reader client.Reader, prox
 }
 
 // matchesClusterScopedNamespace reports whether the namespace is selected by any
-// cluster-scoped ClusterResources rule (e.g. from GlobalProxySettings or
-// ProxySettings), allowing subjects granted access through those rules to get
+// cluster-scoped ClusterResources rule from GlobalProxySettings,
+// allowing subjects granted access through those rules to get
 // the namespace without being tenant owners.
 func matchesClusterScopedNamespace(proxyTenants []*tenant.ProxyTenant, ns *corev1.Namespace) bool {
 	requirements := clusterscoped.GetClusterScopeRequirements(
