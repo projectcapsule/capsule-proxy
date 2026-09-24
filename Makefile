@@ -18,7 +18,7 @@ IMG             ?= $(IMG_BASE):$(VERSION)
 CAPSULE_PROXY_IMG     ?= $(REGISTRY)/$(IMG_BASE)
 
 ## Kubernetes Version Support
-KUBERNETES_SUPPORTED_VERSION ?= "v1.35.0"
+KUBERNETES_SUPPORTED_VERSION ?= "v1.37.0"
 
 ## Tool Binaries
 KUBECTL ?= kubectl
@@ -35,14 +35,6 @@ endif
 
 license-headers: nwa
 	$(NWA) config
-
-####################
-# -- Docker
-####################
-
-dlv-build:
-	docker build . --build-arg "GCFLAGS=all=-N -l" --tag projectcapsule/capsule-proxy:dlv --target dlv
-
 
 KO_PLATFORM     ?= $(GOOS)/$(GO_ARCH)
 KOCACHE         ?= /tmp/ko-cache
@@ -425,14 +417,14 @@ helm-doc:
 # -- Tools
 ####################
 CONTROLLER_GEN         := $(LOCALBIN)/controller-gen
-CONTROLLER_GEN_VERSION ?= v0.21.0
+CONTROLLER_GEN_VERSION ?= v0.22.0
 CONTROLLER_GEN_LOOKUP  := kubernetes-sigs/controller-tools
 controller-gen:
 	@test -s $(CONTROLLER_GEN) && $(CONTROLLER_GEN) --version | grep -q $(CONTROLLER_GEN_VERSION) || \
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
 
 GINKGO         := $(LOCALBIN)/ginkgo
-GINKGO_VERSION := v2.29.0
+GINKGO_VERSION := v2.33.0
 GINKGO_LOOKUP  := onsi/ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	$(call go-install-tool,$(GINKGO),github.com/$(GINKGO_LOOKUP)/v2/ginkgo@$(GINKGO_VERSION))
@@ -451,7 +443,7 @@ ct:
 	$(call go-install-tool,$(CT),github.com/$(CT_LOOKUP)/v3/ct@$(CT_VERSION))
 
 KIND         := $(LOCALBIN)/kind
-KIND_VERSION := v0.32.0
+KIND_VERSION := v0.33.0
 KIND_LOOKUP  := kubernetes-sigs/kind
 kind:
 	@test -s $(KIND) && $(KIND) --version | grep -q $(KIND_VERSION) || \
@@ -472,11 +464,12 @@ nwa:
 	$(call go-install-tool,$(NWA),github.com/$(NWA_LOOKUP)@$(NWA_VERSION))
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := v2.12.2
+GOLANGCI_LINT_VERSION  := v2.13.2
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
-golangci-lint: ## Download golangci-lint locally if necessary.
-	@test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) -h | grep -q $(GOLANGCI_LINT_VERSION) || \
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/$(GOLANGCI_LINT_LOOKUP)/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION))
+.PHONY: golangci-lint
+golangci-lint: | $(LOCALBIN) ## Download golangci-lint locally if necessary.
+	@test "$$('$(GOLANGCI_LINT)' version --short 2>/dev/null)" = "$(patsubst v%,%,$(GOLANGCI_LINT_VERSION))" || \
+	GOBIN="$(LOCALBIN)" go install github.com/$(GOLANGCI_LINT_LOOKUP)/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

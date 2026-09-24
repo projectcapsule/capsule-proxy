@@ -40,8 +40,7 @@ func (i *ClusterResourceDiscoveryIndex) groups() []string {
 func DiscoverClusterResources(discoveryClient k8sdiscovery.DiscoveryInterface) (*ClusterResourceDiscoveryIndex, error) {
 	resourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
-		var groupDiscoveryFailed *k8sdiscovery.ErrGroupDiscoveryFailed
-		if !errors.As(err, &groupDiscoveryFailed) {
+		if _, ok := errors.AsType[*k8sdiscovery.ErrGroupDiscoveryFailed](err); !ok {
 			return nil, err
 		}
 	}

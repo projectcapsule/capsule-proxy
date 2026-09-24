@@ -16,6 +16,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -104,6 +106,20 @@ var _ = Describe("Namespaced resource access", Ordered, ContinueOnFailure, Label
 			})
 		})
 	}
+
+	It("rejects unauthenticated requests while preserving tenant visibility", Label("authentication"), func() {
+		pods := accessResources()[0]
+		f.expectList("coowner", pods, "a1", "a2")
+		f.expectList("other", pods, "b1")
+
+		anonymous, err := dynamic.NewForConfig(rest.AnonymousClientConfig(f.proxyConfig))
+		Expect(err).NotTo(HaveOccurred())
+		for _, namespace := range []string{"", f.namespaces["a1"], f.namespaces["b1"]} {
+			list, err := anonymous.Resource(pods.gvr()).Namespace(namespace).List(context.Background(), f.listOptions())
+			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "unauthenticated requests must return Forbidden: %v", err)
+			Expect(list).To(BeNil(), "authentication failures must not expose tenant resources")
+		}
+	})
 
 	It("lists without a caller-supplied selector and preserves pagination isolation", func() {
 		pods := accessResources()[0]

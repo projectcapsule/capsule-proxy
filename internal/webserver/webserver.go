@@ -505,8 +505,7 @@ func (n *kubeFilter) impersonateHandler(writer http.ResponseWriter, request *htt
 	if err != nil {
 		msg := "cannot retrieve user and group"
 
-		var t *req.ErrUnauthorized
-		if errors.As(err, &t) {
+		if _, ok := errors.AsType[*req.ErrUnauthorized](err); ok {
 			server.HandleUnauthorized(writer, err, msg)
 		} else {
 			server.HandleError(writer, err, msg)
@@ -538,7 +537,7 @@ func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulerbac.OwnerList
 		out = append(out, v1beta1.OwnerSpec{
 			Kind:            owner.Kind,
 			Name:            owner.Name,
-			ProxyOperations: owner.ProxyOperations,
+			ProxyOperations: owner.ProxyOperations, //nolint:staticcheck // Preserve supported legacy tenant-owner permissions.
 		})
 	}
 
@@ -661,8 +660,7 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 
 			switch {
 			case err != nil:
-				var t moderrors.Error
-				if errors.As(err, &t) {
+				if t, ok := errors.AsType[moderrors.Error](err); ok {
 					writer.Header().Set("Content-Type", "application/json")
 
 					if t.Status().Code > 0 {
@@ -711,8 +709,7 @@ func (n *kubeFilter) recoveryMiddleware(next http.Handler) http.Handler {
 }
 
 func (n *kubeFilter) handleResolveUserAndGroupsError(writer http.ResponseWriter, err error) {
-	var unauthorizedErr *req.ErrUnauthorized
-	if errors.As(err, &unauthorizedErr) {
+	if _, ok := errors.AsType[*req.ErrUnauthorized](err); ok {
 		server.HandleUnauthorized(writer, err, "cannot retrieve user and group from the request")
 
 		return

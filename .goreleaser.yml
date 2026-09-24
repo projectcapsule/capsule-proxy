@@ -52,7 +52,7 @@ release:
     >
     > | Kubernetes version | Minimum required |
     > |--------------------|------------------|
-    > | `v1.35`            | `>= 1.35.0`      |
+    > | `v1.37`            | `>= 1.37.0`      |
 
     Thanks to all the contributors! 🚀 🦄
 checksum:

@@ -86,8 +86,7 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 }
 
 func handleResolveUserAndGroupsError(writer http.ResponseWriter, err error) {
-	var unauthorizedErr *req.ErrUnauthorized
-	if errors.As(err, &unauthorizedErr) {
+	if _, ok := errors.AsType[*req.ErrUnauthorized](err); ok {
 		weberrors.HandleUnauthorized(writer, err, "cannot retrieve user and group from the request")
 
 		return
