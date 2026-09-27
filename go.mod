@@ -20,7 +20,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/apiserver v0.37.1
-	k8s.io/client-go v0.37.1
+	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/component-base v0.37.1
 	k8s.io/kubectl v0.36.3
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
