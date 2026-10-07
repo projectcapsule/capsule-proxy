@@ -324,7 +324,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | gangplank.httproute.rules | list | `[{"matches":[{"path":{"type":"PathPrefix","value":"/"}}]}]` | Rules Configuration Allows advanced routing with matches and filters |
 | gangplank.image.pullPolicy | string | `"IfNotPresent"` |  |
 | gangplank.image.repository | string | `"registry.sighup.io/fury/gangplank"` |  |
-| gangplank.image.tag | string | `"v1.2.0"` |  |
+| gangplank.image.tag | string | `"v1.3.0"` |  |
 | gangplank.imagePullSecrets | list | `[]` | Configuration for `imagePullSecrets` so that you can use a private images registry. |
 | gangplank.ingress.annotations | object | `{}` |  |
 | gangplank.ingress.className | string | `""` |  |

@@ -618,7 +618,7 @@ gangplank:
   image:
     repository: registry.sighup.io/fury/gangplank
     pullPolicy: IfNotPresent
-    tag: "v1.2.0"
+    tag: "v1.3.0"
 
   # -- Configuration for `imagePullSecrets` so that you can use a private images registry.
   imagePullSecrets: []
@@ -817,6 +817,10 @@ gangplank:
     # The path to find custom HTML templates
     # Env var: GANGPLANK_CONFIG_CUSTOM_HTTP_TEMPLATES_DIR
     # customHTMLTemplatesDir: /custom-templates
+
+    # The path to find custom static assets
+    # Env var: GANGPLANK_CONFIG_CUSTOM_STATIC_DIR
+    # customStaticDir: /custom-static
 
     # Flag to remove the CA from the kubeconfig.
     # Env var: GANGPLANK_CONFIG_REMOVE_CA_FROM_KUBECONFIG
