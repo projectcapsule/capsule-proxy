@@ -74,8 +74,6 @@ spec:
         {{- if .Values.global.jobs.kubectl.securityContext.enabled }}
         securityContext: {{- omit .Values.global.jobs.kubectl.securityContext "enabled" | toYaml | nindent 10 }}
         {{- end }}
-        command:
-        - /bin/kubectl
         args:
         - apply
         - --server-side=true
