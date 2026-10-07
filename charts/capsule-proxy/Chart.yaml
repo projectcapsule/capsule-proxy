@@ -34,6 +34,6 @@ annotations:
       url: https://projectcapsule.dev/docs/proxy/
   artifacthub.io/changes: |
     - kind: changed
-      description: use the official patch-versioned kubectl image for CRD hooks
+      description: preserve clastix/kubectl as the default while supporting the official kubectl image
     - kind: fixed
       description: fixed default securityContext toggles for kubectl job

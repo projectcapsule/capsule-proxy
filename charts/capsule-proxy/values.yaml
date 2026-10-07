@@ -10,9 +10,9 @@ global:
     kubectl:
       image:
         # -- Set the image registry for kubectl chart jobs.
-        registry: registry.k8s.io
+        registry: docker.io
         # -- Set the image repository for kubectl chart jobs.
-        repository: kubectl
+        repository: clastix/kubectl
         # -- Set the image pull policy of the helm chart job
         pullPolicy: IfNotPresent
         # -- Override the kubectl image tag. If empty, the Kubernetes patch version is used.
