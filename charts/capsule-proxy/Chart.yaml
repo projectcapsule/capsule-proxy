@@ -34,6 +34,6 @@ annotations:
       url: https://projectcapsule.dev/docs/proxy/
   artifacthub.io/changes: |
     - kind: changed
-      description: preserve clastix/kubectl as the default while supporting the official kubectl image
+      description: pass kubectl hook arguments through the configured image entrypoint
     - kind: fixed
       description: fixed default securityContext toggles for kubectl job

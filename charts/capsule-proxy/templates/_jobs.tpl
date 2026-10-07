@@ -1,12 +1,12 @@
 {{/*
-Get the upstream Kubernetes patch version for official kubectl image tags.
+Determine the Kubernetes version to use for jobsFullyQualifiedDockerImage tag
 */}}
 {{- define "capsule-proxy.jobsTagKubeVersion" -}}
-{{- $version := regexFind "[0-9]+[.][0-9]+[.][0-9]+" .Capabilities.KubeVersion.GitVersion -}}
-{{- if not $version -}}
-{{- fail (printf "unable to determine kubectl image tag from Kubernetes version %q" .Capabilities.KubeVersion.GitVersion) -}}
+{{- if contains "-eks-" .Capabilities.KubeVersion.GitVersion }}
+{{- print "v" .Capabilities.KubeVersion.Major "." (.Capabilities.KubeVersion.Minor | replace "+" "") -}}
+{{- else }}
+{{- print "v" .Capabilities.KubeVersion.Major "." .Capabilities.KubeVersion.Minor -}}
 {{- end }}
-{{- printf "v%s" $version -}}
 {{- end }}
 
 {{/*

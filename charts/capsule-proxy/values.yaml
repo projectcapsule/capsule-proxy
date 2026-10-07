@@ -9,13 +9,13 @@ global:
     # kubectl job configuration
     kubectl:
       image:
-        # -- Set the image registry for kubectl chart jobs.
+        # -- Set the image repository of the helm chart job
         registry: docker.io
-        # -- Set the image repository for kubectl chart jobs.
+        # -- Set the image repository of the helm chart job
         repository: clastix/kubectl
         # -- Set the image pull policy of the helm chart job
         pullPolicy: IfNotPresent
-        # -- Override the kubectl image tag. If empty, the Kubernetes patch version is used.
+        # -- Set the image tag of the helm chart job
         tag: ""
       # -- Labels to add to the job pod
       podLabels: {}

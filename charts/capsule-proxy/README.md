@@ -108,9 +108,9 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.kubectl.affinity | object | `{}` | Set affinity rules |
 | global.jobs.kubectl.annotations | object | `{}` | Annotations to add to the job. |
 | global.jobs.kubectl.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the helm chart job |
-| global.jobs.kubectl.image.registry | string | `"docker.io"` | Set the image registry for kubectl chart jobs. |
-| global.jobs.kubectl.image.repository | string | `"clastix/kubectl"` | Set the image repository for kubectl chart jobs. |
-| global.jobs.kubectl.image.tag | string | `""` | Override the kubectl image tag. If empty, the Kubernetes patch version is used. |
+| global.jobs.kubectl.image.registry | string | `"docker.io"` | Set the image repository of the helm chart job |
+| global.jobs.kubectl.image.repository | string | `"clastix/kubectl"` | Set the image repository of the helm chart job |
+| global.jobs.kubectl.image.tag | string | `""` | Set the image tag of the helm chart job |
 | global.jobs.kubectl.labels | object | `{}` | Labels to add to the job. |
 | global.jobs.kubectl.nodeSelector | object | `{}` | Set the node selector |
 | global.jobs.kubectl.podAnnotations | object | `{}` | Annotations to add to the job pod |
