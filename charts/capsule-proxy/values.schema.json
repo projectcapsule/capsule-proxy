@@ -746,15 +746,15 @@
                                             "type": "string"
                                         },
                                         "registry": {
-                                            "description": "Set the image repository of the helm chart job",
+                                            "description": "Set the image registry for kubectl chart jobs.",
                                             "type": "string"
                                         },
                                         "repository": {
-                                            "description": "Set the image repository of the helm chart job",
+                                            "description": "Set the image repository for kubectl chart jobs.",
                                             "type": "string"
                                         },
                                         "tag": {
-                                            "description": "Set the image tag of the helm chart job",
+                                            "description": "Override the kubectl image tag. If empty, the Kubernetes patch version is used.",
                                             "type": "string"
                                         }
                                     }

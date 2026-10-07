@@ -33,5 +33,7 @@ annotations:
     - name: Documentation
       url: https://projectcapsule.dev/docs/proxy/
   artifacthub.io/changes: |
+    - kind: changed
+      description: use the official patch-versioned kubectl image for CRD hooks
     - kind: fixed
       description: fixed default securityContext toggles for kubectl job
