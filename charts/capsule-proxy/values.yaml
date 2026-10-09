@@ -190,6 +190,9 @@ daemonset:
 # -- Set the replica count for capsule-proxy pod.
 replicaCount: 1
 
+# -- Annotations to add to the capsule-proxy deployment.
+annotations: {}
+
 #  The following annotations guarantee scheduling for critical add-on pods
 #  podAnnotations:
 #    scheduler.alpha.kubernetes.io/critical-pod: ''
@@ -623,7 +626,10 @@ gangplank:
   # -- Configuration for `imagePullSecrets` so that you can use a private images registry.
   imagePullSecrets: []
 
-  # -- Annotations to add to the pod.
+  # -- Annotations to add to the gangplank deployment.
+  annotations: {}
+
+  # -- Annotations to add to the gangplank pod.
   podAnnotations: {}
 
   # -- Labels to add to the pod.

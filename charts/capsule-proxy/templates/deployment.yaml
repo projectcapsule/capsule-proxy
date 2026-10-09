@@ -8,6 +8,10 @@ metadata:
   labels:
     app.kubernetes.io/component: "proxy"
     {{- include "capsule-proxy.labels" . | nindent 4 }}
+  {{- with .Values.annotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
 spec:
   strategy:
     type: RollingUpdate

@@ -35,3 +35,7 @@ annotations:
   artifacthub.io/changes: |
     - kind: fixed
       description: fixed default securityContext toggles for kubectl job
+    - kind: changed
+      description: update gangplank to 1.3.0
+    - kind: added
+      description: add support for deployment annotations
