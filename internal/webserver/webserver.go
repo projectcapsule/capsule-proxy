@@ -71,7 +71,10 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/namespacegate"
 )
 
-const bearerTokenReloadRetryDelay = time.Minute
+const (
+	bearerTokenReloadRetryDelay = time.Minute
+	readinessProbeTimeout       = 5 * time.Second
+)
 
 func NewKubeFilter(
 	opts options.ListenerOpts,
@@ -133,6 +136,7 @@ func NewKubeFilter(
 		bearerTokenExpirationTime:  bearerExpirationTime(opts.BearerToken()),
 		usernameClaimField:         opts.PreferredUsernameClaim(),
 		serverOptions:              srv,
+		readinessClient:            newReadinessClient(),
 		log:                        ctrl.Log.WithName("proxy"),
 		roleBindingsReflector:      rbReflector,
 		protoEncoder:               protoEncoder,
@@ -159,6 +163,7 @@ type kubeFilter struct {
 	bearerTokenExpirationTime  time.Time
 	usernameClaimField         string
 	serverOptions              options.ServerOptions
+	readinessClient            *http.Client
 	log                        logr.Logger
 	roleBindingsReflector      *controllers.RoleBindingReflector
 	gates                      featuregate.FeatureGate
@@ -186,6 +191,8 @@ func (n *kubeFilter) NeedLeaderElection() bool {
 
 //nolint:funlen
 func (n *kubeFilter) Start(ctx context.Context) error {
+	defer n.readinessClient.CloseIdleConnections()
+
 	r := mux.NewRouter()
 	r.Use(n.recoveryMiddleware)
 
@@ -275,20 +282,30 @@ func (n *kubeFilter) LivenessProbe(*http.Request) error {
 	return nil
 }
 
+func newReadinessClient() *http.Client {
+	return &http.Client{
+		Timeout: readinessProbeTimeout,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{Timeout: readinessProbeTimeout}).DialContext,
+			TLSClientConfig: &tls.Config{
+				// The probe connects only to this proxy's loopback listener.
+				//nolint:gosec
+				InsecureSkipVerify: true,
+			},
+			TLSHandshakeTimeout: readinessProbeTimeout,
+			MaxIdleConns:        2,
+			MaxIdleConnsPerHost: 2,
+			MaxConnsPerHost:     2,
+			IdleConnTimeout:     30 * time.Second,
+		},
+	}
+}
+
 func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 	scheme := "http"
-	clt := &http.Client{}
 
 	if n.serverOptions.IsListeningTLS() {
 		scheme = "https"
-		clt = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					//nolint:gosec
-					InsecureSkipVerify: true,
-				},
-			},
-		}
 	}
 
 	url := fmt.Sprintf("%s://localhost:%d/_healthz", scheme, n.serverOptions.ListeningPort())
@@ -301,7 +318,7 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 
 	var resp *http.Response
 
-	if resp, err = clt.Do(r); err != nil {
+	if resp, err = n.readinessClient.Do(r); err != nil {
 		return pkgerrors.Wrap(err, "cannot make local _healthz request")
 	}
 
@@ -311,6 +328,12 @@ func (n *kubeFilter) ReadinessProbe(req *http.Request) (err error) {
 
 	if sc := resp.StatusCode; sc != 200 {
 		return fmt.Errorf("returned status code from _healthz is %d, expected 200", sc)
+	}
+
+	// Read to EOF before closing so the shared transport can reuse the connection
+	// on every supported Go version, rather than relying on asynchronous draining.
+	if _, err = io.Copy(io.Discard, resp.Body); err != nil {
+		return pkgerrors.Wrap(err, "cannot read local _healthz response")
 	}
 
 	return nil
