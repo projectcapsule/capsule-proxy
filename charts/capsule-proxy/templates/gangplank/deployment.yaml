@@ -7,6 +7,10 @@ metadata:
   namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "gangplank.labels" . | nindent 4 }}
+  {{- with .Values.gangplank.annotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.gangplank.replicaCount }}
   selector:

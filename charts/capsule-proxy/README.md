@@ -129,6 +129,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
+| annotations | object | `{}` | Annotations to add to the capsule-proxy deployment. |
 | apiPriorityAndFairness.enabled | bool | `false` | Create a FlowSchema for capsule-proxy requests. |
 | apiPriorityAndFairness.flowApiVersion | string | `"flowcontrol.apiserver.k8s.io/v1"` | Declare ApiVersion used for Flow |
 | apiPriorityAndFairness.matchingPrecedence | int | `900` | FlowSchema matching precedence. Lower values have higher priority. |
@@ -311,6 +312,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | gangplank.affinity | object | `{}` | Set affinity rules |
+| gangplank.annotations | object | `{}` | Annotations to add to the gangplank deployment. |
 | gangplank.config | object | `{"apiServerURL":"https://apiserver.example.test","authorizeURL":"https://oauth2provider.test/authorize","clientID":"client-id","clientSecret":"client-secret","clusterName":"cluster-name","redirectURL":"https://gangplank.example.test/callback","tokenURL":"https://oauth2provider.test/token"}` | Custom inline Gangplank configuration (ENV Styles) |
 | gangplank.enabled | bool | `false` | Enable Gangplank |
 | gangplank.envFrom | list | `[]` |  |
@@ -335,7 +337,7 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | gangplank.ingress.tls | list | `[]` |  |
 | gangplank.livenessProbe | object | `{"httpGet":{"path":"/","port":"http"}}` | Configure the liveness probe using Deployment probe specs |
 | gangplank.nodeSelector | object | `{}` | Set the node selector |
-| gangplank.podAnnotations | object | `{}` | Annotations to add to the pod. |
+| gangplank.podAnnotations | object | `{}` | Annotations to add to the gangplank pod. |
 | gangplank.podLabels | object | `{}` | Labels to add to the pod. |
 | gangplank.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Set the securityContext for the Pod |
 | gangplank.priorityClassName | string | `""` | Set a pod priorityClassName |
