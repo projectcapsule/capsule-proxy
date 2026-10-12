@@ -464,7 +464,7 @@ nwa:
 	$(call go-install-tool,$(NWA),github.com/$(NWA_LOOKUP)@$(NWA_VERSION))
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := v2.13.2
+GOLANGCI_LINT_VERSION  := v2.14.0
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
 .PHONY: golangci-lint
 golangci-lint: | $(LOCALBIN) ## Download golangci-lint locally if necessary.
