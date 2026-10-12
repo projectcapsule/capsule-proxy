@@ -33,6 +33,8 @@ annotations:
     - name: Documentation
       url: https://projectcapsule.dev/docs/proxy/
   artifacthub.io/changes: |
+    - kind: changed
+      description: pass kubectl hook arguments through the configured image entrypoint
     - kind: fixed
       description: fixed default securityContext toggles for kubectl job
     - kind: changed
