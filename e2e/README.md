@@ -19,6 +19,7 @@ make e2e-exec                    # run against an already provisioned cluster
 make e2e-exec E2E_ARGS='--label-filter=namespaced'
 make e2e-exec E2E_ARGS='--label-filter=reflection'
 make e2e-exec E2E_ARGS='--label-filter=proxysetting-security'
+make e2e-exec E2E_ARGS='--label-filter=probes'
 ```
 
 The new `namespaced` and `reflection` suites generate unique tenant, namespace,
@@ -48,6 +49,16 @@ go test -tags e2e ./e2e -run TestE2e -timeout 30m -args \
 The proxy must run with reflection and caching enabled. The standard e2e install
 also enables `ProxyClusterScoped`. Capsule's webhooks must be reachable; an API
 server with offline admission webhooks is not a usable e2e environment.
+
+The `probes` suite creates two tenants, checks tenant visibility and cross-tenant
+denials, and makes 200 readiness and liveness requests per running proxy pod.
+It reads `go_goroutines` from the pod's metrics endpoint before and after each
+batch to catch retained connections. The administrator needs `pods/proxy` access;
+the pod endpoints use the chart's ports 8081 (probes) and 8080 (metrics).
+`E2E_PROXY_POD_SELECTOR` defaults to `app.kubernetes.io/name=capsule-proxy`;
+set it to the changed deployment's labels when testing a separate proxy release.
+The API endpoint in `E2E_PROXY_URL` must point at that same changed proxy.
+Run with HTTPS enabled to exercise the original readiness transport leak.
 
 The `proxysetting-security` suite also requires the updated ProxySetting CRD. It
 creates two real tenants, gives one owner namespaced ProxySetting write access,
