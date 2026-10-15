@@ -20,9 +20,11 @@ jobs:
     steps:
       - name: "Checkout Code"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check secret
         id: checksecret
-        uses: ./.github/actions/exists
+        uses: $/.github/actions/exists
         with:
           value: ${{ secrets.FOSSA_API_KEY }}
       - name: "Run FOSSA Scan"
@@ -48,6 +50,8 @@ jobs:
     steps:
       - name: Checkout Source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
@@ -56,7 +60,7 @@ jobs:
         with:
           args: '-no-fail -fmt sarif -out gosec.sarif ./...'
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@34950e1b113b30df4edee1a6d3a605242df0c40b
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: gosec.sarif
   unit_tests:
@@ -65,6 +69,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
@@ -72,7 +78,7 @@ jobs:
         run: make test
       - name: Check secret
         id: checksecret
-        uses: ./.github/actions/exists
+        uses: $/.github/actions/exists
         with:
           value: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload Report to Codecov
