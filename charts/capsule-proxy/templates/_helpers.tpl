@@ -153,6 +153,15 @@ openshift.io/required-scc: {{ .Values.global.openshift.requiredScc | quote }}
 {{- end }}
 {{- end }}
 
+{{/*
+Whether hostUsers: false is rendered. Called with (dict "hostUsers" <value> "root" $).
+Always on when running on OpenShift with the restricted-v3 SCC, which requires user namespaces.
+*/}}
+{{- define "capsule-proxy.hostUsersDisabled" -}}
+{{- if and .root.Values.global.openshift.enabled (eq (toString .root.Values.global.openshift.requiredScc) "restricted-v3") -}}true
+{{- else if and (not (kindIs "invalid" .hostUsers)) (not .hostUsers) -}}true{{- end -}}
+{{- end }}
+
 
 
 {{/*

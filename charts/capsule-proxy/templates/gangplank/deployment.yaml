@@ -36,8 +36,8 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "gangplank.serviceAccountName" . }}
-      {{- if not .Values.gangplank.hostUsers }}
-      hostUsers: {{ .Values.gangplank.hostUsers }}
+      {{- if include "capsule-proxy.hostUsersDisabled" (dict "hostUsers" .Values.gangplank.hostUsers "root" $) }}
+      hostUsers: false
       {{- end }}
       {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" .Values.gangplank.podSecurityContext.enabled "root" $) }}
       securityContext:

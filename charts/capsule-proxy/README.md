@@ -92,6 +92,7 @@ If you only need to make minor customizations, you can specify them on the comma
 |-----|------|---------|-------------|
 | global.jobs.certs.affinity | object | `{}` | Set affinity rules |
 | global.jobs.certs.annotations | object | `{}` | Annotations to add to the certgen job. |
+| global.jobs.certs.hostUsers | bool | `true` | Don't use Host Users (User Namespaces) for the job pods. Always disabled when `global.openshift.requiredScc` is `restricted-v3`. |
 | global.jobs.certs.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the post install certgen job |
 | global.jobs.certs.image.registry | string | `"registry.k8s.io"` | Set the image repository of the post install certgen job |
 | global.jobs.certs.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
@@ -107,6 +108,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.certs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
 | global.jobs.kubectl.affinity | object | `{}` | Set affinity rules |
 | global.jobs.kubectl.annotations | object | `{}` | Annotations to add to the job. |
+| global.jobs.kubectl.hostUsers | bool | `true` | Don't use Host Users (User Namespaces) for the job pods. Always disabled when `global.openshift.requiredScc` is `restricted-v3`. |
 | global.jobs.kubectl.image.pullPolicy | string | `"IfNotPresent"` | Set the image pull policy of the helm chart job |
 | global.jobs.kubectl.image.registry | string | `"docker.io"` | Set the image repository of the helm chart job |
 | global.jobs.kubectl.image.repository | string | `"clastix/kubectl"` | Set the image repository of the helm chart job |
@@ -124,7 +126,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.kubectl.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
 | global.jobs.kubectl.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
 | global.openshift.enabled | bool | `false` | Run on OpenShift. Unless set explicitly, the pod/container securityContexts are omitted (so the SCC assigns UID, fsGroup and SELinux level) and the `openshift.io/required-scc` annotation is added to all pods. |
-| global.openshift.requiredScc | string | `"restricted-v2"` | SCC requested on all pods through the `openshift.io/required-scc` annotation |
+| global.openshift.requiredScc | string | `"restricted-v2"` | SCC requested on all pods through the `openshift.io/required-scc` annotation. With `restricted-v3`, hostUsers is disabled on all pods. |
 
 ### General Parameters
 

@@ -43,6 +43,9 @@ spec:
         {{- end }}
     spec:
       restartPolicy: {{ $.Values.global.jobs.kubectl.restartPolicy }}
+      {{- if include "capsule-proxy.hostUsersDisabled" (dict "hostUsers" $.Values.global.jobs.kubectl.hostUsers "root" $) }}
+      hostUsers: false
+      {{- end }}
       {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" $.Values.global.jobs.kubectl.podSecurityContext.enabled "root" $) }}
       securityContext: {{- omit $.Values.global.jobs.kubectl.podSecurityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
