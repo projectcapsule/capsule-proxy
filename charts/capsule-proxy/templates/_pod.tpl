@@ -94,6 +94,9 @@ spec:
     {{- with .Values.options.impersonationGroupRegexp }}
     - --impersonation-group-regexp={{.}}
     {{- end }}
+    {{- if .Values.global.openshift.enabled }}
+    - --public-paths=/.well-known/oauth-authorization-server
+    {{- end }}
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
