@@ -134,6 +134,25 @@ Render the CLI flag --host values for the self-signed certificate generator
 {{ join "," $values }}
 {{- end -}}
 
+{{/*
+Whether a securityContext is rendered. Called with (dict "enabled" <value> "root" $).
+An unset (null) value defaults to enabled, unless running on OpenShift.
+*/}}
+{{- define "capsule-proxy.securityContextEnabled" -}}
+{{- if kindIs "invalid" .enabled -}}
+  {{- if not .root.Values.global.openshift.enabled -}}true{{- end -}}
+{{- else if .enabled -}}true{{- end -}}
+{{- end }}
+
+{{/*
+Pod annotations required on OpenShift
+*/}}
+{{- define "capsule-proxy.openshiftAnnotations" -}}
+{{- if .Values.global.openshift.enabled -}}
+openshift.io/required-scc: {{ .Values.global.openshift.requiredScc | quote }}
+{{- end }}
+{{- end }}
+
 
 
 {{/*
