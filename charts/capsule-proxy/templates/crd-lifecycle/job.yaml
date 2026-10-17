@@ -29,6 +29,9 @@ spec:
         {{- with .Values.podAnnotations }}
           {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- if $.Values.global.openshift.enabled }}
+          {{- include "capsule-proxy.openshiftAnnotations" $ | nindent 8 }}
+        {{- end }}
       labels:
         app.kubernetes.io/component: {{ include "capsule-proxy.crds.component" . | quote }}
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
@@ -40,7 +43,10 @@ spec:
         {{- end }}
     spec:
       restartPolicy: {{ $.Values.global.jobs.kubectl.restartPolicy }}
-      {{- if $.Values.global.jobs.kubectl.podSecurityContext.enabled }}
+      {{- if include "capsule-proxy.hostUsersDisabled" (dict "hostUsers" $.Values.global.jobs.kubectl.hostUsers "root" $) }}
+      hostUsers: false
+      {{- end }}
+      {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" $.Values.global.jobs.kubectl.podSecurityContext.enabled "root" $) }}
       securityContext: {{- omit $.Values.global.jobs.kubectl.podSecurityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
       {{- with .Values.global.jobs.kubectl.nodeSelector }}
@@ -71,7 +77,7 @@ spec:
       - name: crds-hook
         image: {{ include "capsule-proxy.kubectlFullyQualifiedDockerImage" . }}
         imagePullPolicy: {{ .Values.global.jobs.kubectl.image.pullPolicy }}
-        {{- if .Values.global.jobs.kubectl.securityContext.enabled }}
+        {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" .Values.global.jobs.kubectl.securityContext.enabled "root" $) }}
         securityContext: {{- omit .Values.global.jobs.kubectl.securityContext "enabled" | toYaml | nindent 10 }}
         {{- end }}
         args:
