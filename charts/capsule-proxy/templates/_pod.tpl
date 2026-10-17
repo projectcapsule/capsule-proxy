@@ -22,8 +22,8 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
     {{- end }}
   {{- end }}
-  {{- if not .Values.hostUsers }}
-  hostUsers: {{ .Values.hostUsers }}
+  {{- if include "capsule-proxy.hostUsersDisabled" (dict "hostUsers" .Values.hostUsers "root" .) }}
+  hostUsers: false
   {{- end }}
   {{- with .Values.imagePullSecrets }}
   imagePullSecrets:

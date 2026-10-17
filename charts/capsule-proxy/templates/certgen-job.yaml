@@ -28,6 +28,9 @@ spec:
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
     spec:
       restartPolicy: {{ $Values.restartPolicy }}
+      {{- if include "capsule-proxy.hostUsersDisabled" (dict "hostUsers" $Values.hostUsers "root" $) }}
+      hostUsers: false
+      {{- end }}
       {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" $Values.podSecurityContext.enabled "root" $) }}
       securityContext: {{- omit $Values.podSecurityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
