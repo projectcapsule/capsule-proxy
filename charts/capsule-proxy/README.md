@@ -97,11 +97,11 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.certs.image.repository | string | `"ingress-nginx/kube-webhook-certgen"` | Set the image repository of the post install certgen job |
 | global.jobs.certs.image.tag | string | `"v1.6.9"` | Set the image tag of the post install certgen job |
 | global.jobs.certs.nodeSelector | object | `{}` | Set the node selector |
-| global.jobs.certs.podSecurityContext | object | `{"enabled":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
+| global.jobs.certs.podSecurityContext | object | `{"enabled":null,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | global.jobs.certs.priorityClassName | string | `""` | Set a pod priorityClassName |
 | global.jobs.certs.resources | object | `{}` | Job resources |
 | global.jobs.certs.restartPolicy | string | `"Never"` | Set the restartPolicy |
-| global.jobs.certs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
+| global.jobs.certs.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":null,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | global.jobs.certs.tolerations | list | `[]` | Set list of tolerations |
 | global.jobs.certs.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
 | global.jobs.certs.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
@@ -115,14 +115,16 @@ If you only need to make minor customizations, you can specify them on the comma
 | global.jobs.kubectl.nodeSelector | object | `{}` | Set the node selector |
 | global.jobs.kubectl.podAnnotations | object | `{}` | Annotations to add to the job pod |
 | global.jobs.kubectl.podLabels | object | `{}` | Labels to add to the job pod |
-| global.jobs.kubectl.podSecurityContext | object | `{"enabled":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. |
+| global.jobs.kubectl.podSecurityContext | object | `{"enabled":null,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the job pods. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | global.jobs.kubectl.priorityClassName | string | `""` | Set a pod priorityClassName |
 | global.jobs.kubectl.resources | object | `{}` | Job resources |
 | global.jobs.kubectl.restartPolicy | string | `"Never"` | Set the restartPolicy |
-| global.jobs.kubectl.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. |
+| global.jobs.kubectl.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":null,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the job containers. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | global.jobs.kubectl.tolerations | list | `[]` | Set list of tolerations |
 | global.jobs.kubectl.topologySpreadConstraints | list | `[]` | Set Topology Spread Constraints |
 | global.jobs.kubectl.ttlSecondsAfterFinished | int | `60` | Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete. |
+| global.openshift.enabled | bool | `false` | Run on OpenShift. Unless set explicitly, the pod/container securityContexts are omitted (so the SCC assigns UID, fsGroup and SELinux level) and the `openshift.io/required-scc` annotation is added to all pods. |
+| global.openshift.requiredScc | string | `"restricted-v2"` | SCC requested on all pods through the `openshift.io/required-scc` annotation |
 
 ### General Parameters
 
@@ -161,7 +163,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
-| podSecurityContext | object | `{"enabled":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the capsule-proxy pod. |
+| podSecurityContext | object | `{"enabled":null,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the capsule-proxy pod. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | priorityClassName | string | `""` | Specifies PriorityClass of the capsule-proxy pod. |
 | rbac.clusterRole | string | `""` | Controller ClusterRole |
 | rbac.enabled | bool | `true` | Enable Creation of ClusterRoles |
@@ -172,7 +174,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | resources.requests.cpu | string | `"200m"` | Set the CPU limits assigned to the controller. |
 | resources.requests.memory | string | `"128Mi"` | Set the memory limits assigned to the controller. |
 | restartPolicy | string | `"Always"` | Set the restartPolicy for the capsule-proxy pod. |
-| securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the capsule-proxy container. |
+| securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":null,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the capsule-proxy container. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
 | serviceAccount.imagePullSecrets | list | `[]` | Pullsecrets mounted to the service account, used to pull images from private registries. |
@@ -339,12 +341,12 @@ You can manage the certificate with the help of [cert-manager](https://cert-mana
 | gangplank.nodeSelector | object | `{}` | Set the node selector |
 | gangplank.podAnnotations | object | `{}` | Annotations to add to the gangplank pod. |
 | gangplank.podLabels | object | `{}` | Labels to add to the pod. |
-| gangplank.podSecurityContext | object | `{"seccompProfile":{"type":"RuntimeDefault"}}` | Set the securityContext for the Pod |
+| gangplank.podSecurityContext | object | `{"enabled":null,"seccompProfile":{"type":"RuntimeDefault"}}` | Set the securityContext for the Pod. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | gangplank.priorityClassName | string | `""` | Set a pod priorityClassName |
 | gangplank.readinessProbe | object | `{"httpGet":{"path":"/","port":"http"}}` | Configure the readiness probe using Deployment probe spec |
 | gangplank.replicaCount | int | `1` | Set the replica count |
 | gangplank.resources | object | `{}` | Set the resource requests/limits |
-| gangplank.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Set the securityContext for the Container |
+| gangplank.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":null,"privileged":false,"readOnlyRootFilesystem":true,"runAsGroup":65534,"runAsNonRoot":true,"runAsUser":65534}` | Set the securityContext for the Container. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
 | gangplank.sensitiveEnvs | object | `{"GANGPLANK_CONFIG_SESSION_SECURITY_KEY":"session-security-key"}` | Environment variables (Secret) |
 | gangplank.service.annotations | object | `{}` | Annotations to add to the service. |
 | gangplank.service.labels | object | `{}` | Labels to add to the service. |

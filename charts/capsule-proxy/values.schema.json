@@ -464,9 +464,15 @@
                     "type": "object"
                 },
                 "podSecurityContext": {
-                    "description": "Set the securityContext for the Pod",
+                    "description": "Set the securityContext for the Pod. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
                     "type": "object",
                     "properties": {
+                        "enabled": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
+                        },
                         "seccompProfile": {
                             "type": "object",
                             "properties": {
@@ -509,7 +515,7 @@
                     "type": "object"
                 },
                 "securityContext": {
-                    "description": "Set the securityContext for the Container",
+                    "description": "Set the securityContext for the Container. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
                     "type": "object",
                     "properties": {
                         "allowPrivilegeEscalation": {
@@ -525,6 +531,12 @@
                                     }
                                 }
                             }
+                        },
+                        "enabled": {
+                            "type": [
+                                "boolean",
+                                "null"
+                            ]
                         },
                         "privileged": {
                             "type": "boolean"
@@ -656,11 +668,14 @@
                                     "type": "object"
                                 },
                                 "podSecurityContext": {
-                                    "description": "Security context for the job pods.",
+                                    "description": "Security context for the job pods. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
                                     "type": "object",
                                     "properties": {
                                         "enabled": {
-                                            "type": "boolean"
+                                            "type": [
+                                                "boolean",
+                                                "null"
+                                            ]
                                         },
                                         "seccompProfile": {
                                             "type": "object",
@@ -686,7 +701,7 @@
                                     "type": "string"
                                 },
                                 "securityContext": {
-                                    "description": "Security context for the job containers.",
+                                    "description": "Security context for the job containers. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
                                     "type": "object",
                                     "properties": {
                                         "allowPrivilegeEscalation": {
@@ -704,7 +719,10 @@
                                             }
                                         },
                                         "enabled": {
-                                            "type": "boolean"
+                                            "type": [
+                                                "boolean",
+                                                "null"
+                                            ]
                                         },
                                         "readOnlyRootFilesystem": {
                                             "type": "boolean"
@@ -784,11 +802,14 @@
                                     "type": "object"
                                 },
                                 "podSecurityContext": {
-                                    "description": "Security context for the job pods.",
+                                    "description": "Security context for the job pods. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
                                     "type": "object",
                                     "properties": {
                                         "enabled": {
-                                            "type": "boolean"
+                                            "type": [
+                                                "boolean",
+                                                "null"
+                                            ]
                                         },
                                         "seccompProfile": {
                                             "type": "object",
@@ -814,7 +835,7 @@
                                     "type": "string"
                                 },
                                 "securityContext": {
-                                    "description": "Security context for the job containers.",
+                                    "description": "Security context for the job containers. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
                                     "type": "object",
                                     "properties": {
                                         "allowPrivilegeEscalation": {
@@ -832,7 +853,10 @@
                                             }
                                         },
                                         "enabled": {
-                                            "type": "boolean"
+                                            "type": [
+                                                "boolean",
+                                                "null"
+                                            ]
                                         },
                                         "readOnlyRootFilesystem": {
                                             "type": "boolean"
@@ -862,6 +886,19 @@
                                     "type": "integer"
                                 }
                             }
+                        }
+                    }
+                },
+                "openshift": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "description": "Run on OpenShift. Unless set explicitly, the pod/container securityContexts are omitted (so the SCC assigns UID, fsGroup and SELinux level) and the `openshift.io/required-scc` annotation is added to all pods.",
+                            "type": "boolean"
+                        },
+                        "requiredScc": {
+                            "description": "SCC requested on all pods through the `openshift.io/required-scc` annotation",
+                            "type": "string"
                         }
                     }
                 }
@@ -1155,11 +1192,14 @@
             "type": "object"
         },
         "podSecurityContext": {
-            "description": "Security context for the capsule-proxy pod.",
+            "description": "Security context for the capsule-proxy pod. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
             "type": "object",
             "properties": {
                 "enabled": {
-                    "type": "boolean"
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
                 },
                 "seccompProfile": {
                     "type": "object",
@@ -1256,7 +1296,7 @@
             "type": "string"
         },
         "securityContext": {
-            "description": "Security context for the capsule-proxy container.",
+            "description": "Security context for the capsule-proxy container. `enabled: null` means enabled, unless `global.openshift.enabled` is set.",
             "type": "object",
             "properties": {
                 "allowPrivilegeEscalation": {
@@ -1274,7 +1314,10 @@
                     }
                 },
                 "enabled": {
-                    "type": "boolean"
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
                 },
                 "readOnlyRootFilesystem": {
                     "type": "boolean"
