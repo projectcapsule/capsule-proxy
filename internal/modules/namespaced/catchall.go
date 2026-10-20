@@ -106,7 +106,8 @@ func (l catchall) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest reques
 	case len(sourceTenants) > 0:
 		r, err = labels.NewRequirement(capsulelabels.ManagedByCapsuleLabel, selection.In, sourceTenants)
 	default:
-		r, err = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
+		// Zero grants must select nothing, including objects with the old sentinel label.
+		return labels.Parse(capsulelabels.ManagedByCapsuleLabel + ",!" + capsulelabels.ManagedByCapsuleLabel)
 	}
 
 	return labels.NewSelector().Add(*r), err

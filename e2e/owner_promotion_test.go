@@ -62,6 +62,18 @@ var _ = Describe("ServiceAccount owner promotion", Ordered, ContinueOnFailure, S
 		return names, nil
 	}
 
+	secretNames := func(c kubernetes.Interface, options metav1.ListOptions) ([]string, error) {
+		result, err := c.CoreV1().Secrets("").List(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+		var names []string
+		for _, secret := range result.Items {
+			names = append(names, secret.Namespace+"/"+secret.Name)
+		}
+		return names, nil
+	}
+
 	BeforeAll(func() {
 		f = newAccessFixture()
 		configuration := &capsulev1beta2.CapsuleConfiguration{}
@@ -121,6 +133,28 @@ var _ = Describe("ServiceAccount owner promotion", Ordered, ContinueOnFailure, S
 		current := &capsulev1beta2.CapsuleConfiguration{}
 		Expect(k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, current)).To(Succeed())
 		Expect(current.Status.Users.GetByKinds([]capsulerbac.OwnerKind{capsulerbac.ServiceAccountOwner})).NotTo(ContainElement(username), "this must exercise status ownership without globally configuring the account")
+		for _, resource := range accessResources() {
+			if resource.resource == "secrets" {
+				f.seed(resource, "a", "a1", "a2")
+				f.seed(resource, "b", "b1")
+			}
+		}
+	})
+
+	It("lists all-namespaces secrets for the promoted token without granting cluster-wide RBAC", func() {
+		Eventually(func() ([]string, error) { return secretNames(promoted, metav1.ListOptions{}) }, accessTimeout, defaultPollInterval).Should(ConsistOf(f.ids([]string{"a1", "a2"}, "sample", "alternate")))
+		for _, c := range []kubernetes.Interface{direct, wrong} {
+			_, err := secretNames(c, metav1.ListOptions{})
+			Expect(apierrors.IsForbidden(err)).To(BeTrue(), "native API and a same-named non-owner must remain forbidden: %v", err)
+		}
+		_, err := promoted.CoreV1().Secrets(f.namespaces["b1"]).Get(ctx, "sample", metav1.GetOptions{})
+		Expect(apierrors.IsForbidden(err)).To(BeTrue(), "direct foreign-namespace reads must remain forbidden: %v", err)
+		names, err := secretNames(promoted, metav1.ListOptions{FieldSelector: "metadata.namespace=" + f.namespaces["b1"]})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(names).To(BeEmpty())
+		names, err = secretNames(promoted, metav1.ListOptions{LabelSelector: accessVariantLabel + "=sample"})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(names).To(ConsistOf(f.ids([]string{"a1", "a2"}, "sample")))
 	})
 
 	It("lists the tenant with a real token, enforces isolation, and applies promotion changes", func() {
@@ -164,8 +198,13 @@ var _ = Describe("ServiceAccount owner promotion", Ordered, ContinueOnFailure, S
 				if enabled {
 					g.Expect(err).NotTo(HaveOccurred())
 					g.Expect(names).To(ConsistOf(f.namespaces["a1"]))
+					secrets, listErr := secretNames(promoted, metav1.ListOptions{})
+					g.Expect(listErr).NotTo(HaveOccurred())
+					g.Expect(secrets).To(ConsistOf(f.ids([]string{"a1"}, "sample", "alternate")))
 				} else {
 					g.Expect(apierrors.IsForbidden(err)).To(BeTrue(), "revoked owner must use native authorization: %v", err)
+					_, listErr := secretNames(promoted, metav1.ListOptions{})
+					g.Expect(apierrors.IsForbidden(listErr)).To(BeTrue(), "revocation must also stop all-namespaces secrets: %v", listErr)
 				}
 			}, accessTimeout, defaultPollInterval).Should(Succeed())
 		}
@@ -185,6 +224,23 @@ var _ = Describe("ServiceAccount owner promotion", Ordered, ContinueOnFailure, S
 			return k8sClient.Update(ctx, ns)
 		}, accessTimeout, defaultPollInterval).Should(Succeed())
 		Eventually(func() ([]string, error) { return list(empty, metav1.ListOptions{}) }, accessTimeout, defaultPollInterval).Should(BeEmpty())
+		for _, name := range []string{"sample", "alternate"} {
+			Eventually(func() error {
+				secret := &corev1.Secret{}
+				if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: f.namespaces["b1"], Name: name}, secret); err != nil {
+					return err
+				}
+				if secret.Labels == nil {
+					secret.Labels = map[string]string{}
+				}
+				secret.Labels["dontexistsignoreme"] = "true"
+				return k8sClient.Update(ctx, secret)
+			}, accessTimeout, defaultPollInterval).Should(Succeed())
+		}
+		Eventually(func() ([]string, error) { return secretNames(promoted, metav1.ListOptions{}) }, accessTimeout, defaultPollInterval).Should(ConsistOf(f.ids([]string{"a1"}, "sample", "alternate")))
+		secrets, listErr := secretNames(empty, metav1.ListOptions{})
+		Expect(listErr).NotTo(HaveOccurred())
+		Expect(secrets).To(BeEmpty())
 		_, err := empty.CoreV1().ConfigMaps(f.namespaces["b1"]).List(ctx, metav1.ListOptions{})
 		Expect(apierrors.IsForbidden(err)).To(BeTrue(), "empty ownership cannot grant foreign namespace access: %v", err)
 	})

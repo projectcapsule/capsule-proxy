@@ -24,6 +24,7 @@ import (
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	authenticationv1 "k8s.io/api/authentication/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	"github.com/projectcapsule/capsule-proxy/internal/indexer"
+	"github.com/projectcapsule/capsule-proxy/internal/modules"
 	namespacemodule "github.com/projectcapsule/capsule-proxy/internal/modules/namespace"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
@@ -64,8 +66,9 @@ func (r *promotionCountingReader) List(ctx context.Context, obj client.ObjectLis
 
 type promotionReviewWriter struct {
 	client.Writer
-	reviews atomic.Int64
-	reject  bool
+	reviews   atomic.Int64
+	reject    bool
+	authorize func(*authorizationv1.SubjectAccessReview) error
 }
 
 func (w *promotionReviewWriter) Create(ctx context.Context, object client.Object, opts ...client.CreateOption) error {
@@ -74,6 +77,9 @@ func (w *promotionReviewWriter) Create(ctx context.Context, object client.Object
 		review.Status.Authenticated = !w.reject
 		review.Status.User = authenticationv1.UserInfo{Username: promotedUsername, Groups: []string{"system:authenticated", "system:serviceaccounts", "system:serviceaccounts:tenant-a-ns"}}
 		return nil
+	}
+	if review, ok := object.(*authorizationv1.SubjectAccessReview); ok && w.authorize != nil {
+		return w.authorize(review)
 	}
 	return w.Writer.Create(ctx, object, opts...)
 }
@@ -139,15 +145,20 @@ func newPromotionFixture(t testing.TB, tenants int, gate bool) *promotionFixture
 		}
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(string(body))), Request: req}, nil
 	})
-	next := f.filter.moduleHandler(namespacemodule.List(nil, f.filter.reader))
-	f.handler = middleware.CheckUserInCapsuleGroupMiddleware(f.filter.writer, r, logr.Discard(), "", f.filter.authTypes, nil, nil, false, "", func(w http.ResponseWriter, req *http.Request) {
+	f.setModule(namespacemodule.List(nil, f.filter.reader))
+	return f
+}
+
+func (f *promotionFixture) setModule(mod modules.Module) {
+	next := f.filter.moduleHandler(mod)
+
+	f.handler = middleware.CheckUserInCapsuleGroupMiddleware(f.filter.writer, f.reader, logr.Discard(), "", f.filter.authTypes, nil, nil, false, "", func(w http.ResponseWriter, req *http.Request) {
 		f.passed.Add(1)
 		f.filter.impersonateHandler(w, req)
 	})(next)
 	f.handler = middleware.CheckJWTMiddleware(f.reviews)(f.handler)
 	f.handler = middleware.CheckJWTMiddleware(f.reviews)(f.handler)
 	f.handler = f.filter.reverseProxyMiddleware(f.handler)
-	return f
 }
 
 func promotionRequest(ctx context.Context, user string, groups ...string) *http.Request {
