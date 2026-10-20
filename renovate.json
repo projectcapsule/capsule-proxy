@@ -1,7 +1,10 @@
 {
   "minimumReleaseAge": "14 days",
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":dependencyDashboard"],
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
   "baseBranchPatterns": [
     "main"
   ],
@@ -13,7 +16,7 @@
   "semanticCommits": "enabled",
   "semanticCommitType": "feat",
   "ignorePaths": [
-      "docs"
+    "docs"
   ],
   "flux": {
     "managerFilePatterns": [
@@ -22,7 +25,10 @@
   },
   "packageRules": [
     {
-      "matchManagers": ["github-actions", "flux"],
+      "matchManagers": [
+        "github-actions",
+        "flux"
+      ],
       "groupName": "all-ci-updates",
       "matchUpdateTypes": [
         "major",
@@ -31,37 +37,40 @@
       ]
     },
     {
-      "matchManagers": ["github-actions"],
-      "matchPackageNames": ["sigstore/cosign-installer"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "sigstore/cosign-installer"
+      ],
       "enabled": false
+    },
+    {
+      "matchFileNames": [
+        "devbox.json"
+      ],
+      "groupName": "devbox-toolchain"
     }
   ],
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Update the source license header CLI",
       "managerFilePatterns": [
-        "/^Makefile$/"
+        "/^devbox\\.json$/"
       ],
       "matchStrings": [
-        "(?<depName>[A-Z0-9_]+)_VERSION\\s*[:=?]+\\s*\"?(?<currentValue>[^\"\\r\\n]+)\"?[\\s\\S]*?(?<depName2>[A-Z0-9_]+)_LOOKUP\\s*[:=?]+\\s*\"?(?<lookupValue>[^\"\\r\\n]+)\"?(?:[\\s\\S]*?(?<depName3>[A-Z0-9_]+)_SOURCE\\s*[:=?]+\\s*\"?(?<sourceValue>[^\"\\r\\n]+)\"?)?"
+        "\"NWA_VERSION\"\\s*:\\s*\"(?<currentValue>[^\"\\s]+)\""
       ],
-      "depNameTemplate": "{{lookupValue}}",
-      "datasourceTemplate": "{{#sourceValue}}{{sourceValue}}{{/sourceValue}}{{^sourceValue}}github-tags{{/sourceValue}}",
-      "packageNameTemplate": "{{lookupValue}}",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/.*\\.pre-commit-config\\.ya?ml$/"
-      ],
-      "matchStrings": [
-         "repo:\\s*https://github\\.com/(?<lookupValue>[^/]+/[^\\s]+)[\\s\\S]*?rev:\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)"
-      ],
-      "depNameTemplate": "{{lookupValue}}",
+      "depNameTemplate": "B1NARY-GR0UP/nwa",
       "datasourceTemplate": "github-tags",
-      "packageNameTemplate": "{{lookupValue}}",
       "versioningTemplate": "semver"
     }
-  ]
+  ],
+  "devbox": {
+    "enabled": true,
+    "lockFileMaintenance": {
+      "enabled": true
+    }
+  }
 }

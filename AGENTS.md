@@ -100,7 +100,8 @@ identity; a successful response alone does not prove the access boundary is corr
 ## Start with the repository
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [DEVELOPMENT.md](DEVELOPMENT.md),
-[e2e/README.md](e2e/README.md), and the relevant [Makefile](Makefile) targets. Check
+[e2e/README.md](e2e/README.md), and the relevant [Taskfile](Taskfile.yml) targets. Check
+[devbox.json](devbox.json), [devbox.lock](devbox.lock), [prek.toml](prek.toml),
 [go.mod](go.mod), [.golangci.yml](.golangci.yml), and
 [.github/workflows](.github/workflows) for the actual toolchain, formatting, and CI
 requirements. Prefer executable targets and current code when older development
@@ -144,9 +145,11 @@ Before implementing a change:
 | `internal/runtime/validation/` | Discovery-backed cluster-resource validation helpers. Verify call sites before assuming validation is enforced. |
 | `internal/types/`, `internal/utils/` | Shared constants and serialization/GVK helpers. Prefer the most specific existing package over miscellaneous helpers. |
 | `e2e/` | Ginkgo/Gomega tests against a real Kubernetes/Capsule/proxy environment, guarded by the `e2e` build tag. |
-| `e2e-legacy/` | Historical Bats/shell tests. Use the current Go suite for new coverage and inspect legacy runner paths before using them. |
 | `charts/capsule-proxy/` | Helm templates, values, schema, generated CRDs, chart documentation, and installation test values. |
-| `hack/`, `.github/` | Development tooling, generation, lint configuration, and CI. Extend the existing workflows. |
+| `Taskfile.yml` | Development commands, generation, checks, image builds and e2e setup. Keep command implementations here instead of adding wrapper scripts. |
+| `devbox.json`, `devbox.lock` | Pinned development tools shared by local tasks and GitHub Actions. |
+| `prek.toml`, `cog.toml` | Native file checks and hooks that invoke Taskfile commands, plus Conventional Commit configuration. |
+| `hack/`, `.github/` | Generation boilerplate, ignored local test credentials, and CI workflows/configuration. Extend the existing workflows. |
 
 Do not create a second routing framework, authentication pipeline, authorization
 engine, tenant lookup mechanism, or testing framework for an individual feature.
@@ -409,7 +412,7 @@ the selected scenarios.
   `namespaced`, `reflection`, and `observedGeneration`; some older specs need
   `--focus` selection. Verify the intended tests are selected; zero selected tests
   is not successful validation.
-- The full e2e suite runs through `make e2e` in GitHub Actions. Do not run an
+- The full e2e suite runs through `task e2e` in GitHub Actions. Do not run an
   unfiltered full suite locally as a completion step or broaden a local run merely
   for extra confidence. Report scoped local and full-suite GitHub results
   separately, including when CI is pending or unavailable.
@@ -524,39 +527,48 @@ or webserver path; do not assume the Capsule repository's benchmarks exist here.
 
 ## Commands and validation
 
-Run commands from the repository root. Use the checked-in Makefile's tool versions
-and `go.mod` instead of independently selecting newer tools.
+Run commands from the repository root. Use the locked Devbox tools and Taskfile
+commands with `go.mod` instead of independently selecting newer tools. Enter
+`devbox shell` or prefix commands with `devbox run --`. Keep development commands
+in Taskfile and have prek hooks and GitHub Actions call those same tasks. Avoid
+standalone wrapper scripts and custom tooling test harnesses for commands that
+Taskfile or the tools' native validation already handle.
 
 | Purpose | Command / guidance |
 | --- | --- |
+| Available commands | `task --list`. |
+| Tooling checks | `task lint:files lint:yaml lint:actions lint:config`; validate hook configuration with `prek validate-config prek.toml`. |
+| Install local hooks | `task hooks:install` explicitly installs prek's pre-commit and commit-msg hooks. |
+| Commit message | `task lint:commit-message -- <message-file>`; `task lint:commits` checks the `COMMIT_BASE`/`COMMIT_HEAD` range used by CI. |
 | Focused unit tests | `go test -race ./path/to/changed/package/...` (replace the path). |
-| Full unit suite | `make test` runs `go test -race -coverprofile coverage.out ./...` without generating code. The e2e build tag excludes cluster tests by default. |
-| CLI regressions | `make test-cli`. |
-| Go lint | `make golint`; use `make golint-fix` deliberately and inspect automatic fixes. Format changed files, including tests. |
-| Deep-copy generation | `make generate`. |
-| CRD generation | `make manifests`. Generation and manifests are separate targets; run both when API changes require both. |
-| Build proxy | `mkdir -p bin && go build -o bin/capsule-proxy .`. The entry point is at the repository root. |
-| Prepare local e2e cluster | `make e2e-build`, then `make e2e-install`. The first creates the KinD cluster; the second installs dependencies and builds/loads/installs the proxy. Requires Docker and the target's cluster tooling. |
-| Update proxy in test cluster | `make install-capsule-proxy` rebuilds/loads/installs the proxy and regenerates test kubeconfigs; verify rollout and image before testing. |
-| Scoped local e2e | `make e2e-exec E2E_ARGS='--label-filter=namespaced'`. Replace the example label with the new feature/impacted component selection. |
-| Scoped reflection e2e | `make e2e-exec E2E_ARGS='--label-filter=reflection'`. Include affected namespaced consumers when appropriate. |
-| Scoped unlabeled e2e | `make e2e-exec E2E_ARGS='--focus="GlobalProxySettings resource access"'`. Replace the example with the relevant spec description. |
+| Full unit suite | `task test` runs `go test -race -coverprofile coverage.out ./...` without generating code. The e2e build tag excludes cluster tests by default. |
+| CLI regressions | `task test:cli`. |
+| Go lint | `task lint`; use `task lint:fix` deliberately and inspect automatic fixes. Format changed files, including tests. |
+| Deep-copy generation | `task generate`. |
+| CRD generation | `task manifests`. Generation and manifests are separate targets; run both when API changes require both. |
+| Build proxy | `task build` writes `bin/capsule-proxy` from the repository root. |
+| Prepare local e2e cluster | `task image:build`, `task e2e:build`, then `task e2e:install`. Build first to avoid competing with cluster startup; the remaining tasks create the Kind cluster and install dependencies and the proxy. Requires Docker. |
+| Update proxy in test cluster | `task e2e:proxy` rebuilds/loads/installs the proxy and regenerates test kubeconfigs; verify rollout and image before testing. |
+| Scoped local e2e | `task e2e:exec E2E_ARGS='--label-filter=namespaced'`. Replace the example label with the new feature/impacted component selection. |
+| Scoped reflection e2e | `task e2e:exec E2E_ARGS='--label-filter=reflection'`. Include affected namespaced consumers when appropriate. |
+| Scoped unlabeled e2e | `task e2e:exec E2E_ARGS='--focus="GlobalProxySettings resource access"'`. Replace the example with the relevant spec description. |
 | Custom proxy endpoint | Follow `e2e/README.md` for `KUBECONFIG`, `E2E_PROXY_URL`, and `E2E_PROXY_CA_FILE` in suites using the access fixture. Older suites may still require generated user kubeconfigs. |
-| Full e2e in GitHub Actions | `make e2e` provisions, installs, and runs the full suite. Local execution uses scoped commands above. |
-| Local e2e cleanup | `make e2e-destroy` after preserving observations and completing the relevant run. |
+| Full e2e in GitHub Actions | `task e2e` provisions, installs, and runs the full suite. Local execution uses scoped commands above. |
+| Local e2e cleanup | `task e2e:destroy` after preserving observations and completing the relevant run. |
 | Focused benchmarks | `go test ./path/to/changed/package -run '^$' -bench 'BenchmarkName' -benchmem -count=5` (replace path/name). |
-| Chart checks | `make helm-lint`; use `make helm-test` for installation behavior. |
-| Chart documentation/schema | `make helm-docs` and `make helm-schema` when chart values or documentation change. |
+| Chart checks | `task helm:lint`; use `task helm:test` for installation behavior. |
+| Chart documentation/schema | `task helm:docs` and `task helm:schema` when chart values or documentation change. |
 | Diff hygiene | `git diff --check` and review the full diff, including new files. |
 
 Ordinary `go test ./...` is unit-only here; adding `-tags e2e` includes real-cluster
 tests. Do not pass that tag to an otherwise broad unit command accidentally.
 E2E, CRD installation, and chart installation commands mutate cluster state; use a
 dedicated test cluster and verify the context. Inspect lifecycle targets and their
-cleanup behavior: e2e uses the fixed cluster name `capsule`, chart tests use
-`capsule-charts`, and e2e certificate setup can install a local mkcert CA. The
-legacy Makefile runner references `e2e/run.bash` while the script is under
-`e2e-legacy/`; it is not the current Go-suite entry point.
+cleanup behavior: e2e defaults to cluster name `capsule`, chart tests default to
+`capsule-charts`, and e2e certificate setup generates a mkcert CA without adding it to system trust.
+The aggregate `e2e` and `helm:test` tasks refuse to reuse existing clusters, use
+temporary administrator kubeconfigs, and collect failure logs under `dist/e2e`
+before cleanup. Individual setup tasks retain the environment for inspection.
 
 For scalability work, supplement unit benchmarks and functional e2e with a
 representative disposable-cluster workload. Record tenant/group/namespace/binding
@@ -628,7 +640,7 @@ declare the change fully validated while required evidence is missing.
   success from compilation alone or omit required e2e/performance evidence.
   Separate scoped local e2e results from full-suite GitHub status and summarize
   forensic findings after relevant suites finish.
-- If preparing commits or a PR, follow `commitlint.config.cjs`,
+- If preparing commits or a PR, follow `cog.toml`, Taskfile's `lint:commit-message`,
   `.github/workflows/check-commit.yml`, `.github/workflows/check-pr.yml`, and the
   repository's contribution guidance for Conventional Commit messages and titles.
 

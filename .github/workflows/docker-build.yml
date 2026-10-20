@@ -6,14 +6,16 @@ on:
       - "main"
     paths:
       - '.github/workflows/docker-*.yml'
+      - '.github/actions/setup/**'
       - 'api/**'
-      - 'controllers/**'
-      - 'pkg/**'
-      - 'e2e/*'
+      - 'internal/**'
+      - 'e2e/**'
       - '.ko.yaml'
       - 'go.*'
       - '*.go'
-      - 'Makefile'
+      - 'Taskfile.yml'
+      - 'devbox.json'
+      - 'devbox.lock'
 
 jobs:
   build-images:
@@ -27,8 +29,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup
       - name: ko build
-        run: VERSION=${{ github.sha }} make ko-build-all
+        env:
+          VERSION: ${{ github.sha }}
+        run: devbox run -- task image:build
       - name: Trivy Scan Image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

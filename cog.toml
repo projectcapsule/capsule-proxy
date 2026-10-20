@@ -1,0 +1,2 @@
+[commit_types]
+sec = { changelog_title = "Security" }

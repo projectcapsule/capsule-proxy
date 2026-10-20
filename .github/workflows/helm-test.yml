@@ -1,5 +1,6 @@
 name: Test charts
-permissions: {}
+permissions:
+  contents: read
 
 on:
   pull_request:
@@ -9,7 +10,16 @@ on:
       - '.github/configs/**'
       - '.github/workflows/helm-*.yml'
       - 'charts/**'
-      - 'Makefile'
+      - 'Taskfile.yml'
+      - 'devbox.json'
+      - 'devbox.lock'
+      - '.github/actions/setup/**'
+      - 'api/**'
+      - 'internal/**'
+      - 'go.*'
+      - '*.go'
+      - '.ko.yaml'
+      - 'e2e/distro/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,30 +46,18 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
-      - name: Run chart-testing (lint)
-        run: make helm-lint
-      - name: Run docs-testing (helm-docs)
-        id: helm-docs
-        run: |
-          make helm-docs
-          if [[ $(git diff --stat) != '' ]]; then
-            echo -e '\033[0;31mDocumentation outdated! (Run make helm-docs locally and commit)\033[0m ❌'
-            git diff --color
-            exit 1
-          else
-            echo -e '\033[0;32mDocumentation up to date\033[0m ✔'
-          fi
-      - name: Run schema-testing (helm-schema)
-        id: helm-schema
-        run: |
-          make helm-schema
-          if [[ $(git diff --stat) != '' ]]; then
-            echo -e '\033[0;31mSchema outdated! (Run make helm-schema locally and commit)\033[0m ❌'
-            git diff --color
-            exit 1
-          else
-            echo -e '\033[0;32mSchema up to date\033[0m ✔'
-          fi
-      - name: Run chart-testing (install)
-        run: make helm-test
+      - uses: ./.github/actions/setup
+      - name: Lint chart
+        run: devbox run -- task helm:lint
+      - name: Verify generated chart documentation and schema
+        run: devbox run -- task helm:verify
+      - name: Install and test chart
+        run: devbox run -- task helm:test
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chart-test-logs
+          path: dist/e2e
+          if-no-files-found: ignore
+          retention-days: 7

@@ -4,23 +4,42 @@ The `e2e` package is guarded by `//go:build e2e`. It exercises a running proxy,
 a real Kubernetes API server, Capsule admission webhooks, and both controllers.
 No fake clients or locally constructed proxy handlers are used in these suites.
 
-Ordinary `go test ./...` and `make test` run unit tests without Kubernetes.
-`make test-cli` runs the CLI regression tests independently. `make test` also
+Ordinary `go test ./...` and `task test` run unit tests without Kubernetes.
+`task test:cli` runs the CLI regression tests independently. `task test` also
 enables the race detector and writes `coverage.out` without regenerating code.
 
 ## Running e2e
 
-Use a disposable cluster for the full suite. Existing legacy cases use fixed
+Enter `devbox shell` first, or prefix tasks with `devbox run --`. Docker must be
+running. The full suite runs in GitHub Actions; select only new and impacted
+suites locally. The `e2e` task builds the image before provisioning Kubernetes,
+uses a temporary administrator kubeconfig, and deletes its cluster on success or
+failure. It saves failure diagnostics under `dist/e2e` before cleanup; GitHub
+Actions uploads those logs. It refuses to reuse an existing
+cluster. `e2e:build`, `e2e:install`, and `e2e:exec` can be run separately when
+you want to retain the environment for inspection.
+
+Use a disposable cluster for the full suite. Some existing cases use fixed
 tenant names and broad test-label cleanup.
 
 ```sh
-make e2e                         # provision, install, and run the entire suite
-make e2e-exec                    # run against an already provisioned cluster
-make e2e-exec E2E_ARGS='--label-filter=namespaced'
-make e2e-exec E2E_ARGS='--label-filter=reflection'
-make e2e-exec E2E_ARGS='--label-filter=proxysetting-security'
-make e2e-exec E2E_ARGS='--label-filter=probes'
+task e2e                         # full suite in CI; use E2E_ARGS locally
+task e2e:build                   # create a cluster for manual inspection
+task e2e:install                 # install dependencies and the current proxy
+task e2e:exec -- --label-filter=namespaced # select tests against the prepared cluster
+task e2e:exec E2E_ARGS='--label-filter=namespaced'
+task e2e:exec E2E_ARGS='--label-filter=reflection'
+task e2e:exec E2E_ARGS='--label-filter=proxysetting-security'
+task e2e:exec E2E_ARGS='--label-filter=probes'
 ```
+
+`E2E_ARGS` can also be set on `task e2e` to provision and run a scoped suite.
+`KIND_CLUSTER` defaults to `capsule`; `KIND_NODE_IMAGE` defaults to the supported
+Kubernetes image in Taskfile. Use `task e2e:destroy` to clean up a manually
+provisioned cluster. `CAPSULE_PROXY_MODE=http` selects HTTP for both installation
+and generated kubeconfigs; HTTPS is the default. Certificate setup uses mkcert
+without installing its CA into system trust. The generated kubeconfigs trust
+that CA explicitly.
 
 The new `namespaced` and `reflection` suites generate unique tenant, namespace,
 role, and subject names and delete only their own fixtures. Tests wait for tenant
@@ -36,7 +55,7 @@ checks impersonation with the real API server. Group identities include
 `projectcapsule.dev`, which the standard test CapsuleConfiguration recognizes.
 
 By default, the proxy URL and server CA come from `hack/alice.kubeconfig` generated
-by `make generate-kubeconfigs`. To test a locally running proxy instead:
+by `task e2e:kubeconfigs`. To test a locally running proxy instead:
 
 ```sh
 KUBECONFIG=/path/to/test-cluster.kubeconfig \

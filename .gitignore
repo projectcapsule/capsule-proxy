@@ -24,3 +24,9 @@ bin
 *~
 .vscode
 .DS_Store
+
+# Local development environment, task state and release artifacts
+.devbox/
+.task/
+dist/
+builds/

@@ -65,7 +65,7 @@ func accessProxyConfig() *rest.Config {
 		c.TLSClientConfig.Insecure = false
 	} else {
 		proxyConfig, err := clientcmd.BuildConfigFromFlags("", filepath.Join("..", "hack", "alice.kubeconfig"))
-		Expect(err).NotTo(HaveOccurred(), "run make generate-kubeconfigs, or set E2E_PROXY_URL and E2E_PROXY_CA_FILE")
+		Expect(err).NotTo(HaveOccurred(), "run task e2e:kubeconfigs, or set E2E_PROXY_URL and E2E_PROXY_CA_FILE")
 		c.Host = proxyConfig.Host
 		c.CAFile, c.CAData = proxyConfig.CAFile, proxyConfig.CAData
 		c.ServerName, c.Insecure = proxyConfig.ServerName, proxyConfig.Insecure

@@ -23,7 +23,7 @@ jobs:
         run: |
           GIT_TAG=${GITHUB_REF##*/}
           VERSION=${GIT_TAG##*v}
-          echo "version=$(echo $VERSION)" >> $GITHUB_OUTPUT
+          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
       - name: Publish Helm chart
         uses: stefanprodan/helm-gh-pages@0ad2bb377311d61ac04ad9eb6f252fb68e207260 # v1.7.0
         with:
@@ -55,7 +55,7 @@ jobs:
         run: |
           GIT_TAG=${GITHUB_REF##*/}
           VERSION=${GIT_TAG##*v}
-          echo "version=$(echo $VERSION)" >> $GITHUB_OUTPUT
+          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
       - name: Helm | Publish
         id: helm_publish
         uses: peak-scale/github-actions/helm-oci-chart@a441cca016861c546ab7e065277e40ce41a3eb84
