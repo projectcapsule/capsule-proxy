@@ -202,7 +202,7 @@ func (n *kubeFilter) Start(ctx context.Context) error {
 	})
 
 	root := r.PathPrefix("").Subrouter()
-	n.registerModules(ctx, root)
+	n.registerModules(root)
 	n.registerRootMiddlewares(root)
 	root.PathPrefix("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		n.impersonateHandler(writer, request)
@@ -376,10 +376,15 @@ func (n *kubeFilter) registerRootMiddlewares(root *mux.Router) {
 
 func (n *kubeFilter) reverseProxyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		next.ServeHTTP(writer, request)
+		response := middleware.NewHTTPResponseWriter(writer)
+		next.ServeHTTP(response, request)
+
+		if response.Written() {
+			return
+		}
 
 		n.log.V(5).Info("debugging request", "uri", request.RequestURI, "method", request.Method)
-		n.reverseProxy.ServeHTTP(writer, request)
+		n.reverseProxy.ServeHTTP(response, request)
 	})
 }
 
@@ -568,7 +573,7 @@ func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulerbac.OwnerList
 }
 
 //nolint:funlen
-func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
+func (n *kubeFilter) registerModules(root *mux.Router) {
 	// We are using namespaces and tenants as default routes from the legacy
 	// system, as their outcome heavily relies on the tenants config/status
 	modList := []modules.Module{
@@ -649,65 +654,72 @@ func (n *kubeFilter) registerModules(ctx context.Context, root *mux.Router) {
 			middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
 			middleware.CheckJWTMiddleware(n.writer),
 			middleware.CheckUserInIgnoredIdentityMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUsernames, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
-			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
+			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.managerReader, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
 		)
-		sr.HandleFunc("", func(writer http.ResponseWriter, request *http.Request) {
-			request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
-			if err != nil {
-				n.handleResolveUserAndGroupsError(writer, err)
+		sr.HandleFunc("", n.moduleHandler(mod))
+	}
+}
 
-				return
-			}
+// moduleHandler shares identity and ownership snapshots prepared by middleware.
+func (n *kubeFilter) moduleHandler(mod modules.Module) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		ctx := request.Context()
 
-			proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
-			if err != nil {
-				server.HandleError(writer, err, "cannot list Tenant resources")
+		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
+		if err != nil {
+			n.handleResolveUserAndGroupsError(writer, err)
 
-				return
-			}
+			return
+		}
 
-			var selector labels.Selector
+		proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
+		if err != nil {
+			server.HandleError(writer, err, "cannot list Tenant resources")
 
-			selector, err = mod.Handle(
-				proxyTenants,
-				req.NewHTTP(
-					request,
-					n.authTypes,
-					n.usernameClaimField,
-					n.writer,
-					n.ignoredImpersonationGroups,
-					n.impersonationGroupsRegexp,
-					n.skipImpersonationReview,
-					n.xfcc_header,
-				))
+			return
+		}
 
-			switch {
-			case err != nil:
-				if t, ok := errors.AsType[moderrors.Error](err); ok {
-					writer.Header().Set("Content-Type", "application/json")
+		var selector labels.Selector
 
-					if t.Status().Code > 0 {
-						writer.WriteHeader(int(t.Status().Code))
-					} else {
-						writer.WriteHeader(http.StatusInternalServerError)
-					}
+		selector, err = mod.Handle(
+			proxyTenants,
+			req.NewHTTP(
+				request,
+				n.authTypes,
+				n.usernameClaimField,
+				n.writer,
+				n.ignoredImpersonationGroups,
+				n.impersonationGroupsRegexp,
+				n.skipImpersonationReview,
+				n.xfcc_header,
+			))
 
-					b, _ := json.Marshal(t.Status())
-					_, _ = writer.Write(b)
+		switch {
+		case err != nil:
+			if t, ok := errors.AsType[moderrors.Error](err); ok {
+				writer.Header().Set("Content-Type", "application/json")
 
-					return
+				if t.Status().Code > 0 {
+					writer.WriteHeader(int(t.Status().Code))
+				} else {
+					writer.WriteHeader(http.StatusInternalServerError)
 				}
 
-				server.HandleError(writer, err, err.Error())
+				b, _ := json.Marshal(t.Status())
+				_, _ = writer.Write(b)
 
 				return
-			case selector == nil:
-				// if there's no selector, let it pass to the
-				n.impersonateHandler(writer, request)
-			default:
-				n.handleRequest(request, selector, username)
 			}
-		})
+
+			server.HandleError(writer, err, err.Error())
+
+			return
+		case selector == nil:
+			// if there's no selector, let it pass to the
+			n.impersonateHandler(writer, request)
+		default:
+			n.handleRequest(request, selector, username)
+		}
 	}
 }
 
@@ -771,12 +783,8 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulerbac.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
 	ownerIndexValue := fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)
 
-	tl := &capsulev1beta2.TenantList{}
-
-	f := client.MatchingFields{
-		indexer.TenantOwnerKindField: ownerIndexValue,
-	}
-	if err = n.managerReader.List(ctx, tl, f); err != nil {
+	tl, err := tenant.TenantsForOwner(ctx, n.managerReader, ownerKind, ownerName)
+	if err != nil {
 		return nil, fmt.Errorf("cannot retrieve Tenants list: %w", err)
 	}
 

@@ -93,7 +93,9 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	case len(userNamespaces) > 0:
 		r, err = labels.NewRequirement(corev1.LabelMetadataName, selection.In, sets.List(sets.New(userNamespaces...)))
 	default:
-		r, err = labels.NewRequirement("dontexistsignoreme", selection.Exists, []string{})
+		// Contradictory requirements stay empty even if a namespace carries
+		// a label that used to be treated as an unlikely sentinel.
+		return labels.Parse(corev1.LabelMetadataName + ",!" + corev1.LabelMetadataName)
 	}
 
 	if err != nil {
