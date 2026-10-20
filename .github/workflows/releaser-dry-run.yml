@@ -7,12 +7,16 @@ on:
   pull_request:
     paths:
       - ".github/workflows/releaser*.yml"
+      - ".github/actions/setup/**"
       - ".goreleaser.yml"
-      - "cmd/**"
+      - "devbox.json"
+      - "devbox.lock"
+      - "Taskfile.yml"
+      - "*.go"
+      - "api/**"
       - "go.mod"
       - "go.sum"
       - "internal/**"
-      - "pkg/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -28,23 +32,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: "go.mod"
-          cache: false
-
-      - name: Setup caches
-        uses: ./.github/actions/setup-caches
-        timeout-minutes: 5
-        continue-on-error: true
+      - uses: ./.github/actions/setup
 
       - uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
 
+      - name: Validate GoReleaser configuration
+        run: devbox run -- goreleaser check
+
       - name: Run GoReleaser dry run
-        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
-        with:
-          version: latest
-          args: release --snapshot --clean --skip=publish,sign --timeout 90m
+        run: devbox run -- goreleaser release --snapshot --clean --skip=publish,sign --timeout 90m
         env:
           GITHUB_TOKEN: ${{ github.token }}

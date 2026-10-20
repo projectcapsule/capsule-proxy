@@ -95,6 +95,15 @@ pass_filenames = false
 priority = 20
 
 [[repos.hooks]]
+id = "zizmor"
+name = "Security-lint GitHub Actions"
+entry = "devbox run -- task lint:zizmor"
+language = "system"
+files = '^\.github/(workflows/|actions/)'
+pass_filenames = false
+priority = 20
+
+[[repos.hooks]]
 id = "conventional-commit"
 name = "Check Conventional Commit message"
 entry = "devbox run -- task lint:commit-message --"

@@ -23,6 +23,7 @@ Useful commands:
 task test                # unit tests, race detector and coverage
 task test:cli            # CLI regressions
 task lint                # Go lint
+task lint:zizmor         # workflow and composite-action security checks
 task build               # bin/capsule-proxy, built from the repository root
 task check               # local CI checks; no cluster required
 task hooks:check         # run pre-commit hooks on all tracked files
@@ -30,6 +31,7 @@ task hooks:check         # run pre-commit hooks on all tracked files
 
 Commit messages use `chore`, `ci`, `docs`, `feat`, `test`, `fix`, or `sec`, with an
 optional scope and breaking-change marker, for example `fix(proxy): retain selectors`.
+Use `task lint:zizmor-fix` to apply workflow security fixes and review the diff.
 
 ## Tests
 

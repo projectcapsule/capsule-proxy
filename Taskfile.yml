@@ -117,6 +117,18 @@ tasks:
     cmds:
       - actionlint -pyflakes=''
 
+  lint:zizmor:
+    desc: Security-lint GitHub Actions workflows and composite actions.
+    aliases: [lint-zizmor]
+    cmds:
+      - zizmor .github/
+
+  lint:zizmor-fix:
+    desc: Apply zizmor fixes to GitHub Actions workflows and composite actions.
+    aliases: [lint-zizmor-fix]
+    cmds:
+      - zizmor .github/ --fix=all
+
   lint:commit-message:
     desc: Validate a commit-message file supplied after --.
     cmds:
@@ -556,6 +568,7 @@ tasks:
       - task: lint:files
       - task: lint:yaml
       - task: lint:actions
+      - task: lint:zizmor
       - task: test
       - task: lint
       - task: verify-generated

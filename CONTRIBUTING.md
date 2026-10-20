@@ -23,6 +23,7 @@ Useful commands:
 task test                # unit tests, race detector and coverage
 task test:cli            # CLI regressions
 task lint                # Go lint
+task lint:zizmor         # workflow and composite-action security checks
 task build               # bin/capsule-proxy, built from the repository root
 task check               # local CI checks; no cluster required
 task hooks:check         # run pre-commit hooks on all tracked files

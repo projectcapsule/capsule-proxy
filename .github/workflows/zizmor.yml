@@ -7,9 +7,17 @@ on:
     branches: [main]
     paths:
       - .github/workflows/**
+      - .github/actions/**
+      - Taskfile.yml
+      - devbox.json
+      - devbox.lock
   pull_request:
     paths:
       - .github/workflows/**
+      - .github/actions/**
+      - Taskfile.yml
+      - devbox.json
+      - devbox.lock
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,4 +34,4 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Run zizmor 🌈
-        run: devbox run -- task lint-zizmor
+        run: devbox run -- task lint:zizmor

@@ -23,7 +23,8 @@
     "yamllint": "1.37.1",
     "jq": "1.8.2",
     "openssl": "3.6.4",
-    "curl": "8.22.0"
+    "curl": "8.22.0",
+    "zizmor": "1.25.2"
   },
   "env": {
     "GOTOOLCHAIN": "local",

@@ -538,6 +538,7 @@ Taskfile or the tools' native validation already handle.
 | --- | --- |
 | Available commands | `task --list`. |
 | Tooling checks | `task lint:files lint:yaml lint:actions lint:config`; validate hook configuration with `prek validate-config prek.toml`. |
+| Workflow security | `task lint:zizmor` scans workflows and composite actions; use `task lint:zizmor-fix` deliberately and review its fixes. The `lint-zizmor` and `lint-zizmor-fix` aliases are also available. |
 | Install local hooks | `task hooks:install` explicitly installs prek's pre-commit and commit-msg hooks. |
 | Commit message | `task lint:commit-message -- <message-file>`; `task lint:commits` checks the `COMMIT_BASE`/`COMMIT_HEAD` range used by CI. |
 | Focused unit tests | `go test -race ./path/to/changed/package/...` (replace the path). |
