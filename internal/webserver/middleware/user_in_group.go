@@ -11,11 +11,14 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/mux"
+	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
+	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 	weberrors "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 )
 
@@ -52,7 +55,7 @@ func identityIsIgnored(username string, groups []string, ignoredUsernames, ignor
 	return ignoredUsernames.Has(username) || slices.ContainsFunc(groups, ignoredUserGroups.Has)
 }
 
-func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
+func CheckUserInCapsuleGroupMiddleware(client client.Writer, ownerReader client.Reader, log logr.Logger, claim string, authTypes []req.AuthType, ignoredImpersonationGroups []string, impersonationGroupsRegexp *regexp.Regexp, skipImpersonationReview bool, xfcc_header string, impersonate func(http.ResponseWriter, *http.Request)) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			request, user, groups, err := req.ResolveUserAndGroups(request, authTypes, claim, client, ignoredImpersonationGroups, impersonationGroupsRegexp, skipImpersonationReview, xfcc_header)
@@ -77,6 +80,25 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, log logr.Logger, cl
 				next.ServeHTTP(writer, request)
 
 				return
+			}
+
+			// Promoted ServiceAccounts are effective Tenant owners without
+			// becoming global CapsuleConfiguration users. Reuse the indexed
+			// snapshot downstream, with the same lifetime as this request.
+			if _, _, parseErr := serviceaccount.SplitUsername(user); parseErr == nil {
+				tenants, lookupErr := tenant.TenantsForOwner(request.Context(), ownerReader, capsulerbac.ServiceAccountOwner, user)
+				if lookupErr != nil {
+					weberrors.HandleError(writer, lookupErr, "cannot resolve ServiceAccount tenant ownership")
+
+					return
+				}
+
+				if len(tenants.Items) > 0 {
+					ownerContext := tenant.WithOwnerTenants(request.Context(), capsulerbac.ServiceAccountOwner, user, tenants)
+					next.ServeHTTP(writer, request.WithContext(ownerContext))
+
+					return
+				}
 			}
 
 			log.V(5).Info("current user is not a Capsule one", "capsule-groups", controllers.CapsuleUserGroups)
