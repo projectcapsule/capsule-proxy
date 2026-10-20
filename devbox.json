@@ -24,11 +24,11 @@
     "jq": "1.8.2",
     "openssl": "3.6.4",
     "curl": "8.22.0",
-    "zizmor": "1.25.2"
+    "zizmor": "1.30.1"
   },
   "env": {
     "GOTOOLCHAIN": "local",
-    "NWA_VERSION": "v0.7.8"
+    "NWA_VERSION": "v0.8.0"
   },
   "nixpkgs": {
     "commit": "8edc0c72e3a38faf5434e40d1f19431125fe4b30"
