@@ -1,0 +1,576 @@
+version: '3'
+
+silent: true
+set: [errexit, nounset, pipefail]
+
+vars:
+  GIT_VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+  VERSION: '{{.VERSION | default .GIT_VERSION}}'
+  REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
+  REPOSITORY: '{{.REPOSITORY | default "projectcapsule/capsule-proxy"}}'
+  CAPSULE_PROXY_IMG: '{{.CAPSULE_PROXY_IMG | default (printf "%s/%s" .REGISTRY .REPOSITORY)}}'
+  IMG: '{{.IMG | default (printf "%s:%s" .CAPSULE_PROXY_IMG .VERSION)}}'
+  GOHOSTARCH:
+    sh: go env GOHOSTARCH
+  IMAGE_PLATFORM: '{{.IMAGE_PLATFORM | default (printf "linux/%s" .GOHOSTARCH)}}'
+  PLATFORMS: '{{.PLATFORMS | default "linux/amd64,linux/arm64,linux/arm"}}'
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD
+  GIT_TREE_STATE:
+    sh: if git diff --quiet && git diff --cached --quiet; then echo clean; else echo dirty; fi
+  GIT_REPO:
+    sh: git config --get remote.origin.url || true
+  BUILD_DATE:
+    sh: git log -1 --format=%cI
+  KIND_CLUSTER: '{{.KIND_CLUSTER | default "capsule"}}'
+  CHART_CLUSTER: '{{.CHART_CLUSTER | default "capsule-charts"}}'
+  KIND_NODE_IMAGE: '{{.KIND_NODE_IMAGE | default "kindest/node:v1.37.0"}}'
+  CAPSULE_PROXY_MODE: '{{.CAPSULE_PROXY_MODE | default "https"}}'
+  CAPSULE_VERSION: '{{.CAPSULE_VERSION | default "v0.14.6"}}'
+  ENTERPRISE_REGISTRY: '{{.ENTERPRISE_REGISTRY | default "registry.projectcapsule.dev"}}'
+  ENTERPRISE_VERSION: '{{.ENTERPRISE_VERSION | default ""}}'
+  DRY_RUN: '{{.DRY_RUN | default "false"}}'
+  LD_FLAGS: >-
+    -X main.Version={{.VERSION}}
+    -X main.GitCommit={{.GIT_COMMIT}}
+    -X main.GitTag={{.VERSION}}
+    -X main.GitTreeState={{.GIT_TREE_STATE}}
+    -X main.BuildDate={{.BUILD_DATE}}
+    -X main.GitRepo={{.GIT_REPO}}
+
+env:
+  VERSION: '{{.VERSION}}'
+
+tasks:
+  default:
+    desc: List available tasks.
+    aliases: [help]
+    cmds:
+      - task --list
+
+  license-headers:
+    desc: Update source license headers using the existing NWA configuration.
+    cmds:
+      - go run "github.com/B1NARY-GR0UP/nwa@$NWA_VERSION" config
+
+  generate:
+    desc: Generate DeepCopy methods.
+    run: once
+    cmds:
+      - controller-gen object:headerFile=hack/boilerplate.go.txt paths=./...
+
+  manifests:
+    desc: Generate RBAC, webhook configurations and CRDs.
+    run: once
+    cmds:
+      - controller-gen rbac:roleName=manager-role crd webhook paths=./... output:crd:artifacts:config=charts/capsule-proxy/crds
+
+  verify-generated:
+    desc: Check generated API code and CRDs for drift.
+    cmds:
+      - task: generate
+      - task: manifests
+      - git diff --exit-code -- api charts/capsule-proxy/crds
+      - test -z "$(git ls-files --others --exclude-standard -- api charts/capsule-proxy/crds)"
+
+  fmt:
+    desc: Format Go sources.
+    cmds:
+      - golangci-lint fmt
+
+  vet:
+    desc: Run go vet.
+    cmds:
+      - go vet ./...
+
+  lint:
+    desc: Lint Go sources.
+    aliases: [golint]
+    cmds:
+      - golangci-lint run -c .golangci.yml --timeout=5m
+
+  lint:fix:
+    desc: Apply Go lint and formatting fixes.
+    aliases: [golint-fix]
+    cmds:
+      - golangci-lint fmt
+      - golangci-lint run -c .golangci.yml --fix --timeout=5m
+
+  lint:config:
+    desc: Validate the Go linter configuration.
+    cmds:
+      - golangci-lint config verify
+
+  lint:files:
+    desc: Check file hygiene and syntax without rewriting files.
+    cmds:
+      - prek run --stage manual --group files {{if .CLI_ARGS}}--files {{.CLI_ARGS}}{{else}}--all-files{{end}}
+
+  lint:yaml:
+    desc: Lint YAML using the repository configuration.
+    cmds:
+      - yamllint -c .github/configs/lintconf.yaml .
+
+  lint:actions:
+    desc: Validate GitHub Actions and inline shell scripts.
+    cmds:
+      - actionlint -pyflakes=''
+
+  lint:zizmor:
+    desc: Security-lint GitHub Actions workflows and composite actions.
+    aliases: [lint-zizmor]
+    cmds:
+      - zizmor .github/
+
+  lint:zizmor-fix:
+    desc: Apply zizmor fixes to GitHub Actions workflows and composite actions.
+    aliases: [lint-zizmor-fix]
+    cmds:
+      - zizmor .github/ --fix=all
+
+  lint:commit-message:
+    desc: Validate a commit-message file supplied after --.
+    cmds:
+      - |
+        # Keep the existing repository's commit types while using Cocogitto for syntax.
+        message=$(cat {{.CLI_ARGS | default "-"}})
+        subject=${message%%$'\n'*}
+        case "$subject" in
+          Merge\ *|Revert\ *|fixup\!*|squash\!*) exit 0 ;;
+        esac
+        if [[ ! "$subject" =~ ^(chore|ci|docs|feat|test|fix|sec)(\([^\(\)]+\))?\!?:\  ]]; then
+          echo 'Expected a Conventional Commit with type chore, ci, docs, feat, test, fix or sec.' >&2
+          exit 1
+        fi
+        printf '%s\n' "$message" | cog verify --ignore-merge-commits --file -
+
+  lint:commits:
+    desc: Validate commits between COMMIT_BASE and COMMIT_HEAD.
+    cmds:
+      - |
+        : "${COMMIT_HEAD:=HEAD}"
+        if [[ -z "${COMMIT_BASE:-}" || "$COMMIT_BASE" =~ ^0+$ ]]; then
+          commits=$(git rev-list -1 "$COMMIT_HEAD" --)
+        else
+          commits=$(git rev-list "$COMMIT_BASE..$COMMIT_HEAD" --)
+        fi
+        while IFS= read -r commit; do
+          [[ -n "$commit" ]] || continue
+          git show -s --format=%B "$commit" -- | task lint:commit-message -- -
+        done <<< "$commits"
+
+  hooks:install:
+    desc: Install prek pre-commit and commit-msg hooks.
+    cmds:
+      - prek install --force --hook-type pre-commit --hook-type commit-msg
+
+  hooks:check:
+    desc: Run all pre-commit hooks on tracked files.
+    cmds:
+      - prek run --all-files
+
+  test:
+    desc: Run unit tests with the race detector and coverage, without regenerating code.
+    aliases: [test:unit]
+    cmds:
+      - go test -race -coverprofile coverage.out ./...
+
+  test:cli:
+    desc: Run CLI regression tests with the race detector.
+    aliases: [test-cli]
+    cmds:
+      - go test -race -v -run '^TestCLI' .
+
+  test:clean:
+    desc: Clear the Go test cache.
+    aliases: [test-clean]
+    cmds:
+      - go clean -testcache
+
+  build:
+    desc: Build the proxy executable from the repository root.
+    env:
+      LD_FLAGS: '{{.LD_FLAGS}}'
+    cmds:
+      - mkdir -p bin
+      - go build -trimpath -ldflags "$LD_FLAGS" -o bin/capsule-proxy .
+
+  run:
+    desc: Run the proxy against the current Kubernetes context.
+    cmds:
+      - go run . {{.CLI_ARGS}}
+
+  image:build:
+    desc: Build the proxy image locally without publishing.
+    aliases: [ko-build-all, ko-build-capsule-proxy]
+    run: once
+    env:
+      LD_FLAGS: '{{.LD_FLAGS}}'
+      IMG: '{{.IMG}}'
+      IMAGE_PLATFORM: '{{.IMAGE_PLATFORM}}'
+    cmds:
+      - KO_DOCKER_REPO="${IMG%:*}" ko build . --bare --tags="${IMG##*:},latest" --local --push=false --platform="$IMAGE_PLATFORM"
+
+  registry:login:
+    desc: Authenticate ko using REGISTRY_USERNAME and REGISTRY_PASSWORD.
+    aliases: [ko-login]
+    env:
+      REGISTRY: '{{.REGISTRY}}'
+    cmds:
+      - printf '%s' "${REGISTRY_PASSWORD:?REGISTRY_PASSWORD is required}" | ko login "$REGISTRY" --username "${REGISTRY_USERNAME:?REGISTRY_USERNAME is required}" --password-stdin
+
+  image:push:
+    desc: Publish the proxy image and print its immutable reference (authenticate first).
+    aliases: [ko-publish-all, ko-publish-capsule-proxy]
+    env:
+      LD_FLAGS: '{{.LD_FLAGS}}'
+      IMG: '{{.IMG}}'
+      PLATFORMS: '{{.PLATFORMS}}'
+    cmds:
+      - KO_DOCKER_REPO="${IMG%:*}" ko build . --bare --tags="${IMG##*:},latest" --push=true --platform="$PLATFORMS"
+
+  image:sign:
+    desc: Sign an immutable IMAGE_REF with Cosign.
+    env:
+      IMAGE_REF: '{{.IMAGE_REF | default ""}}'
+    cmds:
+      - |
+        : "${IMAGE_REF:?Set IMAGE_REF to an immutable image reference}"
+        [[ "$IMAGE_REF" =~ ^[^[:space:]@]+@sha256:[a-f0-9]{64}$ ]] || { echo 'IMAGE_REF must include a sha256 digest' >&2; exit 1; }
+        cosign sign --yes "$IMAGE_REF"
+
+  helm:docs:
+    desc: Generate Helm chart documentation.
+    aliases: [helm-docs]
+    cmds:
+      - helm-docs --chart-search-root charts
+
+  helm:schema:
+    desc: Generate the Helm values JSON schema with the locked plugin.
+    aliases: [helm-schema]
+    dir: charts/capsule-proxy
+    cmds:
+      - helm schema --use-helm-docs
+
+  helm:lint:
+    desc: Lint the chart with chart-testing.
+    aliases: [helm-lint]
+    cmds:
+      - ct lint --config .github/configs/ct.yaml --validate-yaml=false --all --debug
+
+  helm:verify:
+    desc: Check chart documentation and values schema for drift.
+    cmds:
+      - task: helm:docs
+      - task: helm:schema
+      - git diff --exit-code -- charts/capsule-proxy/README.md charts/capsule-proxy/values.schema.json
+      - test -z "$(git ls-files --others --exclude-standard -- charts/capsule-proxy/README.md charts/capsule-proxy/values.schema.json)"
+
+  helm:test:
+    desc: Install and test the chart in a disposable Kind cluster.
+    aliases: [helm-test]
+    env:
+      CHART_CLUSTER: '{{.CHART_CLUSTER}}'
+      KIND_NODE_IMAGE: '{{.KIND_NODE_IMAGE}}'
+      IMG: '{{.IMG}}'
+      IMAGE_PLATFORM: '{{.IMAGE_PLATFORM}}'
+    cmds:
+      - |
+        clusters=$(kind get clusters)
+        if grep -Fxq "$CHART_CLUSTER" <<< "$clusters"; then
+          echo "Cluster $CHART_CLUSTER already exists" >&2
+          exit 1
+        fi
+        task image:build
+        scratch=$(mktemp -d)
+        export KUBECONFIG="$scratch/kubeconfig"
+        cleanup() {
+          result=$?
+          if [[ "$result" -ne 0 ]]; then KIND_CLUSTER="$CHART_CLUSTER" task e2e:logs || true; fi
+          kind delete cluster --name "$CHART_CLUSTER" || result=$?
+          rm -rf "$scratch"
+          exit "$result"
+        }
+        trap cleanup EXIT
+        kind create cluster --name "$CHART_CLUSTER" --kubeconfig "$KUBECONFIG" --image "$KIND_NODE_IMAGE" --wait=120s --retain
+        kind load docker-image --name "$CHART_CLUSTER" "$IMG"
+        kubectl create namespace capsule-system
+        task e2e:dependencies
+        image_repository="${IMG#*/}"
+        ct install --config .github/configs/ct.yaml --namespace=capsule-system --all --debug \
+          --helm-extra-set-args "--set image.pullPolicy=Never --set image.tag=${IMG##*:} --set image.registry=${IMG%%/*} --set image.repository=${image_repository%:*}"
+
+  e2e:
+    desc: Provision a disposable cluster, install dependencies and run e2e tests (CI runs the full suite).
+    env:
+      KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+      KIND_NODE_IMAGE: '{{.KIND_NODE_IMAGE}}'
+      IMG: '{{.IMG}}'
+      IMAGE_PLATFORM: '{{.IMAGE_PLATFORM}}'
+      CAPSULE_PROXY_MODE: '{{.CAPSULE_PROXY_MODE}}'
+      CAPSULE_VERSION: '{{.CAPSULE_VERSION}}'
+      E2E_ARGS: '{{.E2E_ARGS | default .CLI_ARGS}}'
+    cmds:
+      - |
+        clusters=$(kind get clusters)
+        if grep -Fxq "$KIND_CLUSTER" <<< "$clusters"; then
+          echo "Cluster $KIND_CLUSTER already exists" >&2
+          exit 1
+        fi
+        task image:build
+        scratch=$(mktemp -d)
+        export KUBECONFIG="$scratch/kubeconfig"
+        cleanup() {
+          result=$?
+          if [[ "$result" -ne 0 ]]; then task e2e:logs || true; fi
+          task e2e:destroy || result=$?
+          rm -rf "$scratch"
+          exit "$result"
+        }
+        trap cleanup EXIT
+        task e2e:build
+        task e2e:install
+        task e2e:exec
+
+  e2e:build:
+    desc: Create the e2e Kind cluster (switches the current context unless KUBECONFIG is set).
+    aliases: [e2e-build]
+    env:
+      KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+      KIND_NODE_IMAGE: '{{.KIND_NODE_IMAGE}}'
+    cmds:
+      - kind create cluster --name "$KIND_CLUSTER" --image "$KIND_NODE_IMAGE" --config e2e/kind.yaml --wait=120s --retain
+      - kubectl taint nodes "${KIND_CLUSTER}-worker2" key1=value1:NoSchedule --overwrite
+
+  e2e:install:
+    desc: Install dependencies, the proxy and e2e RBAC.
+    aliases: [e2e-install]
+    cmds:
+      - task: image:build
+      - task: e2e:dependencies
+      - task: e2e:proxy
+      - task: e2e:rbac
+      - task: e2e:wait
+
+  e2e:dependencies:
+    desc: Install Flux and the Capsule, cert-manager and metrics dependencies.
+    aliases: [install-dependencies]
+    cmds:
+      - kubectl kustomize e2e/distro/flux | kubectl apply --force-conflicts --server-side=true -f -
+      - kubectl wait --for=condition=Established crd/helmreleases.helm.toolkit.fluxcd.io crd/helmrepositories.source.toolkit.fluxcd.io --timeout=120s
+      - kubectl kustomize e2e/distro/objects | kubectl apply --force-conflicts --server-side=true -f -
+      - task: e2e:wait
+
+  e2e:wait:
+    desc: Wait for dependency HelmReleases and Capsule admission webhooks.
+    aliases: [wait-for-helmreleases]
+    cmds:
+      - kubectl wait --for=condition=Ready helmrelease --all -n flux-system --timeout=600s
+      - kubectl rollout status deployment/capsule-controller-manager -n capsule-system --timeout=300s
+
+  e2e:load-image:
+    desc: Build and load the current proxy image into the e2e cluster.
+    aliases: [e2e-load-image]
+    env:
+      KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+      IMG: '{{.IMG}}'
+    cmds:
+      - task: image:build
+      - kind load docker-image --name "$KIND_CLUSTER" "$IMG"
+
+  e2e:certificate:
+    desc: Reuse or create the e2e proxy certificate without installing a system trust root.
+    aliases: [ensure-e2e-certificate]
+    cmds:
+      - |
+        ca=$(kubectl -n capsule-system get secret capsule-proxy --ignore-not-found -o jsonpath='{.data.ca}')
+        if [[ -z "$ca" ]]; then
+          mkcert -cert-file hack/127.0.0.1.pem -key-file hack/127.0.0.1-key.pem 127.0.0.1 localhost proxy.capsule.local
+          ca_root=$(mkcert -CAROOT)
+          kubectl -n capsule-system create secret generic capsule-proxy \
+            --from-file=tls.key=hack/127.0.0.1-key.pem --from-file=tls.crt=hack/127.0.0.1.pem \
+            --from-file="ca=$ca_root/rootCA.pem" --dry-run=client -o yaml | kubectl apply -f -
+        fi
+
+  e2e:proxy:
+    desc: Build, load and install the proxy, then generate test kubeconfigs.
+    aliases: [install-capsule-proxy]
+    requires:
+      vars:
+        - name: CAPSULE_PROXY_MODE
+          enum: [http, https]
+    env:
+      CAPSULE_PROXY_MODE: '{{.CAPSULE_PROXY_MODE}}'
+      IMG: '{{.IMG}}'
+    cmds:
+      - task: e2e:load-image
+      - task: e2e:certificate
+      - |
+        image_repository="${IMG#*/}"
+        helm upgrade --force-conflicts --install capsule-proxy charts/capsule-proxy -n capsule-system \
+          --set-string "image.registry=${IMG%%/*}" \
+          --set-string "image.repository=${image_repository%:*}" \
+          --set-string "image.tag=${IMG##*:}" \
+          --set image.pullPolicy=Never \
+          --set "options.enableSSL=$([[ "$CAPSULE_PROXY_MODE" == https ]] && echo true || echo false)" \
+          --set options.logLevel=10 --set options.pprof=true --set options.leaderElection=true \
+          --set options.roleBindingReflector=true --set service.type=NodePort --set kind=DaemonSet \
+          --set daemonset.hostNetwork=true --set serviceMonitor.enabled=false \
+          --set certManager.generateCertificates=false --set options.generateCertificates=false \
+          --set options.oidcUsernameClaim=name --set 'options.additionalSANs={localhost,proxy.capsule.local}' \
+          --set 'options.ignoredUsernames={admin}' --set 'options.extraArgs={--feature-gates=ProxyClusterScoped=true}'
+        kubectl rollout restart daemonset/capsule-proxy -n capsule-system
+        kubectl rollout status daemonset/capsule-proxy -n capsule-system --timeout=300s
+      - task: e2e:kubeconfigs
+
+  e2e:kubeconfigs:
+    desc: Generate proxy user kubeconfigs from the installed Capsule release's helper.
+    aliases: [generate-kubeconfigs]
+    env:
+      CAPSULE_VERSION: '{{.CAPSULE_VERSION}}'
+      CAPSULE_PROXY_MODE: '{{.CAPSULE_PROXY_MODE}}'
+    cmds:
+      - task: e2e:certificate
+      - |
+        : "${CAPSULE_VERSION:?CAPSULE_VERSION is required}"
+        : "${CAPSULE_PROXY_MODE:?CAPSULE_PROXY_MODE is required}"
+        case "$CAPSULE_PROXY_MODE" in
+          http|https) ;;
+          *) echo 'CAPSULE_PROXY_MODE must be http or https' >&2; exit 1 ;;
+        esac
+        scratch=$(mktemp -d)
+        trap 'rm -rf "$scratch"' EXIT
+        curl --fail --silent --show-error --location \
+          "https://raw.githubusercontent.com/projectcapsule/capsule/$CAPSULE_VERSION/hack/create-user.sh" \
+          --output "$scratch/create-user.sh"
+
+        ca=$(kubectl -n capsule-system get secret capsule-proxy -o jsonpath='{.data.ca}')
+        if [[ -z "$ca" ]]; then
+          echo 'Secret capsule-system/capsule-proxy is missing .data.ca' >&2
+          exit 1
+        fi
+        # Older setups stored an already base64-encoded CA inside the Secret.
+        decoded_ca=$(printf '%s' "$ca" | base64 --decode)
+        if [[ "$decoded_ca" != '-----BEGIN CERTIFICATE-----'* ]]; then
+          ca=$(printf '%s' "$decoded_ca" | tr -d '\r\n')
+        fi
+
+        cd hack
+        for identity in alice:oil bob:gas joe:gas cluster-admin:admin dave:soil; do
+          user=${identity%:*}
+          tenant=${identity#*:}
+          groups=projectcapsule.dev,capsule.clastix.io
+          case "$user" in
+            joe) groups+=,foo.clastix.io ;;
+            dave) groups+=,bar.clastix.io ;;
+            cluster-admin) groups= ;;
+          esac
+          TMPDIR="$scratch" bash "$scratch/create-user.sh" "$user" "$tenant" "$groups"
+          mv "$user-$tenant.kubeconfig" "$user.kubeconfig"
+          cluster=$(kubectl --kubeconfig="$user.kubeconfig" config view --minify -o jsonpath='{.clusters[0].name}')
+          if [[ "$CAPSULE_PROXY_MODE" == https ]]; then
+            kubectl --kubeconfig="$user.kubeconfig" config set "clusters.$cluster.certificate-authority-data" "$ca"
+          fi
+          kubectl --kubeconfig="$user.kubeconfig" config set "clusters.$cluster.server" "$CAPSULE_PROXY_MODE://127.0.0.1:9001"
+        done
+        kubectl create clusterrolebinding custom-cluster-admin --clusterrole=cluster-admin --user=cluster-admin \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+  e2e:rbac:
+    desc: Apply discovery and self-review RBAC for e2e identities.
+    aliases: [rbac-fix]
+    cmds:
+      - kubectl create clusterrole capsule-selfsubjectaccessreviews --verb=create --resource=selfsubjectaccessreviews.authorization.k8s.io --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create clusterrole capsule-apis --verb=get --non-resource-url='/api/*' --non-resource-url=/api --non-resource-url='/apis/*' --non-resource-url=/apis --non-resource-url=/version --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create clusterrolebinding capsule:selfsubjectaccessreviews --clusterrole=capsule-selfsubjectaccessreviews --group=capsule.clastix.io --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io --dry-run=client -o yaml | kubectl apply -f -
+
+  e2e:exec:
+    desc: Run e2e tests against the prepared cluster; use E2E_ARGS or arguments after -- to select local suites.
+    aliases: [e2e-exec]
+    cmds:
+      - go run github.com/onsi/ginkgo/v2/ginkgo -v -tags e2e {{.E2E_ARGS | default ""}} {{.CLI_ARGS}} ./e2e
+
+  e2e:destroy:
+    desc: Delete only the named development Kind cluster.
+    aliases: [e2e-destroy]
+    env:
+      KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+    cmds:
+      - kind delete cluster --name "$KIND_CLUSTER"
+
+  e2e:logs:
+    desc: Save Kind logs, dependency status and events before cleanup.
+    env:
+      KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+    cmds:
+      - mkdir -p dist/e2e
+      - kind export logs --name "$KIND_CLUSTER" dist/e2e/kind
+      - kubectl get events -A --sort-by=.lastTimestamp > dist/e2e/events.log
+      - kubectl get helmrelease -A -o yaml > dist/e2e/helmreleases.yaml
+
+  install:
+    desc: Install CRDs into the current Kubernetes context.
+    cmds:
+      - task: manifests
+      - kubectl apply -f charts/capsule-proxy/crds
+
+  uninstall:
+    desc: Remove CRDs from the current Kubernetes context.
+    cmds:
+      - kubectl delete --ignore-not-found -f charts/capsule-proxy/crds
+
+  enterprise:release:
+    desc: Publish the enterprise image and chart (use DRY_RUN=true to preview).
+    aliases: [enterprise-release]
+    vars:
+      CHANNEL: '{{.CHANNEL | default "enterprise"}}'
+      CHART_PATH: '{{if eq .CHANNEL "prereleases"}}charts/prereleases{{else}}charts{{end}}'
+    requires:
+      vars:
+        - name: CHANNEL
+          enum: [enterprise, prereleases]
+        - name: DRY_RUN
+          enum: ['true', 'false']
+    env:
+      ENTERPRISE_VERSION: '{{.ENTERPRISE_VERSION}}'
+      ENTERPRISE_REGISTRY: '{{.ENTERPRISE_REGISTRY}}'
+      CHANNEL: '{{.CHANNEL}}'
+      DRY_RUN: '{{.DRY_RUN}}'
+      IMG: '{{.ENTERPRISE_REGISTRY}}/{{.CHANNEL}}/capsule-proxy:v{{trimPrefix "v" .ENTERPRISE_VERSION}}'
+      CHART_REGISTRY: 'oci://{{.ENTERPRISE_REGISTRY}}/{{.CHART_PATH}}'
+    cmds:
+      - |
+        : "${ENTERPRISE_VERSION:?Set ENTERPRISE_VERSION to the release version}"
+        chart_version="${ENTERPRISE_VERSION#v}"
+        run() {
+          if [[ "$DRY_RUN" == true ]]; then printf '%s ' "$@"; printf '\n'; else "$@"; fi
+        }
+        run env "VERSION=v$chart_version" task image:push
+        run mkdir -p dist/charts
+        run helm package charts/capsule-proxy --app-version "$chart_version" --version "$chart_version" --destination dist/charts
+        run helm push "dist/charts/capsule-proxy-$chart_version.tgz" "$CHART_REGISTRY"
+        printf '\nInstall with:\nhelm upgrade --install capsule-proxy %s --namespace capsule-system --create-namespace --version %s --set-string image.registry=%s --set-string image.repository=%s --set-string image.tag=%s --set %s\n' \
+          "$CHART_REGISTRY/capsule-proxy" "$chart_version" "$ENTERPRISE_REGISTRY" "$CHANNEL/capsule-proxy" "v$chart_version" 'serviceAccount.imagePullSecrets[0]=capsule-enterprise'
+
+  enterprise:prerelease:
+    desc: Publish the enterprise prerelease image and chart.
+    aliases: [enterprise-prerelease]
+    cmds:
+      - task: enterprise:release
+        vars: {CHANNEL: prereleases}
+
+  check:
+    desc: Run local checks used by CI (cluster tests run separately).
+    cmds:
+      - task: lint:config
+      - task: lint:files
+      - task: lint:yaml
+      - task: lint:actions
+      - task: lint:zizmor
+      - task: test
+      - task: lint
+      - task: verify-generated
+      - task: helm:lint
+      - task: helm:verify

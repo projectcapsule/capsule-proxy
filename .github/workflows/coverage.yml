@@ -1,4 +1,6 @@
 name: Coverage
+permissions:
+  contents: read
 
 on:
   push:
@@ -24,7 +26,7 @@ jobs:
           persist-credentials: false
       - name: Check secret
         id: checksecret
-        uses: $/.github/actions/exists
+        uses: ./.github/actions/exists
         with:
           value: ${{ secrets.FOSSA_API_KEY }}
       - name: "Run FOSSA Scan"
@@ -44,17 +46,15 @@ jobs:
     env:
       GO111MODULE: on
     permissions:
+      contents: read
       security-events: write
       actions: read
-      contents: read
     steps:
       - name: Checkout Source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: 'go.mod'
+      - uses: ./.github/actions/setup
       - name: Run Gosec Security Scanner
         uses: securego/gosec@deb54465fea23d19a77f037e11e6589021f8501d # v2.29.0
         with:
@@ -71,14 +71,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: 'go.mod'
+      - uses: ./.github/actions/setup
       - name: Unit Test
-        run: make test
+        run: devbox run -- task test
       - name: Check secret
         id: checksecret
-        uses: $/.github/actions/exists
+        uses: ./.github/actions/exists
         with:
           value: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload Report to Codecov

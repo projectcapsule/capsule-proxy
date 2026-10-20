@@ -1,8 +1,41 @@
 # How to
 
+## Development environment
+
+Install [Devbox](https://www.jetify.com/docs/devbox/installing_devbox), then run:
+
+```sh
+devbox install
+devbox shell
+task hooks:install
+task --list
+```
+
+Devbox locks the development tools in `devbox.json` and `devbox.lock`. Taskfile is
+the command entry point for local work and GitHub Actions; outside the shell use
+`devbox run -- task <name>`. Docker must be running for image and cluster tasks.
+The `hooks:install` task replaces existing pre-commit hooks with prek and installs
+commit-message checks. It runs only when explicitly requested.
+
+Useful commands:
+
+```sh
+task test                # unit tests, race detector and coverage
+task test:cli            # CLI regressions
+task lint                # Go lint
+task lint:zizmor         # workflow and composite-action security checks
+task build               # bin/capsule-proxy, built from the repository root
+task check               # local CI checks; no cluster required
+task hooks:check         # run pre-commit hooks on all tracked files
+```
+
+Commit messages use `chore`, `ci`, `docs`, `feat`, `test`, `fix`, or `sec`, with an
+optional scope and breaking-change marker, for example `fix(proxy): retain selectors`.
+Use `task lint:zizmor-fix` to apply workflow security fixes and review the diff.
+
 ## Tests
 
-Run `make test` for unit tests with the race detector, or `make test-cli` for CLI
+Run `task test` for unit tests with the race detector, or `task test:cli` for CLI
 argument coverage. End-to-end tests require the `e2e` build tag and a running
 Kubernetes/Capsule/proxy environment. See [the regression test guide](e2e/README.md)
 for setup, focused suite commands, coverage, and known CLI discrepancies.
@@ -14,7 +47,7 @@ for setup, focused suite commands, coverage, and known CLI discrepancies.
 The chart is linted with [ct](https://github.com/helm/chart-testing). You can run the linter locally with this command:
 
 ```
-make helm-lint
+task helm:lint
 ```
 
 ### Documentation
@@ -22,7 +55,7 @@ make helm-lint
 The documentation for each chart is done with [helm-docs](https://github.com/norwoodj/helm-docs). This way we can ensure that values are consistent with the chart documentation. Run this anytime you make changes to a `values.yaml` file:
 
 ```
-make helm-docs
+task helm:docs
 ```
 
 ## Run locally for test and debug
@@ -65,7 +98,7 @@ $ go run . --ssl-cert-path=/tmp/localhost.pem --ssl-key-path=/tmp/localhost-key.
 
 In some cases, you would need to debug the in-cluster mode and [`delve`](https://github.com/go-delve/delve) plays a big role here.
 
-Build and load images with the ko workflow (`make ko-build-all`). For interactive
+Build and load images with the ko workflow (`task image:build`). For interactive
 debugging, build the binary with Go's normal debug flags and run it under Delve
 locally; the repository no longer maintains a dedicated debug container image.
 

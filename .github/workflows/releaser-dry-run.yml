@@ -1,0 +1,45 @@
+name: GoReleaser Dry Run
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/releaser*.yml"
+      - ".github/actions/setup/**"
+      - ".goreleaser.yml"
+      - "devbox.json"
+      - "devbox.lock"
+      - "Taskfile.yml"
+      - "*.go"
+      - "api/**"
+      - "go.mod"
+      - "go.sum"
+      - "internal/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+
+      - name: Validate GoReleaser configuration
+        run: devbox run -- goreleaser check
+
+      - name: Run GoReleaser dry run
+        run: devbox run -- goreleaser release --snapshot --clean --skip=publish,sign --timeout 90m
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

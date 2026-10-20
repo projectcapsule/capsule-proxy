@@ -25,6 +25,11 @@ You can find more detailed documentation [here](https://capsule.clastix.io/docs/
 
 Please, refer to the maintainers file available [here](.github/maintainers.yaml).
 
+## Development
+
+Use `devbox shell` and `task --list` for the locked development toolchain. See
+[DEVELOPMENT.md](DEVELOPMENT.md) for setup, prek hooks, tests and chart commands.
+
 ## Contributions
 
 This is an open-source software released with Apache2 [license](./LICENSE). Feel free to open issues and pull requests. You're welcome!

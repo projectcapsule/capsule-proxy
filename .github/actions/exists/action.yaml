@@ -18,4 +18,4 @@ runs:
     - shell: bash
       id: check
       run: |
-        echo "result=${{ inputs.value != '' }}" >> $GITHUB_OUTPUT
+        printf 'result=%s\n' '${{ inputs.value != '' }}' >> "$GITHUB_OUTPUT"

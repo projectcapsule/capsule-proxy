@@ -1,6 +1,12 @@
 ---
 ignore:
   - config/
+  - .devbox/
+  - .task/
+  - bin/
+  - dist/
+  - builds/
+  - hack/
   - charts/*/templates/
   - charts/**/templates/
 rules:

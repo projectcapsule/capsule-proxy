@@ -13,7 +13,7 @@ Yay, it look you're enjoying Capsule and, first, thanks for that!
 We're trying to build a community drive Open Source project, so don't
 hesitate proposing your enhancement ideas: keep in mind, since we would like
 to keep it as agnostic as possible, to motivate all your assumptions.
-  
+
 -->
 
 # Describe the feature

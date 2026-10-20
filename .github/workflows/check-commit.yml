@@ -1,5 +1,6 @@
 name: Check Commit
-permissions: {}
+permissions:
+  contents: read
 
 on:
   pull_request:
@@ -18,4 +19,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1
+      - uses: ./.github/actions/setup
+      - name: Validate Conventional Commits
+        env:
+          COMMIT_BASE: ${{ github.event.pull_request.base.sha }}
+          COMMIT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: devbox run -- task lint:commits

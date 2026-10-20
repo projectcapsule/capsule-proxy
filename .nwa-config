@@ -5,7 +5,6 @@ nwa:
   spdxids: "Apache-2.0"
   skip:
     - "e2e/**/*.go"
-    - "e2e-legacy/**/*.go"
   path:
     - "internal/**/*.go"
     - "api/**/*.go"
