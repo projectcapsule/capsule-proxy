@@ -277,17 +277,8 @@ securityContext:
   runAsGroup: 1002
   runAsNonRoot: true
   runAsUser: 1002
-resources:
-  limits:
-    # -- Set the CPU requests assigned to the controller.
-    cpu: 200m
-    # -- Set the memory requests assigned to the controller.
-    memory: 128Mi
-  requests:
-    # -- Set the CPU limits assigned to the controller.
-    cpu: 200m
-    # -- Set the memory limits assigned to the controller.
-    memory: 128Mi
+
+resources: {}
 
 # -- Additional environment variables
 env: []
@@ -295,7 +286,6 @@ env: []
 volumes: []
 # -- Additional volume mounts
 volumeMounts: []
-
 
 # Controller Options
 options:
