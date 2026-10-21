@@ -167,10 +167,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | rbac.enabled | bool | `true` | Enable Creation of ClusterRoles |
 | readinessProbe | object | `{"enabled":true,"httpGet":{"path":"/readyz/","port":"probe","scheme":"HTTP"},"initialDelaySeconds":5}` | Proxy Readyness-Probe |
 | replicaCount | int | `1` | Set the replica count for capsule-proxy pod. |
-| resources.limits.cpu | string | `"200m"` | Set the CPU requests assigned to the controller. |
-| resources.limits.memory | string | `"128Mi"` | Set the memory requests assigned to the controller. |
-| resources.requests.cpu | string | `"200m"` | Set the CPU limits assigned to the controller. |
-| resources.requests.memory | string | `"128Mi"` | Set the memory limits assigned to the controller. |
+| resources | object | `{}` |  |
 | restartPolicy | string | `"Always"` | Set the restartPolicy for the capsule-proxy pod. |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":true,"runAsGroup":1002,"runAsNonRoot":true,"runAsUser":1002}` | Security context for the capsule-proxy container. |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
