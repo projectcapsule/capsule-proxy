@@ -81,7 +81,7 @@ func (n *kubeFilter) globalProxyHandler(mod modules.Module) http.HandlerFunc {
 			operation = v1beta1.ClusterResourceOperationGet
 		}
 
-		if len(clusterscoped.GetClusterScopeRequirements(gvk, operation, proxyTenants)) == 0 {
+		if len(clusterscoped.GetClusterScopeSelectors(gvk, operation, proxyTenants)) == 0 {
 			n.impersonateHandler(writer, request)
 
 			return
@@ -109,7 +109,7 @@ func (n *kubeFilter) globalReviewGetAllowed(ctx context.Context, proxyTenants []
 	}
 
 	for _, resource := range n.clusterResources {
-		if resource.Group != attributes.Group || resource.Resource != attributes.Resource || (attributes.Version != "" && resource.Version != attributes.Version) {
+		if resource.Group != attributes.Group || resource.Resource != attributes.Resource || (attributes.Version != "" && attributes.Version != "*" && resource.Version != attributes.Version) {
 			continue
 		}
 

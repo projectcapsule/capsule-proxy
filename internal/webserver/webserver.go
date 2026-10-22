@@ -493,7 +493,7 @@ func (n *kubeFilter) mutateAuthorizationBody(ctx context.Context, body []byte, c
 	}
 
 	if capsuleIdentity {
-		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, n.namespacedResources, &obj, *gvk)
+		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, n.namespacedResources, n.clusterResources, &obj, *gvk)
 	} else {
 		allowed, lookupErr := n.globalReviewGetAllowed(ctx, proxyTenants, obj)
 		if lookupErr != nil || !allowed {

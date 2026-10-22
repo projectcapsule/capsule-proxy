@@ -33,6 +33,12 @@ enable watches, mutations, or access to resources inside selected namespaces.
 Global-only requests use the generic cluster-resource handlers and do not inherit
 tenant ownership or reflected namespace access.
 
+All conditions within a selector must match; separate matching rules grant the
+union of their selections. GET accepts any complete matching rule. LIST can
+combine identical rules or rules that differ only in one positive label value
+set, preserving their other conditions. Other rule combinations return a
+Kubernetes BadRequest rather than broadening access across label combinations.
+
 Capsule is optional in this mode. If the selected CapsuleConfiguration is absent
 at startup, the proxy skips Capsule configuration reconciliation, tenant indexes,
 tenant delegation, and RBAC reflection. Namespace access then uses the generic

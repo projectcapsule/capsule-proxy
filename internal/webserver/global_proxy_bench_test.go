@@ -17,8 +17,10 @@ import (
 	authorizationv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
+	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 )
 
 func BenchmarkGlobalAccessPipeline(b *testing.B) {
@@ -98,7 +100,7 @@ func BenchmarkGlobalAccessPipeline(b *testing.B) {
 func BenchmarkGlobalAccessSelfReview(b *testing.B) {
 	isolateCapsuleIdentities(b)
 	for _, mediaType := range []string{"application/json", "application/vnd.kubernetes.protobuf"} {
-		for _, mode := range []string{"default", "granted", "named", "rules", "unmatched"} {
+		for _, mode := range []string{"default", "granted", "named", "rules", "capsule-rules", "unmatched"} {
 			b.Run(mediaType+"/"+mode, func(b *testing.B) {
 				f := newGlobalAccessFixture(b, true, mode == "default", true)
 				subject := "external-team"
@@ -112,7 +114,14 @@ func BenchmarkGlobalAccessSelfReview(b *testing.B) {
 					review.(*authorizationv1.SelfSubjectAccessReview).Spec.ResourceAttributes.Verb = "get"
 					review.(*authorizationv1.SelfSubjectAccessReview).Spec.ResourceAttributes.Name = "tenant-b-ns"
 				}
-				if mode == "rules" {
+				if mode == "capsule-rules" {
+					controllers.CapsuleUsers.Insert("external")
+					b.Cleanup(func() { controllers.CapsuleUsers.Delete("external") })
+					for i := range 64 {
+						f.filter.clusterResources = append(f.filter.clusterResources, schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: fmt.Sprintf("other-%d", i)})
+					}
+				}
+				if mode == "rules" || mode == "capsule-rules" {
 					review = &authorizationv1.SelfSubjectRulesReview{TypeMeta: metav1.TypeMeta{APIVersion: "authorization.k8s.io/v1", Kind: "SelfSubjectRulesReview"}}
 				}
 				var body []byte
@@ -131,6 +140,26 @@ func BenchmarkGlobalAccessSelfReview(b *testing.B) {
 				original := httptest.NewRequest(http.MethodPost, "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews", nil)
 				original.Header.Set("Authorization", "Bearer caller-token")
 				original.Header.Set("Content-Type", "application/json")
+				if mode == "capsule-rules" {
+					response := httptest.NewRecorder()
+					f.handler.ServeHTTP(response, original.Clone(b.Context()))
+					obj, _, err := f.filter.universalDecoder.Decode(response.Body.Bytes(), nil, nil)
+					if err != nil {
+						b.Fatal(err)
+					}
+					var granted bool
+					for _, rule := range obj.(*authorizationv1.SelfSubjectRulesReview).Status.ResourceRules {
+						for _, resource := range rule.Resources {
+							for _, verb := range rule.Verbs {
+								granted = granted || resource == "namespaces" && verb == "list"
+							}
+						}
+					}
+					if !granted {
+						b.Fatal("Capsule rules review omitted a valid global grant")
+					}
+					f.reader.globalLists.Store(0)
+				}
 				b.ReportAllocs()
 				b.ResetTimer()
 				for range b.N {
@@ -142,6 +171,9 @@ func BenchmarkGlobalAccessSelfReview(b *testing.B) {
 				}
 				b.StopTimer()
 				b.ReportMetric(float64(f.reader.globalLists.Load())/float64(b.N), "indexed-LIST/op")
+				if mode == "capsule-rules" {
+					b.ReportMetric(float64(len(f.filter.clusterResources)), "discovered-resources")
+				}
 			})
 		}
 	}

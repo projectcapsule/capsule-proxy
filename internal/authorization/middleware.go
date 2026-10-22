@@ -43,7 +43,7 @@ func isCrossNamespaceListVerb(verb string) bool {
 // (SelfSubjectAccessReview / SelfSubjectRulesReview) with the capabilities
 // capsule-proxy adds on top of native RBAC, so that clients such as
 // `kubectl auth can-i` reflect what actually works through the proxy.
-func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTenant, namespacedResources sets.Set[string], obj *runtime.Object, gvk schema.GroupVersionKind) error {
+func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTenant, namespacedResources sets.Set[string], resources []schema.GroupVersionResource, obj *runtime.Object, gvk schema.GroupVersionKind) error {
 	switch gvk.Kind {
 	case selfSubjectAccessReviewKind:
 		//nolint:forcetypeassert
@@ -56,7 +56,12 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 
 		// capsule-proxy always lets tenant owners list their own namespaces.
 		if attributes.Resource == types.Namespaces && strings.EqualFold(attributes.Verb, listVerb) {
-			grantAccess(accessReview)
+			resourceGVK := schema.GroupVersionKind{Version: types.V1, Kind: types.Namespaces}
+			selectors := clusterscoped.GetClusterScopeSelectors(&resourceGVK, v1beta1.ClusterResourceOperationList, proxyTenants)
+
+			if _, err := clusterscoped.UnionSelectors(selectors); err == nil {
+				grantAccess(accessReview)
+			}
 
 			return nil
 		}
@@ -90,29 +95,27 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 			return nil
 		}
 
-		requirements := clusterscoped.GetClusterScopeRequirements(&accessReviewGvk, operation, proxyTenants)
-		if len(requirements) > 0 {
+		if clusterscoped.HasClusterScopeAccess(&accessReviewGvk, operation, proxyTenants) {
 			grantAccess(accessReview)
 		}
 	case selfSubjectRulesReviewKind:
 		//nolint:forcetypeassert
 		rules := (*obj).(*authorizationv1.SelfSubjectRulesReview)
 
-		injectedRules := []authorizationv1.ResourceRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{types.Namespaces},
-				Verbs:     []string{listVerb},
-			},
+		resourceGVK := schema.GroupVersionKind{Version: types.V1, Kind: types.Namespaces}
+		selectors := clusterscoped.GetClusterScopeSelectors(&resourceGVK, v1beta1.ClusterResourceOperationList, proxyTenants)
+
+		// Keep native rules intact and advertise namespace LIST only when its
+		// global selection can actually be forwarded by the namespace module.
+		if _, err := clusterscoped.UnionSelectors(selectors); err == nil {
+			rules.Status.ResourceRules = append(rules.Status.ResourceRules, authorizationv1.ResourceRule{
+				APIGroups: []string{""}, Resources: []string{types.Namespaces}, Verbs: []string{listVerb},
+			})
 		}
 
 		if proxyClusterScoped {
-			injectedRules = append(injectedRules, getAllResourceRules(proxyTenants)...)
+			return MutateGlobalAuthorization(proxyTenants, resources, obj, gvk)
 		}
-
-		// The rules resolved by the apiserver are kept and capsule-proxy only appends,
-		// so passed-through and namespaced permissions remain visible to the client.
-		rules.Status.ResourceRules = append(rules.Status.ResourceRules, injectedRules...)
 	default:
 		return fmt.Errorf("unsupported kind: %s", gvk.Kind)
 	}
@@ -126,28 +129,6 @@ func grantAccess(accessReview *authorizationv1.SelfSubjectAccessReview) {
 	accessReview.Status.Allowed = true
 	accessReview.Status.Denied = false
 	accessReview.Status.Reason = "granted by capsule-proxy"
-}
-
-func getAllResourceRules(proxyTenants []*tenant.ProxyTenant) []authorizationv1.ResourceRule {
-	resourceRules := []authorizationv1.ResourceRule{}
-
-	for _, pt := range proxyTenants {
-		for _, cr := range pt.ClusterResources {
-			verbs := []string{}
-
-			for _, op := range cr.EffectiveOperations() {
-				verbs = append(verbs, strings.ToLower(op.String()))
-			}
-
-			resourceRules = append(resourceRules, authorizationv1.ResourceRule{
-				APIGroups: cr.APIGroups,
-				Resources: cr.Resources,
-				Verbs:     verbs,
-			})
-		}
-	}
-
-	return resourceRules
 }
 
 func clusterResourceOperation(verb string) (v1beta1.ClusterResourceOperation, bool) {
@@ -180,12 +161,12 @@ func MutateGlobalAuthorization(proxyTenants []*tenant.ProxyTenant, resources []s
 		}
 
 		for _, resource := range resources {
-			if resource.Group != attributes.Group || resource.Resource != attributes.Resource || (attributes.Version != "" && resource.Version != attributes.Version) {
+			if resource.Group != attributes.Group || resource.Resource != attributes.Resource || (attributes.Version != "" && attributes.Version != "*" && resource.Version != attributes.Version) {
 				continue
 			}
 
 			resourceGVK := schema.GroupVersionKind{Group: resource.Group, Version: resource.Version, Kind: resource.Resource}
-			if len(clusterscoped.GetClusterScopeRequirements(&resourceGVK, operation, proxyTenants)) > 0 {
+			if clusterscoped.HasClusterScopeAccess(&resourceGVK, operation, proxyTenants) {
 				grantAccess(review)
 
 				break
@@ -201,7 +182,7 @@ func MutateGlobalAuthorization(proxyTenants []*tenant.ProxyTenant, resources []s
 			var verbs []string
 
 			for _, operation := range []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationList, v1beta1.ClusterResourceOperationGet} {
-				if len(clusterscoped.GetClusterScopeRequirements(&resourceGVK, operation, proxyTenants)) > 0 {
+				if clusterscoped.HasClusterScopeAccess(&resourceGVK, operation, proxyTenants) {
 					verbs = append(verbs, strings.ToLower(operation.String()))
 				}
 			}

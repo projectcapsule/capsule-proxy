@@ -81,6 +81,9 @@ namespace LIST latency for the same impersonated identity and selected objects;
 the proxy comparison includes authentication, impersonation reviews, and the
 API-server port-forward transport overhead.
 Startup unit tests additionally cover missing Capsule APIs and fatal read errors.
+The `selector-isolation` case checks complete selector matches, rejected LIST
+unions, and named self-reviews with two real tenants present. Self-review cases
+cover omitted, exact, and wildcard API versions.
 
 The `probes` suite creates two tenants, checks tenant visibility and cross-tenant
 denials, and makes 200 readiness and liveness requests per running proxy pod.

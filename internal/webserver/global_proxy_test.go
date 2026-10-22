@@ -549,18 +549,38 @@ func (f *globalAccessFixture) enableAuthorization(t testing.TB) {
 func TestGlobalAccessSelfReviews(t *testing.T) {
 	isolateCapsuleIdentities(t)
 	for _, mediaType := range []string{"application/json", "application/vnd.kubernetes.protobuf"} {
-		for _, mode := range []string{"namespace", "named-selected", "named-excluded", "named-missing", "get-only-list", "get-only-get", "namespaced", "subresource", "mutation", "unknown-resource", "wrong-version", "wrong-group", "unmatched", "default", "ignored", "gate-disabled"} {
+		for _, mode := range []string{"namespace", "wildcard-version", "named-selected", "named-excluded", "named-missing", "named-wildcard-selected", "named-wildcard-excluded", "named-partial-match", "unsafe-list", "get-only-list", "get-only-get", "namespaced", "subresource", "mutation", "unknown-resource", "wrong-version", "wrong-group", "unmatched", "default", "ignored", "gate-disabled"} {
 			t.Run(mediaType+"/"+mode, func(t *testing.T) {
 				f := newGlobalAccessFixture(t, true, mode == "default", mode != "gate-disabled")
 				resources := globalNamespaceGrant("tenant-b-ns")
 				attributes := &authorizationv1.ResourceAttributes{Version: "v1", Resource: "namespaces", Verb: "list"}
-				want := mode == "namespace" || mode == "get-only-get" || mode == "named-selected"
+				want := mode == "namespace" || mode == "wildcard-version" || mode == "get-only-get" || mode == "named-selected" || mode == "named-wildcard-selected"
 				if strings.HasPrefix(mode, "named-") {
 					attributes.Verb = "get"
 					attributes.Name = "tenant-b-ns"
 				}
-				if mode == "named-excluded" {
+				if mode == "wildcard-version" || strings.HasPrefix(mode, "named-wildcard-") {
+					attributes.Version = "*"
+				}
+				if mode == "named-excluded" || mode == "named-wildcard-excluded" {
 					attributes.Name = "tenant-a-ns"
+				}
+				if mode == "named-partial-match" {
+					resources[0].Selector.MatchLabels = map[string]string{"shared": "true"}
+					resources[0].Selector.MatchExpressions[0].Values = []string{"tenant-a-ns"}
+					ns := &corev1.Namespace{}
+					if err := f.client.Get(t.Context(), client.ObjectKey{Name: "tenant-b-ns"}, ns); err != nil {
+						t.Fatal(err)
+					}
+					ns.Labels["shared"] = "true"
+					if err := f.client.Update(t.Context(), ns); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if mode == "unsafe-list" {
+					resources = append(resources, globalNamespaceGrant("tenant-a-ns")...)
+					resources[0].Selector.MatchLabels = map[string]string{"environment": "prod"}
+					resources[1].Selector.MatchLabels = map[string]string{"environment": "dev"}
 				}
 				if mode == "named-missing" {
 					attributes.Name = "missing"

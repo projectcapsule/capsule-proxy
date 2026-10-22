@@ -12,12 +12,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	capsulemeta "github.com/projectcapsule/capsule/pkg/api/meta"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -227,15 +229,17 @@ var _ = Describe("Global grants for non-Capsule identities", Ordered, Serial, Co
 			c.Impersonate = rest.ImpersonationConfig{UserName: f.id + "-external", Groups: []string{"system:authenticated", f.id + "-external-team"}}
 			kube, err := kubernetes.NewForConfig(c)
 			Expect(err).NotTo(HaveOccurred())
-			for _, resource := range []string{"namespaces", "pods"} {
-				review, err := kube.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, &authorizationv1.SelfSubjectAccessReview{Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Resource: resource, Verb: "list"}}}, metav1.CreateOptions{})
-				Expect(err).NotTo(HaveOccurred())
-				Expect(review.Status.Allowed).To(Equal(resource == "namespaces"))
-			}
-			for _, name := range []string{f.namespaces["a"], f.namespaces["b"]} {
-				review, err := kube.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, &authorizationv1.SelfSubjectAccessReview{Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Resource: "namespaces", Verb: "get", Name: name}}}, metav1.CreateOptions{})
-				Expect(err).NotTo(HaveOccurred())
-				Expect(review.Status.Allowed).To(Equal(name == f.namespaces["a"]), "named review for %s", name)
+			for _, version := range []string{"", "*", "v1"} {
+				for _, resource := range []string{"namespaces", "pods"} {
+					review, err := kube.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, &authorizationv1.SelfSubjectAccessReview{Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Version: version, Resource: resource, Verb: "list"}}}, metav1.CreateOptions{})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(review.Status.Allowed).To(Equal(resource == "namespaces"), "version %q", version)
+				}
+				for _, name := range []string{f.namespaces["a"], f.namespaces["b"]} {
+					review, err := kube.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, &authorizationv1.SelfSubjectAccessReview{Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Version: version, Resource: "namespaces", Verb: "get", Name: name}}}, metav1.CreateOptions{})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(review.Status.Allowed).To(Equal(name == f.namespaces["a"]), "named review for %s version %q", name, version)
+				}
 			}
 			rules, err := kube.AuthorizationV1().SelfSubjectRulesReviews().Create(ctx, &authorizationv1.SelfSubjectRulesReview{Spec: authorizationv1.SelfSubjectRulesReviewSpec{Namespace: f.namespaces["a"]}}, metav1.CreateOptions{})
 			Expect(err).NotTo(HaveOccurred())
@@ -305,6 +309,114 @@ var _ = Describe("Global grants for non-Capsule identities", Ordered, Serial, Co
 				_, err := actor.Resource(resource).Get(ctx, name, metav1.GetOptions{})
 				Expect(apierrors.IsNotFound(err) || apierrors.IsForbidden(err)).To(BeTrue(), "unselected tenant %s: %v", name, err)
 			}
+		}
+	})
+	It("preserves complete selector rules for GET, LIST and named reviews", Label("selector-isolation"), func() {
+		const tenantKey = "e2e.proxy.projectcapsule.dev/selector-tenant"
+		const environmentKey = "e2e.proxy.projectcapsule.dev/selector-environment"
+		for _, key := range []string{"a", "b"} {
+			Eventually(func() error {
+				ns := &corev1.Namespace{}
+				if err := k8sClient.Get(ctx, client.ObjectKey{Name: f.namespaces[key]}, ns); err != nil {
+					return err
+				}
+				ns.Labels[tenantKey], ns.Labels[environmentKey] = f.tenants[key].Name, "dev"
+				return k8sClient.Update(ctx, ns)
+			}, accessTimeout, defaultPollInterval).Should(Succeed())
+		}
+		prod := NewNamespace(f.tenants["b"].Name+"-selector-prod", map[string]string{
+			capsulemeta.TenantLabel: f.tenants["b"].Name, tenantKey: f.tenants["b"].Name, environmentKey: "prod",
+		})
+		NamespaceCreation(prod, f.owner(capsulerbac.UserOwner, f.subjects["other"].username, "admin"), accessTimeout).Should(Succeed())
+		DeferCleanup(func() {
+			Eventually(func() error { return client.IgnoreNotFound(k8sClient.Delete(ctx, prod)) }, accessTimeout, defaultPollInterval).Should(Succeed())
+			Eventually(func() bool {
+				return apierrors.IsNotFound(k8sClient.Get(ctx, client.ObjectKeyFromObject(prod), &corev1.Namespace{}))
+			}, 2*time.Minute, defaultPollInterval).Should(BeTrue())
+		})
+		rule := v1beta1.ClusterResource{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{tenantKey: f.tenants["a"].Name, environmentKey: "dev"}}}
+		grant := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: f.id + "-conjunction"}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{
+			Subjects: []v1beta1.GlobalSubject{{Kind: capsulerbac.UserOwner, Name: f.id + "-selector-reader"}, {Kind: capsulerbac.UserOwner, Name: f.subjects["outsider"].username}}, ClusterResources: []v1beta1.ClusterResource{rule},
+		}}}}
+		f.create(grant)
+		actors := []dynamic.Interface{f.subjects["outsider"].client}
+		for _, endpoint := range endpoints {
+			actors = append(actors, externalAccessClient(endpoint, f.id+"-selector-reader"))
+		}
+		for _, actor := range actors {
+			Eventually(func() ([]string, error) { return listNames(actor, namespaces, metav1.ListOptions{}) }, accessTimeout, defaultPollInterval).Should(ConsistOf(f.namespaces["a"]))
+			_, err := actor.Resource(namespaces).Get(ctx, f.namespaces["a"], metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			_, err = actor.Resource(namespaces).Get(ctx, f.namespaces["b"], metav1.GetOptions{})
+			Expect(apierrors.IsForbidden(err) || apierrors.IsNotFound(err)).To(BeTrue(), "one matching label must not grant tenant B GET: %v", err)
+		}
+		// Named reviews must use complete selectors, including wildcard versions.
+		for _, endpoint := range endpoints {
+			config := rest.CopyConfig(endpoint)
+			config.Impersonate = rest.ImpersonationConfig{UserName: f.id + "-selector-reader", Groups: []string{"system:authenticated"}}
+			kube, err := kubernetes.NewForConfig(config)
+			Expect(err).NotTo(HaveOccurred())
+			for _, name := range []string{f.namespaces["a"], f.namespaces["b"]} {
+				review, err := kube.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, &authorizationv1.SelfSubjectAccessReview{Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Version: "*", Resource: "namespaces", Verb: "get", Name: name}}}, metav1.CreateOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(review.Status.Allowed).To(Equal(name == f.namespaces["a"]))
+			}
+		}
+		// This union differs on both keys. Flattening it would expose B/dev.
+		Eventually(func() error {
+			current := &v1beta1.GlobalProxySettings{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(grant), current); err != nil {
+				return err
+			}
+			second := rule.DeepCopy()
+			second.Selector.MatchLabels = map[string]string{tenantKey: f.tenants["b"].Name, environmentKey: "prod"}
+			current.Spec.Rules = append(current.Spec.Rules[:1], v1beta1.GlobalSubjectSpec{Subjects: current.Spec.Rules[0].Subjects, ClusterResources: []v1beta1.ClusterResource{*second}})
+			return k8sClient.Update(ctx, current)
+		}, accessTimeout, defaultPollInterval).Should(Succeed())
+		for _, actor := range actors {
+			Eventually(func() error {
+				_, err := actor.Resource(namespaces).Get(ctx, prod.Name, metav1.GetOptions{})
+				return err
+			}, accessTimeout, defaultPollInterval).Should(Succeed(), "GET permits either complete rule")
+			_, err := actor.Resource(namespaces).Get(ctx, f.namespaces["b"], metav1.GetOptions{})
+			Expect(apierrors.IsForbidden(err) || apierrors.IsNotFound(err)).To(BeTrue(), "cross-combination remains excluded: %v", err)
+			_, err = actor.Resource(namespaces).List(ctx, metav1.ListOptions{})
+			Expect(apierrors.IsBadRequest(err)).To(BeTrue(), "unsupported OR must fail closed: %v", err)
+			Expect(err.Error()).To(ContainSubstring("selector union cannot be forwarded safely"))
+		}
+		for _, endpoint := range append(append([]*rest.Config{}, endpoints...), f.proxyConfig) {
+			config := rest.CopyConfig(endpoint)
+			config.Impersonate = rest.ImpersonationConfig{UserName: f.id + "-selector-reader", Groups: []string{"system:authenticated"}}
+			if endpoint == f.proxyConfig {
+				identity := f.subjects["outsider"]
+				config.Impersonate = rest.ImpersonationConfig{UserName: identity.username, Groups: identity.groups}
+			}
+			kube, err := kubernetes.NewForConfig(config)
+			Expect(err).NotTo(HaveOccurred())
+			review, err := kube.AuthorizationV1().SelfSubjectAccessReviews().Create(ctx, &authorizationv1.SelfSubjectAccessReview{Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Version: "*", Resource: "namespaces", Verb: "list"}}}, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(review.Status.Allowed).To(BeFalse(), "unrepresentable LIST must not be advertised")
+			rules, err := kube.AuthorizationV1().SelfSubjectRulesReviews().Create(ctx, &authorizationv1.SelfSubjectRulesReview{Spec: authorizationv1.SelfSubjectRulesReviewSpec{Namespace: f.namespaces["a"]}}, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			for _, rule := range rules.Status.ResourceRules {
+				if slices.Contains(rule.APIGroups, "") && slices.Contains(rule.Resources, "namespaces") {
+					Expect(rule.Verbs).NotTo(ContainElement("list"), "rules review must match LIST forwarding at %s", endpoint.Host)
+				}
+			}
+		}
+		// Changing the second rule to the same environment makes the union safe.
+		Eventually(func() error {
+			current := &v1beta1.GlobalProxySettings{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(grant), current); err != nil {
+				return err
+			}
+			current.Spec.Rules[1].ClusterResources[0].Selector.MatchLabels[environmentKey] = "dev"
+			return k8sClient.Update(ctx, current)
+		}, accessTimeout, defaultPollInterval).Should(Succeed())
+		for _, actor := range actors {
+			Eventually(func() ([]string, error) { return listNames(actor, namespaces, metav1.ListOptions{}) }, accessTimeout, defaultPollInterval).Should(ConsistOf(f.namespaces["a"], f.namespaces["b"]))
+			_, err := actor.Resource(namespaces).Get(ctx, prod.Name, metav1.GetOptions{})
+			Expect(apierrors.IsForbidden(err) || apierrors.IsNotFound(err)).To(BeTrue(), "the common environment constraint must survive union: %v", err)
 		}
 	})
 	It("updates selectors and revokes global grants without losing native forwarding", func() {

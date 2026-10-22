@@ -73,12 +73,12 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	requirements := GetClusterScopeRequirements(gvk, v1beta1.ClusterResourceOperationGet, proxyTenants)
+	selectors := GetClusterScopeSelectors(gvk, v1beta1.ClusterResourceOperationGet, proxyTenants)
 
-	if len(requirements) > 0 {
+	if len(selectors) > 0 {
 		switch httpRequest.Method {
 		case http.MethodGet:
-			return g.handleSelector(httpRequest.Context(), gvk, requirements, mux.Vars(httpRequest)["name"])
+			return g.handleSelector(httpRequest.Context(), gvk, selectors, mux.Vars(httpRequest)["name"])
 		default:
 			return nil, nil
 		}
@@ -87,7 +87,7 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	return
 }
 
-func (g get) handleSelector(ctx context.Context, gvk *schema.GroupVersionKind, requirements []labels.Requirement, name string) (selector labels.Selector, err error) {
+func (g get) handleSelector(ctx context.Context, gvk *schema.GroupVersionKind, selectors []labels.Selector, name string) (selector labels.Selector, err error) {
 	if g.resourceGVK.Kind != "" {
 		*gvk = g.resourceGVK
 	} else {
@@ -111,11 +111,9 @@ func (g get) handleSelector(ctx context.Context, gvk *schema.GroupVersionKind, r
 		return nil, err
 	}
 
-	selector = labels.NewSelector()
-
-	for _, requirement := range requirements {
-		if requirement.Matches(labels.Set(obj.GetLabels())) {
-			return selector.Add(requirement), nil
+	for _, candidate := range selectors {
+		if candidate.Matches(labels.Set(obj.GetLabels())) {
+			return candidate, nil
 		}
 	}
 

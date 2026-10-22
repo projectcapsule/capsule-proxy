@@ -61,6 +61,9 @@ func namedResourceFixture(t testing.TB, resolved bool, mode string) (modules.Mod
 	obj.SetGroupVersionKind(gvk)
 	obj.SetName(persistentVolumeName)
 	obj.SetLabels(map[string]string{"selected": "true"})
+	if mode == "conjunction-selected" || mode == "partial" {
+		obj.SetLabels(map[string]string{"selected": "true", "shared": "true"})
+	}
 	cl := fake.NewClientBuilder().WithScheme(runtime.NewScheme()).WithObjects(obj).Build()
 	r := &namedResourceReader{Reader: cl}
 	d := &namedResourceDiscovery{}
@@ -73,6 +76,11 @@ func namedResourceFixture(t testing.TB, resolved bool, mode string) (modules.Mod
 	name := persistentVolumeName
 	method := http.MethodGet
 	switch mode {
+	case "conjunction-selected", "partial":
+		grants[0].ClusterResources[0].Selector.MatchLabels["shared"] = "true"
+		if mode == "partial" {
+			grants[0].ClusterResources[0].Selector.MatchLabels["selected"] = "false"
+		}
 	case "excluded":
 		grants[0].ClusterResources[0].Selector.MatchLabels["selected"] = "false"
 	case "ungranted":
@@ -96,14 +104,14 @@ func namedResourceFixture(t testing.TB, resolved bool, mode string) (modules.Mod
 func TestGetResourceUsesStartupDiscovery(t *testing.T) {
 	t.Parallel()
 	for _, resolved := range []bool{false, true} {
-		for _, mode := range []string{"selected", "excluded", "ungranted", "mutation", "missing", "read-error", "cancelled"} {
+		for _, mode := range []string{"selected", "conjunction-selected", "partial", "excluded", "ungranted", "mutation", "missing", "read-error", "cancelled"} {
 			t.Run(fmt.Sprintf("resolved=%t/%s", resolved, mode), func(t *testing.T) {
 				mod, d, r, grants, req := namedResourceFixture(t, resolved, mode)
 				selector, err := mod.Handle(grants, req)
 				if (err != nil) != (mode == "missing" || mode == "read-error" || mode == "cancelled") {
 					t.Fatalf("error=%v", err)
 				}
-				if (selector != nil) != (mode == "selected") {
+				if (selector != nil) != (mode == "selected" || mode == "conjunction-selected") {
 					t.Fatalf("selector=%v", selector)
 				}
 				if mode == "missing" {
@@ -139,14 +147,14 @@ func TestGetResourceMissingKindFailsClosed(t *testing.T) {
 
 func BenchmarkNamedResourceDiscovery(b *testing.B) {
 	for _, resolved := range []bool{false, true} {
-		for _, mode := range []string{"selected", "excluded", "ungranted"} {
+		for _, mode := range []string{"selected", "conjunction-selected", "partial", "excluded", "ungranted"} {
 			for _, parallel := range []bool{false, true} {
 				b.Run(fmt.Sprintf("resolved=%t/%s/parallel=%t", resolved, mode, parallel), func(b *testing.B) {
 					mod, d, r, grants, req := namedResourceFixture(b, resolved, mode)
 					run := func() {
-						_, err := mod.Handle(grants, req)
-						if err != nil {
-							b.Error(err)
+						selector, err := mod.Handle(grants, req)
+						if err != nil || (selector != nil) != (mode == "selected" || mode == "conjunction-selected") {
+							b.Errorf("selector=%v error=%v", selector, err)
 						}
 					}
 					b.ReportAllocs()
