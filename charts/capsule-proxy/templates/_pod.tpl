@@ -59,6 +59,7 @@ spec:
     args:
     - --listening-port={{ .Values.options.listeningPort }}
     - --capsule-configuration-name={{ .Values.options.capsuleConfigurationName }}
+    - --require-capsule-user={{ .Values.options.requireCapsuleUser }}
     {{- range .Values.options.ignoredUserGroups }}
     - --ignored-user-group={{ . }}
     {{- end}}

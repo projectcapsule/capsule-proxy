@@ -68,43 +68,46 @@ func CheckUserInCapsuleGroupMiddleware(client client.Writer, ownerReader client.
 
 			log.V(10).Info("request groups", "groups", groups)
 
-			if slices.ContainsFunc(groups, func(group string) bool {
-				return controllers.CapsuleUserGroups.Has(group)
-			}) {
-				next.ServeHTTP(writer, request)
+			request, capsuleIdentity, err := ResolveCapsuleIdentity(request, user, groups, ownerReader)
+			if err != nil {
+				weberrors.HandleError(writer, err, "cannot resolve ServiceAccount tenant ownership")
 
 				return
 			}
 
-			if controllers.CapsuleUsers.Has(user) {
+			if capsuleIdentity {
 				next.ServeHTTP(writer, request)
 
 				return
-			}
-
-			// Promoted ServiceAccounts are effective Tenant owners without
-			// becoming global CapsuleConfiguration users. Reuse the indexed
-			// snapshot downstream, with the same lifetime as this request.
-			if _, _, parseErr := serviceaccount.SplitUsername(user); parseErr == nil {
-				tenants, lookupErr := tenant.TenantsForOwner(request.Context(), ownerReader, capsulerbac.ServiceAccountOwner, user)
-				if lookupErr != nil {
-					weberrors.HandleError(writer, lookupErr, "cannot resolve ServiceAccount tenant ownership")
-
-					return
-				}
-
-				if len(tenants.Items) > 0 {
-					ownerContext := tenant.WithOwnerTenants(request.Context(), capsulerbac.ServiceAccountOwner, user, tenants)
-					next.ServeHTTP(writer, request.WithContext(ownerContext))
-
-					return
-				}
 			}
 
 			log.V(5).Info("current user is not a Capsule one", "capsule-groups", controllers.CapsuleUserGroups)
 			impersonate(writer, request)
 		})
 	}
+}
+
+// ResolveCapsuleIdentity preserves the request-local ownership snapshot for
+// promoted ServiceAccounts. Ordinary users need no tenant lookup.
+func ResolveCapsuleIdentity(request *http.Request, user string, groups []string, ownerReader client.Reader) (*http.Request, bool, error) {
+	if controllers.CapsuleUsers.Has(user) || slices.ContainsFunc(groups, controllers.CapsuleUserGroups.Has) {
+		return request, true, nil
+	}
+
+	if _, _, parseErr := serviceaccount.SplitUsername(user); parseErr == nil {
+		tenants, err := tenant.TenantsForOwner(request.Context(), ownerReader, capsulerbac.ServiceAccountOwner, user)
+		if err != nil {
+			return request, false, err
+		}
+
+		if len(tenants.Items) > 0 {
+			ctx := tenant.WithOwnerTenants(request.Context(), capsulerbac.ServiceAccountOwner, user, tenants)
+
+			return request.WithContext(ctx), true, nil
+		}
+	}
+
+	return request, false, nil
 }
 
 func handleResolveUserAndGroupsError(writer http.ResponseWriter, err error) {

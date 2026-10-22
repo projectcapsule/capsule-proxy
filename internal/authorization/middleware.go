@@ -20,8 +20,10 @@ import (
 // (capitalised) which does not match the verbs sent by clients (e.g. kubectl),
 // hence dedicated constants.
 const (
-	listVerb  = "list"
-	watchVerb = "watch"
+	listVerb                    = "list"
+	watchVerb                   = "watch"
+	selfSubjectAccessReviewKind = "SelfSubjectAccessReview"
+	selfSubjectRulesReviewKind  = "SelfSubjectRulesReview"
 )
 
 // NamespacedResourceKey builds the lookup key identifying a namespaced resource
@@ -43,7 +45,7 @@ func isCrossNamespaceListVerb(verb string) bool {
 // `kubectl auth can-i` reflect what actually works through the proxy.
 func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTenant, namespacedResources sets.Set[string], obj *runtime.Object, gvk schema.GroupVersionKind) error {
 	switch gvk.Kind {
-	case "SelfSubjectAccessReview":
+	case selfSubjectAccessReviewKind:
 		//nolint:forcetypeassert
 		accessReview := (*obj).(*authorizationv1.SelfSubjectAccessReview)
 
@@ -92,7 +94,7 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 		if len(requirements) > 0 {
 			grantAccess(accessReview)
 		}
-	case "SelfSubjectRulesReview":
+	case selfSubjectRulesReviewKind:
 		//nolint:forcetypeassert
 		rules := (*obj).(*authorizationv1.SelfSubjectRulesReview)
 
@@ -157,4 +159,60 @@ func clusterResourceOperation(verb string) (v1beta1.ClusterResourceOperation, bo
 	default:
 		return "", false
 	}
+}
+
+// MutateGlobalAuthorization augments self-reviews only for selectable global
+// grants on cluster-resource routes registered from API discovery.
+func MutateGlobalAuthorization(proxyTenants []*tenant.ProxyTenant, resources []schema.GroupVersionResource, obj *runtime.Object, gvk schema.GroupVersionKind) error {
+	switch gvk.Kind {
+	case selfSubjectAccessReviewKind:
+		//nolint:forcetypeassert
+		review := (*obj).(*authorizationv1.SelfSubjectAccessReview)
+
+		attributes := review.Spec.ResourceAttributes
+		if attributes == nil || attributes.Namespace != "" || attributes.Subresource != "" {
+			return nil
+		}
+
+		operation, supported := clusterResourceOperation(attributes.Verb)
+		if !supported {
+			return nil
+		}
+
+		for _, resource := range resources {
+			if resource.Group != attributes.Group || resource.Resource != attributes.Resource || (attributes.Version != "" && resource.Version != attributes.Version) {
+				continue
+			}
+
+			resourceGVK := schema.GroupVersionKind{Group: resource.Group, Version: resource.Version, Kind: resource.Resource}
+			if len(clusterscoped.GetClusterScopeRequirements(&resourceGVK, operation, proxyTenants)) > 0 {
+				grantAccess(review)
+
+				break
+			}
+		}
+	case selfSubjectRulesReviewKind:
+		//nolint:forcetypeassert
+		review := (*obj).(*authorizationv1.SelfSubjectRulesReview)
+
+		for _, resource := range resources {
+			resourceGVK := schema.GroupVersionKind{Group: resource.Group, Version: resource.Version, Kind: resource.Resource}
+
+			var verbs []string
+
+			for _, operation := range []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationList, v1beta1.ClusterResourceOperationGet} {
+				if len(clusterscoped.GetClusterScopeRequirements(&resourceGVK, operation, proxyTenants)) > 0 {
+					verbs = append(verbs, strings.ToLower(operation.String()))
+				}
+			}
+
+			if len(verbs) > 0 {
+				review.Status.ResourceRules = append(review.Status.ResourceRules, authorizationv1.ResourceRule{APIGroups: []string{resource.Group}, Resources: []string{resource.Resource}, Verbs: verbs})
+			}
+		}
+	default:
+		return fmt.Errorf("unsupported kind: %s", gvk.Kind)
+	}
+
+	return nil
 }

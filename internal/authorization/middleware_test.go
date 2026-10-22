@@ -46,6 +46,47 @@ func hasResourceRule(rules []authorizationv1.ResourceRule, group, resource, verb
 	return false
 }
 
+func TestMutateGlobalAuthorizationDoesNotImplyTenantAccess(t *testing.T) {
+	t.Parallel()
+	review := &authorizationv1.SelfSubjectRulesReview{Status: authorizationv1.SubjectRulesReviewStatus{ResourceRules: []authorizationv1.ResourceRule{{APIGroups: []string{"apps"}, Resources: []string{"deployments"}, Verbs: []string{"get"}}}, Incomplete: true}}
+	proxyTenants := []*tenant.ProxyTenant{{ClusterResources: []v1beta1.ClusterResource{
+		{APIGroups: []string{"storage.k8s.io"}, Resources: []string{"storageclasses"}, Operations: []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationGet}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"selected": "true"}}},
+		{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{}},
+	}}}
+	var obj runtime.Object = review
+	if err := MutateGlobalAuthorization(proxyTenants, []schema.GroupVersionResource{{Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"}, {Version: "v1", Resource: "namespaces"}}, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+		t.Fatal(err)
+	}
+	if !hasResourceRule(review.Status.ResourceRules, "apps", "deployments", "get") || !review.Status.Incomplete {
+		t.Fatal("upstream self review was not preserved")
+	}
+	if !hasResourceRule(review.Status.ResourceRules, "storage.k8s.io", "storageclasses", "get") {
+		t.Fatal("global grant missing")
+	}
+	if hasResourceRule(review.Status.ResourceRules, "", "namespaces", "list") || hasResourceRule(review.Status.ResourceRules, "storage.k8s.io", "storageclasses", "list") {
+		t.Fatal("self review advertised an ungranted operation")
+	}
+}
+
+func TestMutateGlobalAuthorizationExpandsOnlyDiscoveredClusterRoutes(t *testing.T) {
+	t.Parallel()
+	proxyTenants := []*tenant.ProxyTenant{{ClusterResources: []v1beta1.ClusterResource{{APIGroups: []string{"*"}, Resources: []string{"*"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"shared": "true"}}}}}}
+	resources := []schema.GroupVersionResource{{Version: "v1", Resource: "namespaces"}, {Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"}}
+	review := &authorizationv1.SelfSubjectRulesReview{}
+	var obj runtime.Object = review
+	if err := MutateGlobalAuthorization(proxyTenants, resources, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(review.Status.ResourceRules) != 2 || !hasResourceRule(review.Status.ResourceRules, "", "namespaces", "list") || !hasResourceRule(review.Status.ResourceRules, "storage.k8s.io", "storageclasses", "get") {
+		t.Fatalf("incorrect cluster routes: %+v", review.Status.ResourceRules)
+	}
+	for _, rule := range review.Status.ResourceRules {
+		if hasResourceRule([]authorizationv1.ResourceRule{rule}, "*", "*", "list") {
+			t.Fatal("global review must not advertise unrestricted namespaced access")
+		}
+	}
+}
+
 func TestMutateAuthorization_SelfSubjectRulesReviewMerges(t *testing.T) {
 	t.Parallel()
 

@@ -5,6 +5,7 @@ package clusterscoped
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/go-logr/logr"
@@ -27,11 +28,18 @@ import (
 )
 
 type get struct {
-	path      string
-	log       logr.Logger
-	discovery discovery.DiscoveryInterface
-	reader    client.Reader
-	writer    client.Writer
+	path        string
+	log         logr.Logger
+	discovery   discovery.DiscoveryInterface
+	reader      client.Reader
+	writer      client.Writer
+	resourceGVK schema.GroupVersionKind
+}
+
+// GetResource reuses the GVK discovered at startup for this registered route.
+// It avoids a discovery API request for each selected named GET.
+func GetResource(gvk schema.GroupVersionKind, reader client.Reader, writer client.Writer, path string) modules.Module {
+	return &get{path: path, log: ctrl.Log.WithName("clusterresource_get"), reader: reader, writer: writer, resourceGVK: gvk}
 }
 
 func Get(discoveryClient discovery.DiscoveryInterface, client client.Reader, writer client.Writer, path string) modules.Module {
@@ -80,9 +88,16 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 }
 
 func (g get) handleSelector(ctx context.Context, gvk *schema.GroupVersionKind, requirements []labels.Requirement, name string) (selector labels.Selector, err error) {
-	err = utils.ReplacePluralWithKind(g.discovery, gvk)
-	if err != nil {
-		return nil, err
+	if g.resourceGVK.Kind != "" {
+		*gvk = g.resourceGVK
+	} else {
+		if g.discovery == nil {
+			return nil, fmt.Errorf("resource kind is missing for %s", g.path)
+		}
+
+		if err = utils.ReplacePluralWithKind(g.discovery, gvk); err != nil {
+			return nil, err
+		}
 	}
 
 	obj := &unstructured.Unstructured{}
