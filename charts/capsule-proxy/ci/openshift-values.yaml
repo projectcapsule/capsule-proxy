@@ -1,0 +1,5 @@
+global:
+  openshift:
+    enabled: true
+gangplank:
+  enabled: true

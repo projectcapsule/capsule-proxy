@@ -4,6 +4,12 @@
 
 # Global Values
 global:
+  # Global Values for OpenShift (shared with the capsule parent chart)
+  openshift:
+    # -- Run on OpenShift. Unless set explicitly, the pod/container securityContexts are omitted (so the SCC assigns UID, fsGroup and SELinux level) and the `openshift.io/required-scc` annotation is added to all pods.
+    enabled: false
+    # -- SCC requested on all pods through the `openshift.io/required-scc` annotation. With `restricted-v3`, hostUsers is disabled on all pods.
+    requiredScc: restricted-v2
   # Global Values for jobs
   jobs:
     # kubectl job configuration
@@ -27,20 +33,24 @@ global:
       annotations: {}
       # -- Set the restartPolicy
       restartPolicy: Never
+      # -- Don't use Host Users (User Namespaces) for the job pods. Always disabled when `global.openshift.requiredScc` is `restricted-v3`.
+      hostUsers: true
       # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
       ttlSecondsAfterFinished: 60
       # @schema type: object
       # @schema additionalProperties: true
-      # -- Security context for the job pods.
+      # -- Security context for the job pods. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
       podSecurityContext:
-        enabled: true
+        # @schema type:[boolean, null]
+        enabled:
         seccompProfile:
           type: "RuntimeDefault"
       # @schema type: object
       # @schema additionalProperties: true
-      # -- Security context for the job containers.
+      # -- Security context for the job containers. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
       securityContext:
-        enabled: true
+        # @schema type:[boolean, null]
+        enabled:
         allowPrivilegeEscalation: false
         capabilities:
           drop:
@@ -77,20 +87,24 @@ global:
       annotations: {}
       # -- Set the restartPolicy
       restartPolicy: Never
+      # -- Don't use Host Users (User Namespaces) for the job pods. Always disabled when `global.openshift.requiredScc` is `restricted-v3`.
+      hostUsers: true
       # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
       ttlSecondsAfterFinished: 60
       # @schema type: object
       # @schema additionalProperties: true
-      # -- Security context for the job pods.
+      # -- Security context for the job pods. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
       podSecurityContext:
-        enabled: true
+        # @schema type:[boolean, null]
+        enabled:
         seccompProfile:
           type: "RuntimeDefault"
       # @schema type: object
       # @schema additionalProperties: true
-      # -- Security context for the job containers.
+      # -- Security context for the job containers. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
       securityContext:
-        enabled: true
+        # @schema type:[boolean, null]
+        enabled:
         allowPrivilegeEscalation: false
         capabilities:
           drop:
@@ -258,17 +272,19 @@ priorityClassName: ""
 
 # @schema type: object
 # @schema additionalProperties: true
-# -- Security context for the capsule-proxy pod.
+# -- Security context for the capsule-proxy pod. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
 podSecurityContext:
-  enabled: true
+  # @schema type:[boolean, null]
+  enabled:
   seccompProfile:
     type: "RuntimeDefault"
 
 # @schema type: object
 # @schema additionalProperties: true
-# -- Security context for the capsule-proxy container.
+# -- Security context for the capsule-proxy container. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
 securityContext:
-  enabled: true
+  # @schema type:[boolean, null]
+  enabled:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
@@ -640,15 +656,19 @@ gangplank:
 
   # @schema type: object
   # @schema additionalProperties: true
-  # -- Set the securityContext for the Pod
+  # -- Set the securityContext for the Pod. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
   podSecurityContext:
+    # @schema type:[boolean, null]
+    enabled:
     seccompProfile:
       type: RuntimeDefault
 
   # @schema type: object
   # @schema additionalProperties: true
-  # -- Set the securityContext for the Container
+  # -- Set the securityContext for the Container. `enabled: null` means enabled, unless `global.openshift.enabled` is set.
   securityContext:
+    # @schema type:[boolean, null]
+    enabled:
     runAsUser: 65534
     runAsGroup: 65534
     runAsNonRoot: true

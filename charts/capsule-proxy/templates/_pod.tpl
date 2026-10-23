@@ -1,8 +1,13 @@
 {{- define "capsule-proxy.pod" -}}
 metadata:
-  {{- with .Values.podAnnotations }}
+  {{- if or .Values.podAnnotations .Values.global.openshift.enabled }}
   annotations:
-    {{- toYaml . | nindent 4 }}
+    {{- with .Values.podAnnotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with include "capsule-proxy.openshiftAnnotations" . }}
+      {{- . | nindent 4 }}
+    {{- end }}
   {{- end }}
   labels:
     app.kubernetes.io/component: "proxy"
@@ -17,15 +22,15 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
     {{- end }}
   {{- end }}
-  {{- if not .Values.hostUsers }}
-  hostUsers: {{ .Values.hostUsers }}
+  {{- if include "capsule-proxy.hostUsersDisabled" (dict "hostUsers" .Values.hostUsers "root" .) }}
+  hostUsers: false
   {{- end }}
   {{- with .Values.imagePullSecrets }}
   imagePullSecrets:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   serviceAccountName: {{ include "capsule-proxy.serviceAccountName" . }}
-  {{- if .Values.podSecurityContext.enabled }}
+  {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" .Values.podSecurityContext.enabled "root" .) }}
   securityContext: {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 4 }}
   {{- end }}
   priorityClassName: {{ .Values.priorityClassName }}
@@ -51,7 +56,7 @@ spec:
   {{- end }}
   containers:
   - name: {{ .Chart.Name }}
-    {{- if .Values.securityContext.enabled }}
+    {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" .Values.securityContext.enabled "root" .) }}
     securityContext: {{- omit .Values.securityContext "enabled" | toYaml | nindent 6 }}
     {{- end }}
     image: {{ include "capsule-proxy.fullyQualifiedDockerImage" . }}
@@ -88,6 +93,9 @@ spec:
     {{- end }}
     {{- with .Values.options.impersonationGroupRegexp }}
     - --impersonation-group-regexp={{.}}
+    {{- end }}
+    {{- if .Values.global.openshift.enabled }}
+    - --public-paths=/.well-known/oauth-authorization-server
     {{- end }}
     {{- with .Values.options.extraArgs }}
     {{- toYaml . | nindent 4 }}
