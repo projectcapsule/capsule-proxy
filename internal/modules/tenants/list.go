@@ -59,7 +59,9 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 	userTenants := make([]string, 0, len(proxyTenants))
 
 	for _, tnt := range proxyTenants {
-		userTenants = append(userTenants, tnt.Tenant.Name)
+		if tnt.Tenant.Name != "" {
+			userTenants = append(userTenants, tnt.Tenant.Name)
+		}
 	}
 
 	clusterScoped, err := clusterScopedTenantNames(proxyRequest.GetHTTPRequest().Context(), l.reader, proxyTenants)

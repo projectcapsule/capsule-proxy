@@ -29,4 +29,6 @@ type ListenerOpts interface {
 	XFCCHeader() string
 	AllowedPaths() []string
 	PublicPaths() []string
+	RequireCapsuleUser() bool
+	CapsuleAvailable() bool
 }

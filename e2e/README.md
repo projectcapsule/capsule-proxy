@@ -31,6 +31,7 @@ task e2e:exec E2E_ARGS='--label-filter=namespaced'
 task e2e:exec E2E_ARGS='--label-filter=reflection'
 task e2e:exec E2E_ARGS='--label-filter=proxysetting-security'
 task e2e:exec E2E_ARGS='--label-filter=probes'
+task e2e:exec E2E_ARGS='--label-filter=global-access'
 ```
 
 `E2E_ARGS` can also be set on `task e2e` to provision and run a scoped suite.
@@ -68,6 +69,21 @@ go test -tags e2e ./e2e -run TestE2e -timeout 30m -args \
 The proxy must run with reflection and caching enabled. The standard e2e install
 also enables `ProxyClusterScoped`. Capsule's webhooks must be reachable; an API
 server with offline admission webhooks is not a usable e2e environment.
+
+The `global-access` suite requires the main proxy's default
+`--require-capsule-user=true`. It creates two real tenants and isolated Pods using
+the installed proxy image, testing `false` both with Capsule integration and
+with an absent CapsuleConfiguration. It does not modify the main workload.
+The administrator needs Pod creation, logs, and port-forward permissions. Cases
+cover non-Capsule subjects, ignored identities, selector updates, empty selections,
+revocation, native RBAC, and self-reviews. The workload records direct and proxied
+namespace LIST latency for the same impersonated identity and selected objects;
+the proxy comparison includes authentication, impersonation reviews, and the
+API-server port-forward transport overhead.
+Startup unit tests additionally cover missing Capsule APIs and fatal read errors.
+The `selector-isolation` case checks complete selector matches, rejected LIST
+unions, and named self-reviews with two real tenants present. Self-review cases
+cover omitted, exact, and wildcard API versions.
 
 The `probes` suite creates two tenants, checks tenant visibility and cross-tenant
 denials, and makes 200 readiness and liveness requests per running proxy pod.
@@ -110,7 +126,7 @@ still use Kubernetes RBAC. The suite explicitly records both behaviors.
 ## CLI coverage and existing discrepancies
 
 `cli_test.go` uses the same flag registration and option construction as `main`.
-An explicit inventory covers all 30 registered flags and their defaults and
+An explicit inventory covers all 31 registered flags and their defaults and
 fails when the inventory changes. Tests cover invalid input, repeated and empty
 lists, flag-state isolation, runtime wiring, and the following behavior:
 
@@ -120,6 +136,7 @@ lists, flag-state isolation, runtime wiring, and the following behavior:
 | `trusted-proxy-cidrs`, `xfcc-header-name` | IPv4/IPv6 source restrictions, malformed CIDRs, custom certificate headers and wrong-header rejection |
 | `auth-preferred-types`, `oidc-username-claim` | Authentication ordering, provider restriction, TLS/token/XFCC identities, TokenReview identity behavior |
 | `ignored-user-group`, `ignored-username` | Matching/nonmatching identities and either-option bypass |
+| `require-capsule-user` | Default, on/off, repeated parsing, listener wiring, optional Capsule discovery, and fail-closed read errors |
 | `ignored-impersonation-group`, `impersonation-group-regexp` | Filtered impersonation groups and invalid regular expressions |
 | `feature-gates` | Each gate on/off, isolated parses, AllAlpha, invalid gates, and real request review decisions for SkipImpersonationReview |
 | `listening-port`, `enable-ssl`, `ssl-cert-path`, `ssl-key-path` | Server options, certificate/key paths, missing files, and TLS flags incompatible with HTTP |

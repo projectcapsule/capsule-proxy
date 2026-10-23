@@ -1177,6 +1177,10 @@
                     "description": "Enable Pprof for profiling",
                     "type": "boolean"
                 },
+                "requireCapsuleUser": {
+                    "description": "Require Capsule identities for proxy grants. When false, authenticated non-Capsule callers may use matching GlobalProxySettings; Capsule is optional. Requires ProxyClusterScoped for global grants.",
+                    "type": "boolean"
+                },
                 "roleBindingReflector": {
                     "description": "Enable reflection for RoleBindings labelled reflection.proxy.projectcapsule.dev/enabled=true.",
                     "type": "boolean"

@@ -13,7 +13,8 @@ import (
 type GlobalProxySettingsSpec struct {
 	// Subjects that should receive additional permissions.
 	// The subjects are selected based on the oncoming requests. They don't have to relate to an existing tenant.
-	// However they must be part of the capsule-user groups.
+	// By default, callers must be recognized as Capsule identities.
+	// Set --require-capsule-user=false to also allow authenticated non-Capsule subjects.
 	// +kubebuilder:validation:MinItems=1
 	Rules []GlobalSubjectSpec `json:"rules"`
 }
@@ -21,7 +22,8 @@ type GlobalProxySettingsSpec struct {
 type GlobalSubjectSpec struct {
 	// Subjects that should receive additional permissions.
 	// The subjects are selected based on the oncoming requests. They don't have to relate to an existing tenant.
-	// However they must be part of the capsule-user groups.
+	// By default, callers must be recognized as Capsule identities.
+	// Set --require-capsule-user=false to also allow authenticated non-Capsule subjects.
 	Subjects []GlobalSubject `json:"subjects"`
 	// Cluster Resources for tenant Owner.
 	ClusterResources []ClusterResource `json:"clusterResources,omitempty"`

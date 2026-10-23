@@ -323,6 +323,8 @@ options:
   logLevel: 4
   # -- Name of the CapsuleConfiguration custom resource used by Capsule, required to identify the user groups
   capsuleConfigurationName: default
+  # -- Require Capsule identities for proxy grants. When false, authenticated non-Capsule callers may use matching GlobalProxySettings; Capsule is optional. Requires ProxyClusterScoped for global grants.
+  requireCapsuleUser: true
   # -- Define which groups must be ignored while proxying requests
   ignoredUserGroups: []
   # -- Define which usernames must be ignored while proxying requests

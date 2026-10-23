@@ -30,6 +30,7 @@ func TestNewKubePreservesIgnoredIdentities(t *testing.T) {
 		"X-Forwarded-Client-Cert",
 		nil,
 		nil,
+		true, true,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +63,7 @@ func TestNewKubePreservesPathOptions(t *testing.T) {
 		"X-Forwarded-Client-Cert",
 		allowedPaths,
 		publicPaths,
+		true, true,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -91,6 +93,7 @@ func TestNewKubeRejectsOverlappingPathOptions(t *testing.T) {
 		"X-Forwarded-Client-Cert",
 		[]string{"/api", "/version"},
 		[]string{"/version"},
+		true, true,
 	)
 	if err == nil {
 		t.Fatal("NewKube() succeeded with overlapping allowed and public paths")

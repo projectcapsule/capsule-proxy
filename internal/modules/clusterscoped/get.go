@@ -5,6 +5,7 @@ package clusterscoped
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/go-logr/logr"
@@ -27,11 +28,18 @@ import (
 )
 
 type get struct {
-	path      string
-	log       logr.Logger
-	discovery discovery.DiscoveryInterface
-	reader    client.Reader
-	writer    client.Writer
+	path        string
+	log         logr.Logger
+	discovery   discovery.DiscoveryInterface
+	reader      client.Reader
+	writer      client.Writer
+	resourceGVK schema.GroupVersionKind
+}
+
+// GetResource reuses the GVK discovered at startup for this registered route.
+// It avoids a discovery API request for each selected named GET.
+func GetResource(gvk schema.GroupVersionKind, reader client.Reader, writer client.Writer, path string) modules.Module {
+	return &get{path: path, log: ctrl.Log.WithName("clusterresource_get"), reader: reader, writer: writer, resourceGVK: gvk}
 }
 
 func Get(discoveryClient discovery.DiscoveryInterface, client client.Reader, writer client.Writer, path string) modules.Module {
@@ -65,12 +73,12 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	requirements := GetClusterScopeRequirements(gvk, v1beta1.ClusterResourceOperationGet, proxyTenants)
+	selectors := GetClusterScopeSelectors(gvk, v1beta1.ClusterResourceOperationGet, proxyTenants)
 
-	if len(requirements) > 0 {
+	if len(selectors) > 0 {
 		switch httpRequest.Method {
 		case http.MethodGet:
-			return g.handleSelector(httpRequest.Context(), gvk, requirements, mux.Vars(httpRequest)["name"])
+			return g.handleSelector(httpRequest.Context(), gvk, selectors, mux.Vars(httpRequest)["name"])
 		default:
 			return nil, nil
 		}
@@ -79,10 +87,17 @@ func (g get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	return
 }
 
-func (g get) handleSelector(ctx context.Context, gvk *schema.GroupVersionKind, requirements []labels.Requirement, name string) (selector labels.Selector, err error) {
-	err = utils.ReplacePluralWithKind(g.discovery, gvk)
-	if err != nil {
-		return nil, err
+func (g get) handleSelector(ctx context.Context, gvk *schema.GroupVersionKind, selectors []labels.Selector, name string) (selector labels.Selector, err error) {
+	if g.resourceGVK.Kind != "" {
+		*gvk = g.resourceGVK
+	} else {
+		if g.discovery == nil {
+			return nil, fmt.Errorf("resource kind is missing for %s", g.path)
+		}
+
+		if err = utils.ReplacePluralWithKind(g.discovery, gvk); err != nil {
+			return nil, err
+		}
 	}
 
 	obj := &unstructured.Unstructured{}
@@ -96,11 +111,9 @@ func (g get) handleSelector(ctx context.Context, gvk *schema.GroupVersionKind, r
 		return nil, err
 	}
 
-	selector = labels.NewSelector()
-
-	for _, requirement := range requirements {
-		if requirement.Matches(labels.Set(obj.GetLabels())) {
-			return selector.Add(requirement), nil
+	for _, candidate := range selectors {
+		if candidate.Matches(labels.Set(obj.GetLabels())) {
+			return candidate, nil
 		}
 	}
 
