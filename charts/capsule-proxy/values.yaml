@@ -204,6 +204,18 @@ daemonset:
 # -- Set the replica count for capsule-proxy pod.
 replicaCount: 1
 
+# PodDisruptionBudget for the capsule-proxy pod
+podDisruptionBudget:
+  # @schema type:[boolean, null]
+  # -- Enable the PodDisruptionBudget. `null` enables it automatically when `replicaCount` (or `autoscaling.minReplicas` if autoscaling is enabled) > 1.
+  enabled:
+  # -- Minimum available pods during disruptions. Cannot be used together with `maxUnavailable`.
+  minAvailable: 1
+  # -- Maximum unavailable pods during disruptions. Cannot be used together with `minAvailable`.
+  maxUnavailable:
+  # -- Unhealthy pod eviction policy. Possible values are `IfHealthyBudget` or `AlwaysAllow`.
+  unhealthyPodEvictionPolicy:
+
 # -- Annotations to add to the capsule-proxy deployment.
 annotations: {}
 
