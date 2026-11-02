@@ -165,8 +165,8 @@ If you only need to make minor customizations, you can specify them on the comma
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
 | podDisruptionBudget.enabled | string | `nil` | Enable the PodDisruptionBudget. `null` enables it automatically when `replicaCount` (or `autoscaling.minReplicas` if autoscaling is enabled) > 1. |
-| podDisruptionBudget.maxUnavailable | string | `nil` | Maximum unavailable pods during disruptions. Cannot be used together with `minAvailable`. |
-| podDisruptionBudget.minAvailable | int | `1` | Minimum available pods during disruptions. Cannot be used together with `maxUnavailable`. |
+| podDisruptionBudget.maxUnavailable | string | `nil` | Maximum unavailable pods during disruptions (number or percentage). Cannot be used together with `minAvailable`. |
+| podDisruptionBudget.minAvailable | int | `1` | Minimum available pods during disruptions (number or percentage). Cannot be used together with `maxUnavailable`. |
 | podDisruptionBudget.unhealthyPodEvictionPolicy | string | `nil` | Unhealthy pod eviction policy. Possible values are `IfHealthyBudget` or `AlwaysAllow`. |
 | podLabels | object | `{}` | Labels to add to the capsule-proxy pod. |
 | podSecurityContext | object | `{"enabled":null,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context for the capsule-proxy pod. `enabled: null` means enabled, unless `global.openshift.enabled` is set. |
