@@ -1199,11 +1199,8 @@
             "type": "object",
             "properties": {
                 "enabled": {
-                    "description": "Enable the PodDisruptionBudget. `null` enables it automatically when `replicaCount` (or `autoscaling.minReplicas` if autoscaling is enabled) \u003e 1.",
-                    "type": [
-                        "boolean",
-                        "null"
-                    ]
+                    "description": "Enable the PodDisruptionBudget.",
+                    "type": "boolean"
                 },
                 "maxUnavailable": {
                     "description": "Maximum unavailable pods during disruptions (number or percentage). Cannot be used together with `minAvailable`.",

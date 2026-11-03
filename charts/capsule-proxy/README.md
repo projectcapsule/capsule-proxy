@@ -164,7 +164,7 @@ If you only need to make minor customizations, you can specify them on the comma
 | livenessProbe | object | `{"enabled":true,"httpGet":{"path":"/healthz/","port":"probe","scheme":"HTTP"},"initialDelaySeconds":20}` | Proxy Liveness-Probe |
 | nodeSelector | object | `{}` | Set the node selector for the capsule-proxy pod. |
 | podAnnotations | object | `{}` | Annotations to add to the capsule-proxy pod. |
-| podDisruptionBudget.enabled | string | `nil` | Enable the PodDisruptionBudget. `null` enables it automatically when `replicaCount` (or `autoscaling.minReplicas` if autoscaling is enabled) > 1. |
+| podDisruptionBudget.enabled | bool | `false` | Enable the PodDisruptionBudget. |
 | podDisruptionBudget.maxUnavailable | string | `nil` | Maximum unavailable pods during disruptions (number or percentage). Cannot be used together with `minAvailable`. |
 | podDisruptionBudget.minAvailable | int | `1` | Minimum available pods during disruptions (number or percentage). Cannot be used together with `maxUnavailable`. |
 | podDisruptionBudget.unhealthyPodEvictionPolicy | string | `nil` | Unhealthy pod eviction policy. Possible values are `IfHealthyBudget` or `AlwaysAllow`. |

@@ -1,7 +1,5 @@
 {{- $pdb := .Values.podDisruptionBudget }}
-{{- $replicas := ternary (int .Values.autoscaling.minReplicas) (int .Values.replicaCount) .Values.autoscaling.enabled }}
-{{- $enabled := ternary $pdb.enabled (gt $replicas 1) (kindIs "bool" $pdb.enabled) }}
-{{- if and $enabled (eq .Values.kind "Deployment") }}
+{{- if and $pdb.enabled (eq .Values.kind "Deployment") }}
   {{- $hasMin := not (kindIs "invalid" $pdb.minAvailable) }}
   {{- $hasMax := not (kindIs "invalid" $pdb.maxUnavailable) }}
   {{- if and $hasMin $hasMax }}

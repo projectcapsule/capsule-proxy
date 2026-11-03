@@ -1,4 +1,5 @@
 replicaCount: 2
 podDisruptionBudget:
+  enabled: true
   minAvailable: null
   maxUnavailable: 50%
