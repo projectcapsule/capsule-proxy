@@ -205,7 +205,7 @@ func TestProxySettingCannotGrantClusterResources(t *testing.T) {
 					}
 					review := &authorizationv1.SelfSubjectAccessReview{Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Group: rbacv1.GroupName, Version: "v1", Resource: "clusterroles", Verb: "list"}}}
 					var obj runtime.Object = review
-					if err := authorization.MutateAuthorization(gate, proxyTenants, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+					if err := authorization.MutateAuthorization(gate, proxyTenants, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 						t.Fatal(err)
 					}
 					if review.Status.Allowed {

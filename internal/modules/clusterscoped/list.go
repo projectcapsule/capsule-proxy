@@ -15,6 +15,7 @@ import (
 
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules"
+	moduleerrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
 	"github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
@@ -57,11 +58,16 @@ func (l list) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Re
 
 	gvk := utils.GetGVKFromURL(proxyRequest.GetHTTPRequest().URL.Path)
 
-	requirements := GetClusterScopeRequirements(gvk, v1beta1.ClusterResourceOperationList, proxyTenants)
-	if len(requirements) > 0 {
+	selectors := GetClusterScopeSelectors(gvk, v1beta1.ClusterResourceOperationList, proxyTenants)
+	if len(selectors) > 0 {
 		switch httpRequest.Method {
 		case http.MethodGet:
-			return utils.HandleListSelector(requirements)
+			selector, err := UnionSelectors(selectors)
+			if err != nil {
+				return nil, moduleerrors.NewBadRequest(err, gvk.GroupKind())
+			}
+
+			return selector, nil
 		default:
 			return nil, nil
 		}

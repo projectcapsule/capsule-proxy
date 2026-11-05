@@ -8,7 +8,6 @@ import (
 
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/projectcapsule/capsule-proxy/api/v1beta1"
 )
@@ -82,12 +81,6 @@ func NewClusterProxy(ownerName string, ownerKind capsulerbac.OwnerKind, owners [
 	}
 
 	return &ProxyTenant{
-		Tenant: capsulev1beta2.Tenant{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "global",
-			},
-			Spec: capsulev1beta2.TenantSpec{},
-		},
 		ClusterResources: tenantClusterResources,
 	}
 }
