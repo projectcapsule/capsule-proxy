@@ -3,11 +3,28 @@ description: Install the locked Devbox environment and restore Go and ko caches.
 runs:
   using: composite
   steps:
+    # Keep Nix bootstrap versioned instead of using Devbox's floating experimental installer.
+    - name: Install Nix
+      shell: bash
+      run: | # zizmor: ignore[github-env] Only the fixed official Nix profile path is added, with no repository or action input.
+        nix_install_dir=$(mktemp -d)
+        trap 'rm -rf "$nix_install_dir"' EXIT
+        curl --fail --silent --show-error --location \
+          --retry 5 --retry-all-errors --retry-max-time 120 --connect-timeout 15 --max-time 60 \
+          https://releases.nixos.org/nix/nix-2.35.4/install --output "$nix_install_dir/install"
+        printf '%s\n' \
+          'experimental-features = ca-derivations fetch-closure nix-command flakes' \
+          "trusted-users = root $(id -un)" > "$nix_install_dir/nix.conf"
+        sh "$nix_install_dir/install" --daemon --yes --no-channel-add \
+          --nix-extra-conf-file "$nix_install_dir/nix.conf"
+        /nix/var/nix/profiles/default/bin/nix --version
+        printf '%s\n' /nix/var/nix/profiles/default/bin >> "$GITHUB_PATH"
     - uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
       with:
         devbox-version: 0.18.4
         enable-cache: 'true'
         disable-nix-access-token: 'true'
+        skip-nix-installation: 'true'
     - name: Verify tool lockfile
       shell: bash
       run: git diff --exit-code -- devbox.lock
