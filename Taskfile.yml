@@ -318,6 +318,7 @@ tasks:
           echo "Cluster $KIND_CLUSTER already exists" >&2
           exit 1
         fi
+        task e2e:check-runner
         task image:build
         scratch=$(mktemp -d)
         export KUBECONFIG="$scratch/kubeconfig"
@@ -486,11 +487,16 @@ tasks:
       - kubectl create clusterrolebinding capsule:selfsubjectaccessreviews --clusterrole=capsule-selfsubjectaccessreviews --group=capsule.clastix.io --dry-run=client -o yaml | kubectl apply -f -
       - kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io --dry-run=client -o yaml | kubectl apply -f -
 
+  e2e:check-runner:
+    desc: Build and check the pinned Ginkgo CLI before provisioning a cluster.
+    cmds:
+      - go tool ginkgo version
+
   e2e:exec:
     desc: Run e2e tests against the prepared cluster; use E2E_ARGS or arguments after -- to select local suites.
     aliases: [e2e-exec]
     cmds:
-      - go run github.com/onsi/ginkgo/v2/ginkgo -v -tags e2e {{.E2E_ARGS | default ""}} {{.CLI_ARGS}} ./e2e
+      - go tool ginkgo -v -tags e2e {{.E2E_ARGS | default ""}} {{.CLI_ARGS}} ./e2e
 
   e2e:destroy:
     desc: Delete only the named development Kind cluster.

@@ -19,6 +19,10 @@ Actions uploads those logs. It refuses to reuse an existing
 cluster. `e2e:build`, `e2e:install`, and `e2e:exec` can be run separately when
 you want to retain the environment for inspection.
 
+The Ginkgo CLI is tracked as a Go tool in `go.mod`, so dependency maintenance
+includes its checksums. `task e2e:check-runner` checks the CLI without a cluster;
+`task e2e` runs that check before building the image and provisioning Kubernetes.
+
 Use a disposable cluster for the full suite. Some existing cases use fixed
 tenant names and broad test-label cleanup.
 
