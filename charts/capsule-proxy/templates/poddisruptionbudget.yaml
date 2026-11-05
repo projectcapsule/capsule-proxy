@@ -1,0 +1,34 @@
+{{- $pdb := .Values.podDisruptionBudget }}
+{{- if and $pdb.enabled (eq .Values.kind "Deployment") }}
+  {{- $hasMin := not (kindIs "invalid" $pdb.minAvailable) }}
+  {{- $hasMax := not (kindIs "invalid" $pdb.maxUnavailable) }}
+  {{- if and $hasMin $hasMax }}
+    {{- fail "podDisruptionBudget: cannot set both minAvailable and maxUnavailable" }}
+  {{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "capsule-proxy.fullname" . }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: "proxy"
+    {{- include "capsule-proxy.labels" . | nindent 4 }}
+  {{- with .Values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $hasMax }}
+  maxUnavailable: {{ $pdb.maxUnavailable | toYaml }}
+  {{- else }}
+  minAvailable: {{ ternary $pdb.minAvailable 1 $hasMin | toYaml }}
+  {{- end }}
+  {{- with $pdb.unhealthyPodEvictionPolicy }}
+  unhealthyPodEvictionPolicy: {{ . }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: "proxy"
+      {{- include "capsule-proxy.selectorLabels" . | nindent 6 }}
+{{- end }}
