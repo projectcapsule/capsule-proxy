@@ -22,6 +22,7 @@ you want to retain the environment for inspection.
 The Ginkgo CLI is tracked as a Go tool in `go.mod`, so dependency maintenance
 includes its checksums. `task e2e:check-runner` checks the CLI without a cluster;
 `task e2e` runs that check before building the image and provisioning Kubernetes.
+An empty spec selection fails the run.
 
 Use a disposable cluster for the full suite. Some existing cases use fixed
 tenant names and broad test-label cleanup.
@@ -45,6 +46,11 @@ provisioned cluster. `CAPSULE_PROXY_MODE=http` selects HTTP for both installatio
 and generated kubeconfigs; HTTPS is the default. Certificate setup uses mkcert
 without installing its CA into system trust. The generated kubeconfigs trust
 that CA explicitly.
+
+User credential setup waits for each approved CSR to contain an issued
+certificate before reading it. Client certificates and keys are embedded in
+mode-0600 kubeconfigs. The `credentials` label checks these fixtures and exercises
+certificate-authenticated access and cross-tenant denials with two real tenants.
 
 The new `namespaced` and `reflection` suites generate unique tenant, namespace,
 role, and subject names and delete only their own fixtures. Tests wait for tenant
