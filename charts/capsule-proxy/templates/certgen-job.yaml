@@ -19,12 +19,19 @@ spec:
   template:
     metadata:
       name: {{ include "capsule-proxy.fullname" . }}-certgen
+      {{- if $.Values.global.openshift.enabled }}
+      annotations:
+        {{- include "capsule-proxy.openshiftAnnotations" $ | nindent 8 }}
+      {{- end }}
       labels:
         app.kubernetes.io/component: "proxy"
         {{- include "capsule-proxy.selectorLabels" . | nindent 8 }}
     spec:
       restartPolicy: {{ $Values.restartPolicy }}
-      {{- if $Values.podSecurityContext.enabled }}
+      {{- if include "capsule-proxy.hostUsersDisabled" (dict "hostUsers" $Values.hostUsers "root" $) }}
+      hostUsers: false
+      {{- end }}
+      {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" $Values.podSecurityContext.enabled "root" $) }}
       securityContext: {{- omit $Values.podSecurityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
       {{- with $Values.nodeSelector }}
@@ -66,7 +73,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        {{- if $Values.securityContext.enabled }}
+        {{- if include "capsule-proxy.securityContextEnabled" (dict "enabled" $Values.securityContext.enabled "root" $) }}
         securityContext: {{- omit $Values.securityContext "enabled" | toYaml | nindent 10 }}
         {{- end }}
       {{- with $.Values.imagePullSecrets }}

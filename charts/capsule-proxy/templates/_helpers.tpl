@@ -134,6 +134,34 @@ Render the CLI flag --host values for the self-signed certificate generator
 {{ join "," $values }}
 {{- end -}}
 
+{{/*
+Whether a securityContext is rendered. Called with (dict "enabled" <value> "root" $).
+An unset (null) value defaults to enabled, unless running on OpenShift.
+*/}}
+{{- define "capsule-proxy.securityContextEnabled" -}}
+{{- if kindIs "invalid" .enabled -}}
+  {{- if not .root.Values.global.openshift.enabled -}}true{{- end -}}
+{{- else if .enabled -}}true{{- end -}}
+{{- end }}
+
+{{/*
+Pod annotations required on OpenShift
+*/}}
+{{- define "capsule-proxy.openshiftAnnotations" -}}
+{{- if .Values.global.openshift.enabled -}}
+openshift.io/required-scc: {{ .Values.global.openshift.requiredScc | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Whether hostUsers: false is rendered. Called with (dict "hostUsers" <value> "root" $).
+Always on when running on OpenShift with the restricted-v3 SCC, which requires user namespaces.
+*/}}
+{{- define "capsule-proxy.hostUsersDisabled" -}}
+{{- if and .root.Values.global.openshift.enabled (eq (toString .root.Values.global.openshift.requiredScc) "restricted-v3") -}}true
+{{- else if and (not (kindIs "invalid" .hostUsers)) (not .hostUsers) -}}true{{- end -}}
+{{- end }}
+
 
 
 {{/*
