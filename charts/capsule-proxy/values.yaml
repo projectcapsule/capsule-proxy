@@ -243,6 +243,11 @@ podLabels: {}
 nodeSelector: {}
 # -- Set list of tolerations for the capsule-proxy pod.
 tolerations: []
+# Soft pod anti-affinity spreading the capsule-proxy pods over nodes (`kubernetes.io/hostname`).
+# Scheduling still succeeds when only one node is available, e.g. on single-node clusters.
+antiAffinity:
+  # -- Prefer scheduling the capsule-proxy pods on different nodes. Ignored when `affinity.podAntiAffinity` is set. Only applies when `kind` is `Deployment`.
+  enabled: true
 # -- Set affinity rules for the capsule-proxy pod.
 affinity: {}
 # -- Set the restartPolicy for the capsule-proxy pod.
