@@ -155,7 +155,12 @@ spec:
   nodeSelector:
     {{- toYaml . | nindent 8 }}
   {{- end }}
-  {{- with .Values.affinity }}
+  {{- $affinity := deepCopy (.Values.affinity | default dict) }}
+  {{- $antiAffinity := .Values.antiAffinity | default (dict "enabled" true) }}
+  {{- if and $antiAffinity.enabled (eq .Values.kind "Deployment") (not (hasKey $affinity "podAntiAffinity")) }}
+    {{- $_ := set $affinity "podAntiAffinity" (include "capsule-proxy.defaultPodAntiAffinity" . | fromYaml) }}
+  {{- end }}
+  {{- with $affinity }}
   affinity:
     {{- toYaml . | nindent 8 }}
   {{- end }}
