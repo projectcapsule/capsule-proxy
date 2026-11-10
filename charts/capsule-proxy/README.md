@@ -134,6 +134,7 @@ If you only need to make minor customizations, you can specify them on the comma
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Set affinity rules for the capsule-proxy pod. |
 | annotations | object | `{}` | Annotations to add to the capsule-proxy deployment. |
+| antiAffinity.enabled | bool | `true` | Prefer scheduling the capsule-proxy pods on different nodes. Ignored when `affinity.podAntiAffinity` is set. Only applies when `kind` is `Deployment`. |
 | apiPriorityAndFairness.enabled | bool | `false` | Create a FlowSchema for capsule-proxy requests. |
 | apiPriorityAndFairness.flowApiVersion | string | `"flowcontrol.apiserver.k8s.io/v1"` | Declare ApiVersion used for Flow |
 | apiPriorityAndFairness.matchingPrecedence | int | `900` | FlowSchema matching precedence. Lower values have higher priority. |

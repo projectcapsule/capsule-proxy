@@ -145,6 +145,20 @@ An unset (null) value defaults to enabled, unless running on OpenShift.
 {{- end }}
 
 {{/*
+Pod anti-affinity preferring different nodes for the capsule-proxy pods
+*/}}
+{{- define "capsule-proxy.defaultPodAntiAffinity" -}}
+preferredDuringSchedulingIgnoredDuringExecution:
+  - weight: 100
+    podAffinityTerm:
+      topologyKey: kubernetes.io/hostname
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: proxy
+          {{- include "capsule-proxy.selectorLabels" . | nindent 10 }}
+{{- end }}
+
+{{/*
 Pod annotations required on OpenShift
 */}}
 {{- define "capsule-proxy.openshiftAnnotations" -}}

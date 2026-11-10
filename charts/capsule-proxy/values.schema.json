@@ -10,6 +10,15 @@
             "description": "Annotations to add to the capsule-proxy deployment.",
             "type": "object"
         },
+        "antiAffinity": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Prefer scheduling the capsule-proxy pods on different nodes. Ignored when `affinity.podAntiAffinity` is set. Only applies when `kind` is `Deployment`.",
+                    "type": "boolean"
+                }
+            }
+        },
         "apiPriorityAndFairness": {
             "type": "object",
             "properties": {
