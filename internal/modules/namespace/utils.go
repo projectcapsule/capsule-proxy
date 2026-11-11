@@ -13,7 +13,7 @@ import (
 
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
-	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
+	moduleerrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
@@ -29,18 +29,18 @@ func namespacesGVK() *schema.GroupVersionKind {
 // subjects granted access via GlobalProxySettings can list the
 // corresponding namespaces without being tenant owners.
 func clusterScopedNamespaceNames(ctx context.Context, reader client.Reader, proxyTenants []*tenant.ProxyTenant) ([]string, error) {
-	requirements := clusterscoped.GetClusterScopeRequirements(
+	selectors := clusterscoped.GetClusterScopeSelectors(
 		namespacesGVK(),
 		v1beta1.ClusterResourceOperationList,
 		proxyTenants,
 	)
-	if len(requirements) == 0 {
+	if len(selectors) == 0 {
 		return nil, nil
 	}
 
-	selector, err := utils.HandleListSelector(requirements)
+	selector, err := clusterscoped.UnionSelectors(selectors)
 	if err != nil {
-		return nil, err
+		return nil, moduleerrors.NewBadRequest(err, namespacesGVK().GroupKind())
 	}
 
 	nsList := &corev1.NamespaceList{}
@@ -61,15 +61,15 @@ func clusterScopedNamespaceNames(ctx context.Context, reader client.Reader, prox
 // allowing subjects granted access through those rules to get
 // the namespace without being tenant owners.
 func matchesClusterScopedNamespace(proxyTenants []*tenant.ProxyTenant, ns *corev1.Namespace) bool {
-	requirements := clusterscoped.GetClusterScopeRequirements(
+	selectors := clusterscoped.GetClusterScopeSelectors(
 		namespacesGVK(),
 		v1beta1.ClusterResourceOperationGet,
 		proxyTenants,
 	)
 
 	nsLabels := labels.Set(ns.GetLabels())
-	for _, requirement := range requirements {
-		if requirement.Matches(nsLabels) {
+	for _, selector := range selectors {
+		if selector.Matches(nsLabels) {
 			return true
 		}
 	}

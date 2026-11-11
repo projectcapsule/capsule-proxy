@@ -34,6 +34,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/runtime/serializer/protobuf"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -65,6 +66,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/options"
 	req "github.com/projectcapsule/capsule-proxy/internal/request"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	proxytypes "github.com/projectcapsule/capsule-proxy/internal/types"
 	"github.com/projectcapsule/capsule-proxy/internal/utils"
 	server "github.com/projectcapsule/capsule-proxy/internal/webserver/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
@@ -122,6 +124,8 @@ func NewKubeFilter(
 		reader:                     clientOverride,
 		writer:                     mgr.GetClient(),
 		managerReader:              mgr.GetClient(),
+		requireCapsuleUser:         opts.RequireCapsuleUser(),
+		capsuleAvailable:           opts.CapsuleAvailable(),
 		allowedPaths:               sets.New(opts.AllowedPaths()...),
 		publicPaths:                sets.New(opts.PublicPaths()...),
 		authTypes:                  opts.AuthTypes(),
@@ -171,6 +175,8 @@ type kubeFilter struct {
 	trustedProxyCIDRs          []*net.IPNet
 
 	managerReader, reader client.Reader
+	requireCapsuleUser    bool
+	capsuleAvailable      bool
 	writer                client.Writer
 	protoEncoder          *protobuf.Serializer
 	universalDecoder      runtime.Decoder
@@ -180,7 +186,9 @@ type kubeFilter struct {
 	// via authorization.NamespacedResourceKey) for which capsule-proxy serves
 	// cross-namespace (`-A`) list/watch queries. It is used to advertise that
 	// capability through the self review (auth review) APIs.
-	namespacedResources sets.Set[string]
+	namespacedResources  sets.Set[string]
+	clusterResources     []schema.GroupVersionResource
+	clusterResourceKinds map[schema.GroupVersionResource]schema.GroupVersionKind
 }
 
 // NeedLeaderElection starts the proxy (webserver) independently of controller manager
@@ -441,40 +449,18 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		//nolint:contextcheck
-		proxyTenants, err := n.getTenantsForOwner(request.Context(), username, groups)
+		proxyTenants, capsuleIdentity, err := n.authorizationProxyTenants(request, username, groups)
 		if err != nil {
 			server.HandleError(writer, err, "cannot list Tenant resources")
 
 			return
 		}
 
-		obj, gvk, err := n.universalDecoder.Decode(body, nil, nil)
-		if err != nil {
-			n.log.Error(err, "cannot decode authorization object")
-		}
-
-		if err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, n.namespacedResources, &obj, *gvk); err != nil {
-			n.log.Error(err, "cannot mutate authorization object")
-		}
-
-		var mediaType string
-		if mediaType, _, err = mime.ParseMediaType(request.Header.Get("Content-Type")); err != nil {
-			n.log.Error(err, "failed to parse Content-Type header")
-		}
-
-		switch mediaType {
-		case "application/json":
-			if encoded, encodeErr := utils.JsonEncode(obj, n.scheme); encodeErr != nil {
-				n.log.Error(encodeErr, "cannot marshal Authorization object to json")
-			} else {
-				body = encoded
-			}
-		case "application/vnd.kubernetes.protobuf":
-			if encoded, encodeErr := runtime.Encode(n.protoEncoder, obj); encodeErr != nil {
-				n.log.Error(encodeErr, "cannot marshal Authorization object to protobuf")
-			} else {
-				body = encoded
+		if capsuleIdentity || len(proxyTenants) > 0 {
+			//nolint:contextcheck // Identity resolution preserves the caller's request context.
+			body, err = n.mutateAuthorizationBody(request.Context(), body, result.Header.Get("Content-Type"), proxyTenants, capsuleIdentity)
+			if err != nil {
+				n.log.Error(err, "cannot mutate authorization object")
 			}
 		}
 
@@ -490,11 +476,60 @@ func (n *kubeFilter) authorizationMiddleware(next http.Handler) http.Handler {
 
 		writer.WriteHeader(result.StatusCode)
 
+		//nolint:gosec // Preserve the Kubernetes API server response and its Content-Type, including errors.
 		write, err := writer.Write(body)
 		if err != nil {
 			n.log.Error(err, "cannot write mutated authorization object to response", "bytesWritten", write)
 		}
 	})
+}
+
+// mutateAuthorizationBody retains upstream errors and the negotiated response
+// encoding when a self-review cannot be augmented.
+func (n *kubeFilter) mutateAuthorizationBody(ctx context.Context, body []byte, contentType string, proxyTenants []*tenant.ProxyTenant, capsuleIdentity bool) ([]byte, error) {
+	obj, gvk, err := n.universalDecoder.Decode(body, nil, nil)
+	if err != nil {
+		return body, fmt.Errorf("cannot decode authorization object: %w", err)
+	}
+
+	if capsuleIdentity {
+		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, n.namespacedResources, n.clusterResources, &obj, *gvk)
+	} else {
+		allowed, lookupErr := n.globalReviewGetAllowed(ctx, proxyTenants, obj)
+		if lookupErr != nil || !allowed {
+			return body, lookupErr
+		}
+
+		err = authorization.MutateGlobalAuthorization(proxyTenants, n.clusterResources, &obj, *gvk)
+	}
+
+	if err != nil {
+		return body, err
+	}
+
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return body, err
+	}
+
+	switch mediaType {
+	case "application/json":
+		encoded, err := utils.JsonEncode(obj, n.scheme)
+		if err != nil {
+			return body, err
+		}
+
+		return encoded, nil
+	case "application/vnd.kubernetes.protobuf":
+		encoded, err := runtime.Encode(n.protoEncoder, obj)
+		if err != nil {
+			return body, err
+		}
+
+		return encoded, nil
+	default:
+		return body, nil
+	}
 }
 
 func (n *kubeFilter) handleRequest(request *http.Request, selector labels.Selector, username string) {
@@ -576,11 +611,14 @@ func (n *kubeFilter) ownerFromCapsuleToProxySetting(owners capsulerbac.OwnerList
 func (n *kubeFilter) registerModules(root *mux.Router) {
 	// We are using namespaces and tenants as default routes from the legacy
 	// system, as their outcome heavily relies on the tenants config/status
-	modList := []modules.Module{
-		namespace.List(n.roleBindingsReflector, n.reader),
-		namespace.Get(n.roleBindingsReflector, n.reader),
-		tenants.List(n.reader),
-		tenants.Get(n.reader),
+	var modList []modules.Module
+	if n.capsuleAvailable {
+		modList = []modules.Module{
+			namespace.List(n.roleBindingsReflector, n.reader),
+			namespace.Get(n.roleBindingsReflector, n.reader),
+			tenants.List(n.reader),
+			tenants.Get(n.reader),
+		}
 	}
 
 	// Discovery client
@@ -592,14 +630,22 @@ func (n *kubeFilter) registerModules(root *mux.Router) {
 			panic(err)
 		}
 
+		n.clusterResourceKinds = make(map[schema.GroupVersionResource]schema.GroupVersionKind, len(apis))
+
 		for _, api := range apis {
+			if !strings.Contains(api.URLName, "/") {
+				resource := schema.GroupVersionResource{Group: api.Group, Version: api.Version, Resource: api.URLName}
+				n.clusterResources = append(n.clusterResources, resource)
+				n.clusterResourceKinds[resource] = schema.GroupVersionKind{Group: api.Group, Version: api.Version, Kind: api.Kind}
+			}
+
 			if !moduleGroupKindPresent(modList, api) {
 				n.log.V(6).Info("adding generic cluster scoped resource", "url", api.Path())
 				modList = append(modList, clusterscoped.List(n.reader, n.writer, api.Path()))
-				modList = append(modList, clusterscoped.Get(discoveryClient, n.reader, n.writer, api.ResourcePath()))
+				modList = append(modList, clusterscoped.GetResource(schema.GroupVersionKind{Group: api.Group, Version: api.Version, Kind: api.Kind}, n.reader, n.writer, api.ResourcePath()))
 			}
 		}
-	} else {
+	} else if n.capsuleAvailable {
 		// Adds all legacy routes
 		modList = append(modList, []modules.Module{
 			node.List(n.reader),
@@ -642,29 +688,60 @@ func (n *kubeFilter) registerModules(root *mux.Router) {
 	}
 
 	for _, i := range modList {
-		mod := i
-		rp := root.Path(mod.Path())
+		n.registerModule(root, i)
+	}
+}
 
-		if m := mod.Methods(); len(m) > 0 {
-			rp = rp.Methods(m...)
+func (n *kubeFilter) registerModule(root *mux.Router, mod modules.Module) {
+	rp := root.Path(mod.Path())
+	if m := mod.Methods(); len(m) > 0 {
+		rp = rp.Methods(m...)
+	}
+
+	sr := rp.Subrouter()
+	sr.Use(
+		middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
+		middleware.CheckJWTMiddleware(n.writer),
+		middleware.CheckUserInIgnoredIdentityMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUsernames, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
+	)
+
+	if !n.capsuleAvailable {
+		sr.HandleFunc("", n.globalProxyHandler(mod))
+
+		return
+	}
+
+	fallback := n.impersonateHandler
+	if !n.requireCapsuleUser && n.gates.Enabled(features.ProxyClusterScoped) {
+		globalMod := mod
+
+		var resourceGVK schema.GroupVersionKind
+
+		switch mod.GroupKind() {
+		case schema.GroupKind{Group: corev1.GroupName, Kind: proxytypes.Namespaces}:
+			resourceGVK = corev1.SchemeGroupVersion.WithKind("Namespace")
+		case schema.GroupKind{Group: capsulev1beta2.GroupVersion.Group, Kind: proxytypes.Tenants}:
+			resourceGVK = capsulev1beta2.GroupVersion.WithKind("Tenant")
 		}
 
-		sr := rp.Subrouter()
-		sr.Use(
-			middleware.CheckPaths(n.log, n.allowedPaths, n.impersonateHandler),
-			middleware.CheckJWTMiddleware(n.writer),
-			middleware.CheckUserInIgnoredIdentityMiddleware(n.writer, n.log, n.usernameClaimField, n.authTypes, n.ignoredUsernames, n.ignoredUserGroups, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
-			middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.managerReader, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, n.impersonateHandler),
-		)
-		sr.HandleFunc("", n.moduleHandler(mod))
+		if resourceGVK.Kind != "" {
+			// Global-only access must not inherit tenant ownership or reflection.
+			globalMod = clusterscoped.List(n.reader, n.writer, mod.Path())
+			if strings.Contains(mod.Path(), "{name}") {
+				globalMod = clusterscoped.GetResource(resourceGVK, n.reader, n.writer, mod.Path())
+			}
+		}
+
+		fallback = n.globalProxyHandler(globalMod)
 	}
+
+	sr.Use(middleware.CheckUserInCapsuleGroupMiddleware(n.writer, n.managerReader, n.log, n.usernameClaimField, n.authTypes, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header, fallback))
+	sr.HandleFunc("", n.moduleHandler(mod))
 }
 
 // moduleHandler shares identity and ownership snapshots prepared by middleware.
 func (n *kubeFilter) moduleHandler(mod modules.Module) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		ctx := request.Context()
-
 		request, username, groups, err := req.ResolveUserAndGroups(request, n.authTypes, n.usernameClaimField, n.writer, n.ignoredImpersonationGroups, n.impersonationGroupsRegexp, n.skipImpersonationReview, n.xfcc_header)
 		if err != nil {
 			n.handleResolveUserAndGroupsError(writer, err)
@@ -672,54 +749,63 @@ func (n *kubeFilter) moduleHandler(mod modules.Module) http.HandlerFunc {
 			return
 		}
 
-		proxyTenants, err := n.getTenantsForOwner(ctx, username, groups)
+		//nolint:contextcheck // ResolveUserAndGroups preserves cancellation and request-local identity.
+		proxyTenants, err := n.getTenantsForOwner(request.Context(), username, groups)
 		if err != nil {
 			server.HandleError(writer, err, "cannot list Tenant resources")
 
 			return
 		}
 
-		var selector labels.Selector
+		n.handleModule(writer, request, mod, proxyTenants, username)
+	}
+}
 
-		selector, err = mod.Handle(
-			proxyTenants,
-			req.NewHTTP(
-				request,
-				n.authTypes,
-				n.usernameClaimField,
-				n.writer,
-				n.ignoredImpersonationGroups,
-				n.impersonationGroupsRegexp,
-				n.skipImpersonationReview,
-				n.xfcc_header,
-			))
+func (n *kubeFilter) handleModule(writer http.ResponseWriter, request *http.Request, mod modules.Module, proxyTenants []*tenant.ProxyTenant, username string) {
+	selector, err := mod.Handle(
+		proxyTenants,
+		req.NewHTTP(
+			request,
+			n.authTypes,
+			n.usernameClaimField,
+			n.writer,
+			n.ignoredImpersonationGroups,
+			n.impersonationGroupsRegexp,
+			n.skipImpersonationReview,
+			n.xfcc_header,
+		))
 
-		switch {
-		case err != nil:
-			if t, ok := errors.AsType[moderrors.Error](err); ok {
-				writer.Header().Set("Content-Type", "application/json")
-
-				if t.Status().Code > 0 {
-					writer.WriteHeader(int(t.Status().Code))
-				} else {
-					writer.WriteHeader(http.StatusInternalServerError)
-				}
-
-				b, _ := json.Marshal(t.Status())
-				_, _ = writer.Write(b)
+	switch {
+	case err != nil:
+		if t, ok := errors.AsType[moderrors.Error](err); ok {
+			body, marshalErr := json.Marshal(t.Status())
+			if marshalErr != nil {
+				server.HandleError(writer, marshalErr, "cannot encode module error")
 
 				return
 			}
 
-			server.HandleError(writer, err, err.Error())
+			writer.Header().Set("Content-Type", "application/json")
+
+			if t.Status().Code > 0 {
+				writer.WriteHeader(int(t.Status().Code))
+			} else {
+				writer.WriteHeader(http.StatusInternalServerError)
+			}
+
+			_, _ = writer.Write(body)
 
 			return
-		case selector == nil:
-			// if there's no selector, let it pass to the
-			n.impersonateHandler(writer, request)
-		default:
-			n.handleRequest(request, selector, username)
 		}
+
+		server.HandleError(writer, err, err.Error())
+
+		return
+	case selector == nil:
+		// if there's no selector, let it pass to the
+		n.impersonateHandler(writer, request)
+	default:
+		n.handleRequest(request, selector, username)
 	}
 }
 
@@ -814,19 +900,12 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 
 	// Consider Global ProxySettings
 	if n.gates.Enabled(features.ProxyClusterScoped) {
-		globalProxySettings := &v1beta1.GlobalProxySettingsList{}
-		if err = n.managerReader.List(ctx, globalProxySettings, client.MatchingFields{indexer.GlobalKindField: ownerIndexValue}); err != nil {
-			n.log.Error(err, "cannot retrieve GlobalProxySettings", "owner", ownerKind, "name", ownerName)
-		}
-		// Convert GlobalProxySettings to TenantProxies
-		for _, globalProxySetting := range globalProxySettings.Items {
-			n.log.V(10).Info("Converting GlobalProxySettings", "Setting", globalProxySetting.Name)
-
-			tProxy := tenant.NewClusterProxy(ownerName, ownerKind, globalProxySetting.Spec.Rules)
-			proxyTenants = append(proxyTenants, tProxy)
+		globalTenants, lookupErr := n.globalProxyTenantsForSubject(ctx, ownerKind, ownerName, ownerIndexValue)
+		if lookupErr != nil {
+			return nil, lookupErr
 		}
 
-		n.log.V(10).Info("Collected GlobalProxySettings", "owner", ownerKind, "name", ownerName, "settings", len(globalProxySettings.Items))
+		proxyTenants = append(proxyTenants, globalTenants...)
 	}
 
 	tenants := make([]string, 0, len(tl.Items))

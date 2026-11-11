@@ -97,6 +97,7 @@ func TestCLIFlagInventory(t *testing.T) {
 		"listening-port":              "9001",
 		"metrics-addr":                ":8080",
 		"oidc-username-claim":         "preferred_username",
+		"require-capsule-user":        "true",
 		"public-paths":                "[]",
 		"rolebindings-resync-period":  "10h0m0s",
 		"ssl-cert-path":               "",
@@ -142,6 +143,7 @@ func TestCLIOptionWiring(t *testing.T) {
 		{"allowed-paths", "/health,/custom", []string{"/health", "/custom"}, func(c *cliOptions) any { return cliListener(t, c).AllowedPaths() }},
 		{"public-paths", "/ready,/live", []string{"/ready", "/live"}, func(c *cliOptions) any { return cliListener(t, c).PublicPaths() }},
 		{"ignored-user-group", "platform,ops", []string{"platform", "ops"}, func(c *cliOptions) any { return cliListener(t, c).IgnoredGroupNames() }},
+		{"require-capsule-user", "false", false, func(c *cliOptions) any { return cliListener(t, c).RequireCapsuleUser() }},
 		{"ignored-username", "alice,bob", []string{"alice", "bob"}, func(c *cliOptions) any { return cliListener(t, c).IgnoredUsernames() }},
 		{"ignored-impersonation-group", "admin,root", []string{"admin", "root"}, func(c *cliOptions) any { return cliListener(t, c).IgnoredImpersonationsGroups() }},
 		{"impersonation-group-regexp", "^tenant:", "^tenant:", func(c *cliOptions) any { return cliListener(t, c).ImpersonationGroupsRegexp().String() }},
@@ -336,7 +338,7 @@ func TestCLIInvalidArguments(t *testing.T) {
 			}
 		})
 	}
-	for _, name := range []string{"disable-caching", "enable-leader-election", "enable-pprof", "enable-reflector", "enable-ssl", "zap-devel"} {
+	for _, name := range []string{"disable-caching", "enable-leader-election", "enable-pprof", "enable-reflector", "enable-ssl", "zap-devel", "require-capsule-user"} {
 		t.Run(name, func(t *testing.T) {
 			_, fs := cliFlagSet()
 			if err := fs.Parse([]string{"--" + name + "=perhaps"}); err == nil {
