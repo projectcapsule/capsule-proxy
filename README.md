@@ -17,6 +17,35 @@ When upgrading, roll out the fixed proxy to every replica and update the
 before the CRD update; updating the CRD alone does not neutralize existing grants
 on older proxy replicas. Remove obsolete namespaced grants after migration.
 
+## GlobalProxySettings subjects
+
+With `ProxyClusterScoped` enabled, the `subjects` of a `GlobalProxySettings` rule can be
+of kind `User`, `Group`, `ServiceAccount` or `Tenant`. A `Tenant` subject matches every
+caller that currently owns the named Tenant, whether as User, Group or promoted
+ServiceAccount, so administrators do not need to know owner names in advance:
+
+```yaml
+apiVersion: capsule.clastix.io/v1beta1
+kind: GlobalProxySettings
+metadata:
+  name: solar-storageclasses
+spec:
+  rules:
+    - subjects:
+        - kind: Tenant
+          name: solar
+      clusterResources:
+        - apiGroups: ["storage.k8s.io"]
+          resources: ["storageclasses"]
+          operations: ["List", "Get"]
+          selector:
+            matchLabels:
+              tier: shared
+```
+
+Ownership is read from `Tenant.status.owners`, so removing an owner revokes the grant.
+Callers that do not own the Tenant receive nothing from the rule.
+
 ## Documentation
 
 You can find more detailed documentation [here](https://capsule.clastix.io/docs/general/proxy).

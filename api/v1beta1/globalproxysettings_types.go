@@ -27,10 +27,28 @@ type GlobalSubjectSpec struct {
 	ClusterResources []ClusterResource `json:"clusterResources,omitempty"`
 }
 
+// GlobalSubjectKind is the kind of a GlobalProxySettings subject.
+// +kubebuilder:validation:Enum=User;Group;ServiceAccount;Tenant
+type GlobalSubjectKind string
+
+const (
+	GlobalSubjectKindUser           GlobalSubjectKind = GlobalSubjectKind(capsulerbac.UserOwner)
+	GlobalSubjectKindGroup          GlobalSubjectKind = GlobalSubjectKind(capsulerbac.GroupOwner)
+	GlobalSubjectKindServiceAccount GlobalSubjectKind = GlobalSubjectKind(capsulerbac.ServiceAccountOwner)
+	// GlobalSubjectKindTenant selects every current owner of the Tenant with the given name.
+	// Owners are resolved from the Tenant status, so they can be Users, Groups or promoted ServiceAccounts.
+	GlobalSubjectKindTenant GlobalSubjectKind = "Tenant"
+)
+
+func (k GlobalSubjectKind) String() string {
+	return string(k)
+}
+
 type GlobalSubject struct {
-	// Kind of tenant owner. Possible values are "User", "Group", and "ServiceAccount".
-	Kind capsulerbac.OwnerKind `json:"kind"`
-	// Name of tenant owner.
+	// Kind of the subject. Possible values are "User", "Group", "ServiceAccount" and "Tenant".
+	// A "Tenant" subject matches every current owner of the named Tenant.
+	Kind GlobalSubjectKind `json:"kind"`
+	// Name of the subject. For the "Tenant" kind, the name of the Tenant.
 	Name string `json:"name"`
 }
 

@@ -155,15 +155,18 @@ spec:
                       items:
                         properties:
                           kind:
-                            description: Kind of tenant owner. Possible values are
-                              "User", "Group", and "ServiceAccount".
+                            description: |-
+                              Kind of the subject. Possible values are "User", "Group", "ServiceAccount" and "Tenant".
+                              A "Tenant" subject matches every current owner of the named Tenant.
                             enum:
                             - User
                             - Group
                             - ServiceAccount
+                            - Tenant
                             type: string
                           name:
-                            description: Name of tenant owner.
+                            description: Name of the subject. For the "Tenant" kind,
+                              the name of the Tenant.
                             type: string
                         required:
                         - kind
