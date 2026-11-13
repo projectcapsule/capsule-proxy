@@ -275,7 +275,7 @@ func TestGlobalAccessDoesNotInheritTenantReflection(t *testing.T) {
 
 func (f *globalAccessFixture) grant(t testing.TB, kind capsulerbac.OwnerKind, subject string, resources []v1beta1.ClusterResource) *v1beta1.GlobalProxySettings {
 	t.Helper()
-	setting := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: "external-grant"}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{Subjects: []v1beta1.GlobalSubject{{Kind: kind, Name: subject}}, ClusterResources: resources}}}}
+	setting := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: "external-grant"}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{Subjects: []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKind(kind), Name: subject}}, ClusterResources: resources}}}}
 	if err := f.client.Create(t.Context(), setting); err != nil {
 		t.Fatal(err)
 	}

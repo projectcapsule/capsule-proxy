@@ -849,13 +849,17 @@ func (n *kubeFilter) handleResolveUserAndGroupsError(writer http.ResponseWriter,
 }
 
 func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, groups []string) (proxyTenants []*tenant.ProxyTenant, err error) {
+	// Tracks the Tenants whose Tenant-kind GlobalProxySettings subjects were already
+	// resolved, so ownership through several identities of the caller counts once.
+	seenTenants := map[string]struct{}{}
+
 	if strings.HasPrefix(username, serviceaccount.ServiceAccountUsernamePrefix) {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulerbac.ServiceAccountOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulerbac.ServiceAccountOwner, username, seenTenants)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
 	} else {
-		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulerbac.UserOwner, username)
+		proxyTenants, err = n.getProxyTenantsForOwnerKind(ctx, capsulerbac.UserOwner, username, seenTenants)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -863,7 +867,7 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 
 	// Find tenants belonging to a group
 	for _, group := range groups {
-		pt, err := n.getProxyTenantsForOwnerKind(ctx, capsulerbac.GroupOwner, group)
+		pt, err := n.getProxyTenantsForOwnerKind(ctx, capsulerbac.GroupOwner, group, seenTenants)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get Tenants slice owned by Tenant Owner: %w", err)
 		}
@@ -875,7 +879,7 @@ func (n *kubeFilter) getTenantsForOwner(ctx context.Context, username string, gr
 }
 
 //nolint:funlen
-func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulerbac.OwnerKind, ownerName string) (proxyTenants []*tenant.ProxyTenant, err error) {
+func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind capsulerbac.OwnerKind, ownerName string, seenTenants map[string]struct{}) (proxyTenants []*tenant.ProxyTenant, err error) {
 	ownerIndexValue := fmt.Sprintf("%s:%s", ownerKind.String(), ownerName)
 
 	tl, err := tenant.TenantsForOwner(ctx, n.managerReader, ownerKind, ownerName)
@@ -909,12 +913,14 @@ func (n *kubeFilter) getProxyTenantsForOwnerKind(ctx context.Context, ownerKind 
 
 	// Consider Global ProxySettings
 	if n.gates.Enabled(features.ProxyClusterScoped) {
-		globalTenants, lookupErr := n.globalProxyTenantsForSubject(ctx, ownerKind, ownerName, ownerIndexValue)
+		globalTenants, lookupErr := n.globalProxyTenantsForSubject(ctx, ownerKind, ownerName, ownerIndexValue, tl.Items, seenTenants)
 		if lookupErr != nil {
 			return nil, lookupErr
 		}
 
 		proxyTenants = append(proxyTenants, globalTenants...)
+
+		n.log.V(10).Info("Collected GlobalProxySettings", "owner", ownerKind, "name", ownerName, "settings", len(globalTenants))
 	}
 
 	tenants := make([]string, 0, len(tl.Items))
