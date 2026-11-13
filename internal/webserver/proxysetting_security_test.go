@@ -223,7 +223,7 @@ func TestGlobalProxySettingsStillGrantClusterResources(t *testing.T) {
 		t.Run(fmt.Sprintf("gate=%t", gate), func(t *testing.T) {
 			fixture := newProxySettingAccessFixture(t, gate, capsulerbac.UserOwner, "alice", false, 0)
 			global := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: "admin-grant"}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{
-				Subjects:         []v1beta1.GlobalSubject{{Kind: capsulerbac.UserOwner, Name: "global-reader"}},
+				Subjects:         []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKindUser, Name: "global-reader"}},
 				ClusterResources: []v1beta1.ClusterResource{{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{corev1.LabelMetadataName: "tenant-b-ns"}}}},
 			}}}}
 			check := func(username string, allowed bool) {
@@ -309,6 +309,163 @@ func BenchmarkProxySettingNamespaceList(b *testing.B) {
 					selector, err := mod.Handle(proxyTenants, req)
 					if err != nil || selector == nil || !selector.Matches(labels.Set{corev1.LabelMetadataName: "tenant-a-ns"}) {
 						b.Fatalf("invalid list result: selector=%v error=%v", selector, err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestGlobalProxySettingsTenantSubject(t *testing.T) {
+	t.Parallel()
+
+	identities := []struct {
+		name     string
+		kind     capsulerbac.OwnerKind
+		subject  string
+		username string
+		groups   []string
+	}{
+		{"user", capsulerbac.UserOwner, "alice", "alice", nil},
+		{"group", capsulerbac.GroupOwner, "team", "member", []string{"team"}},
+		{"serviceaccount", capsulerbac.ServiceAccountOwner, "system:serviceaccount:tenant-a-ns:promoted", "system:serviceaccount:tenant-a-ns:promoted", nil},
+	}
+
+	for _, gate := range []bool{false, true} {
+		for _, identity := range identities {
+			t.Run(fmt.Sprintf("gate=%t/%s", gate, identity.name), func(t *testing.T) {
+				fixture := newProxySettingAccessFixture(t, gate, identity.kind, identity.subject, true, 0)
+				newGlobal := func(name, tenantName string) *v1beta1.GlobalProxySettings {
+					return &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: name}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{
+						Subjects:         []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKindTenant, Name: tenantName}},
+						ClusterResources: []v1beta1.ClusterResource{{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{corev1.LabelMetadataName: "tenant-b-ns"}}}},
+					}}}}
+				}
+				// check reports whether tenant-b-ns is visible to the identity through a cluster-wide grant.
+				check := func(username string, groups []string, allowed bool) {
+					t.Helper()
+
+					proxyTenants, err := fixture.filter.getTenantsForOwner(t.Context(), username, groups)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					req := request.NewHTTP(httptest.NewRequest(http.MethodGet, "/api/v1/namespaces", nil), nil, "", fixture.client, nil, nil, false, "")
+
+					selector, err := namespacemodule.List(nil, fixture.client).Handle(proxyTenants, req)
+					if err != nil || selector == nil {
+						t.Fatalf("list selector=%v error=%v", selector, err)
+					}
+
+					if got := selector.Matches(labels.Set{corev1.LabelMetadataName: "tenant-b-ns"}); got != allowed {
+						t.Fatalf("tenant-b-ns visible=%t, want %t for %s %v: %s", got, allowed, username, groups, selector)
+					}
+
+					if selector.Matches(labels.Set{corev1.LabelMetadataName: "kube-system"}) {
+						t.Fatalf("grant leaked kube-system to %s: %s", username, selector)
+					}
+				}
+
+				check(identity.username, identity.groups, false)
+
+				// A Tenant the caller does not own grants nothing.
+				if err := fixture.client.Create(t.Context(), newGlobal("other-tenant", "tenant-b")); err != nil {
+					t.Fatal(err)
+				}
+
+				check(identity.username, identity.groups, false)
+
+				if err := fixture.client.Create(t.Context(), newGlobal("owned-tenant", "tenant-a")); err != nil {
+					t.Fatal(err)
+				}
+
+				check(identity.username, identity.groups, gate)
+				// Callers that do not own tenant-a get nothing from it.
+				check("stranger", []string{"strangers"}, false)
+
+				// Removing the ownership revokes the grant.
+				tnt := &capsulev1beta2.Tenant{}
+				if err := fixture.client.Get(t.Context(), client.ObjectKey{Name: "tenant-a"}, tnt); err != nil {
+					t.Fatal(err)
+				}
+
+				tnt.Status.Owners = nil
+				if err := fixture.client.Update(t.Context(), tnt); err != nil {
+					t.Fatal(err)
+				}
+
+				check(identity.username, identity.groups, false)
+			})
+		}
+	}
+}
+
+func TestGlobalProxySettingsTenantSubjectCountsOnce(t *testing.T) {
+	t.Parallel()
+
+	fixture := newProxySettingAccessFixture(t, true, capsulerbac.UserOwner, "alice", true, 0)
+
+	tnt := &capsulev1beta2.Tenant{}
+	if err := fixture.client.Get(t.Context(), client.ObjectKey{Name: "tenant-a"}, tnt); err != nil {
+		t.Fatal(err)
+	}
+
+	tnt.Status.Owners = append(tnt.Status.Owners,
+		capsulerbac.CoreOwnerSpec{UserSpec: capsulerbac.UserSpec{Kind: capsulerbac.GroupOwner, Name: "team"}},
+		capsulerbac.CoreOwnerSpec{UserSpec: capsulerbac.UserSpec{Kind: capsulerbac.GroupOwner, Name: "other-team"}},
+	)
+
+	if err := fixture.client.Update(t.Context(), tnt); err != nil {
+		t.Fatal(err)
+	}
+
+	global := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: "owned-tenant"}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{
+		Subjects:         []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKindTenant, Name: "tenant-a"}, {Kind: v1beta1.GlobalSubjectKindUser, Name: "alice"}},
+		ClusterResources: []v1beta1.ClusterResource{{APIGroups: []string{""}, Resources: []string{"namespaces"}}},
+	}}}}
+	if err := fixture.client.Create(t.Context(), global); err != nil {
+		t.Fatal(err)
+	}
+
+	proxyTenants, err := fixture.filter.getTenantsForOwner(t.Context(), "alice", []string{"team", "other-team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var grants int
+
+	for _, pt := range proxyTenants {
+		if pt.Tenant.Name == "global" && len(pt.ClusterResources) > 0 {
+			grants++
+		}
+	}
+
+	if grants != 1 {
+		t.Fatalf("a rule matching several owner identities of one Tenant must be applied once, got %d grants", grants)
+	}
+}
+
+func BenchmarkGlobalProxySettingsTenantSubject(b *testing.B) {
+	for _, withGrant := range []bool{false, true} {
+		for _, unrelated := range []int{0, 100, 1000} {
+			b.Run(fmt.Sprintf("grant=%t/unrelated=%d", withGrant, unrelated), func(b *testing.B) {
+				fixture := newProxySettingAccessFixture(b, true, capsulerbac.UserOwner, "alice", true, unrelated)
+
+				if withGrant {
+					global := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: "owned-tenant"}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{
+						Subjects:         []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKindTenant, Name: "tenant-a"}},
+						ClusterResources: []v1beta1.ClusterResource{{APIGroups: []string{""}, Resources: []string{"namespaces"}}},
+					}}}}
+					if err := fixture.client.Create(context.Background(), global); err != nil {
+						b.Fatal(err)
+					}
+				}
+
+				b.ReportAllocs()
+
+				for b.Loop() {
+					if _, err := fixture.filter.getTenantsForOwner(context.Background(), "alice", []string{"team"}); err != nil {
+						b.Fatal(err)
 					}
 				}
 			})

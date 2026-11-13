@@ -5,6 +5,7 @@ package tenant
 
 import (
 	"net/http"
+	"slices"
 
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
@@ -70,13 +71,18 @@ func NewProxyTenant(
 
 // NewClusterProxy returns a ProxyTenant struct for GlobalProxySettings. These settings are currently not bound to a tenant and therefore
 // an empty tenant is returned.
-func NewClusterProxy(ownerName string, ownerKind capsulerbac.OwnerKind, owners []v1beta1.GlobalSubjectSpec) *ProxyTenant {
+//
+// A rule applies when one of its subjects is the caller itself (ownerKind/ownerName) or a Tenant the caller
+// currently owns (ownedTenants).
+func NewClusterProxy(ownerName string, ownerKind capsulerbac.OwnerKind, owners []v1beta1.GlobalSubjectSpec, ownedTenants []string) *ProxyTenant {
 	var tenantClusterResources []v1beta1.ClusterResource
 
 	for _, global := range owners {
 		for _, subject := range global.Subjects {
-			if subject.Name == ownerName && subject.Kind == ownerKind {
+			if globalSubjectMatches(subject, ownerName, ownerKind, ownedTenants) {
 				tenantClusterResources = append(tenantClusterResources, global.ClusterResources...)
+
+				break
 			}
 		}
 	}
@@ -90,6 +96,14 @@ func NewClusterProxy(ownerName string, ownerKind capsulerbac.OwnerKind, owners [
 		},
 		ClusterResources: tenantClusterResources,
 	}
+}
+
+func globalSubjectMatches(subject v1beta1.GlobalSubject, ownerName string, ownerKind capsulerbac.OwnerKind, ownedTenants []string) bool {
+	if subject.Kind == v1beta1.GlobalSubjectKindTenant {
+		return slices.Contains(ownedTenants, subject.Name)
+	}
+
+	return subject.Name == ownerName && subject.Kind.String() == ownerKind.String()
 }
 
 func (p *ProxyTenant) RequestAllowed(request *http.Request, serviceKind capsulerbac.ProxyServiceKind) (ok bool) {
