@@ -39,7 +39,7 @@ import (
 
 // Start an isolated copy of the installed, changed proxy. The source deployment
 // and its arguments stay untouched; both flag modes can run in the same suite.
-func globalAccessProxy(f *accessFixture, standalone bool) *rest.Config {
+func globalAccessProxy(f *accessFixture, standalone bool, extraArgs ...string) *rest.Config {
 	ctx := context.Background()
 	selector := os.Getenv("E2E_PROXY_POD_SELECTOR")
 	if selector == "" {
@@ -91,6 +91,7 @@ func globalAccessProxy(f *accessFixture, standalone bool) *rest.Config {
 	if standalone {
 		container.Args = append(container.Args, "--capsule-configuration-name="+f.id+"-absent")
 	}
+	container.Args = append(container.Args, extraArgs...)
 	Expect(k8sClient.Create(ctx, pod)).To(Succeed())
 	admin, err := kubernetes.NewForConfig(cfg)
 	Expect(err).NotTo(HaveOccurred())

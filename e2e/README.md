@@ -20,8 +20,9 @@ cluster. `e2e:build`, `e2e:install`, and `e2e:exec` can be run separately when
 you want to retain the environment for inspection.
 
 The Ginkgo CLI is tracked as a Go tool in `go.mod`, so dependency maintenance
-includes its checksums. `task e2e:check-runner` checks the CLI without a cluster;
-`task e2e` runs that check before building the image and provisioning Kubernetes.
+includes its checksums. `task e2e:check-runner` checks the CLI and compiles the
+e2e suite with read-only module dependencies, without a cluster; `task e2e` runs
+that check before building the image and provisioning Kubernetes.
 An empty spec selection fails the run.
 
 Use a disposable cluster for the full suite. Some existing cases use fixed
@@ -37,6 +38,7 @@ task e2e:exec E2E_ARGS='--label-filter=reflection'
 task e2e:exec E2E_ARGS='--label-filter=proxysetting-security'
 task e2e:exec E2E_ARGS='--label-filter=probes'
 task e2e:exec E2E_ARGS='--label-filter=global-access'
+task e2e:exec E2E_ARGS='--label-filter=namespace-global-rules'
 ```
 
 `E2E_ARGS` can also be set on `task e2e` to provision and run a scoped suite.
@@ -94,6 +96,22 @@ Startup unit tests additionally cover missing Capsule APIs and fatal read errors
 The `selector-isolation` case checks complete selector matches, rejected LIST
 unions, and named self-reviews with two real tenants present. Self-review cases
 cover omitted, exact, and wildcard API versions.
+
+The `namespace-global-rules` suite exercises the Capsule namespace module with
+two real tenants and namespaces without Tenant owner references. It checks
+GlobalProxySettings grants for Users, Groups, and ServiceAccounts, exact LIST
+and GET visibility, GET-only rules, legacy LIST rules, cross-tenant exclusions,
+unsupported mutations, and selector/subject updates and deletion. Named namespace
+self-reviews use the same GET module, including ownership and reflected access;
+the suite checks matching decisions and RoleBinding revocation. It also records
+direct/proxied named-review latency with identical native namespace GET rights
+and zero/eight extra groups. The excluded-namespace comparison intentionally
+differs: native RBAC allows it, while the proxy's tenant/selector boundary denies it.
+It uses the main proxy with `ProxyClusterScoped=true` and the default Capsule
+identity gate. Ordinary LIST/rules reviews do not need this named namespace lookup.
+An isolated copy of the changed proxy also exercises `--disable-caching=true`;
+its named-review workload includes the extra authoritative namespace API read
+and pod port-forward transport overhead.
 
 The `probes` suite creates two tenants, checks tenant visibility and cross-tenant
 denials, and makes 200 readiness and liveness requests per running proxy pod.

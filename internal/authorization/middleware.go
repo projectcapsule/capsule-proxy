@@ -60,7 +60,7 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 			selectors := clusterscoped.GetClusterScopeSelectors(&resourceGVK, v1beta1.ClusterResourceOperationList, proxyTenants)
 
 			if _, err := clusterscoped.UnionSelectors(selectors); err == nil {
-				grantAccess(accessReview)
+				GrantAccess(accessReview)
 			}
 
 			return nil
@@ -75,7 +75,7 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 			attributes.Namespace == "" &&
 			isCrossNamespaceListVerb(attributes.Verb) &&
 			namespacedResources.Has(NamespacedResourceKey(attributes.Group, attributes.Resource)) {
-			grantAccess(accessReview)
+			GrantAccess(accessReview)
 
 			return nil
 		}
@@ -96,7 +96,7 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 		}
 
 		if clusterscoped.HasClusterScopeAccess(&accessReviewGvk, operation, proxyTenants) {
-			grantAccess(accessReview)
+			GrantAccess(accessReview)
 		}
 	case selfSubjectRulesReviewKind:
 		//nolint:forcetypeassert
@@ -123,9 +123,9 @@ func MutateAuthorization(proxyClusterScoped bool, proxyTenants []*tenant.ProxyTe
 	return nil
 }
 
-// grantAccess marks a SelfSubjectAccessReview as allowed by capsule-proxy,
+// GrantAccess marks a SelfSubjectAccessReview as allowed by capsule-proxy,
 // clearing any denial coming from the API server.
-func grantAccess(accessReview *authorizationv1.SelfSubjectAccessReview) {
+func GrantAccess(accessReview *authorizationv1.SelfSubjectAccessReview) {
 	accessReview.Status.Allowed = true
 	accessReview.Status.Denied = false
 	accessReview.Status.Reason = "granted by capsule-proxy"
@@ -167,7 +167,7 @@ func MutateGlobalAuthorization(proxyTenants []*tenant.ProxyTenant, resources []s
 
 			resourceGVK := schema.GroupVersionKind{Group: resource.Group, Version: resource.Version, Kind: resource.Resource}
 			if clusterscoped.HasClusterScopeAccess(&resourceGVK, operation, proxyTenants) {
-				grantAccess(review)
+				GrantAccess(review)
 
 				break
 			}
