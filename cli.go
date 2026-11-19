@@ -40,6 +40,8 @@ type cliOptions struct {
 	clientConnectionQPS                                                              float32
 	clientConnectionBurst                                                            int32
 	webhookPort                                                                      int
+	requireCapsuleUser                                                               bool
+	capsuleAvailable                                                                 bool
 	hooks                                                                            []WebhookType
 	authTypes                                                                        []request.AuthType
 	gates                                                                            featuregate.MutableFeatureGate
@@ -48,6 +50,7 @@ type cliOptions struct {
 
 // bindFlags accepts a fresh FlagSet so repeated parses never share flag state.
 func (c *cliOptions) bindFlags(flag *pflag.FlagSet) {
+	c.capsuleAvailable = true
 	c.gates = featuregate.NewFeatureGate()
 
 	utilruntime.Must(c.gates.Add(map[featuregate.Feature]featuregate.FeatureSpec{
@@ -135,6 +138,12 @@ func (c *cliOptions) bindFlags(flag *pflag.FlagSet) {
 		"ignored-user-group",
 		[]string{},
 		"Names of the groups which requests must be ignored and proxy-passed to the upstream server",
+	)
+	flag.BoolVar(
+		&c.requireCapsuleUser,
+		"require-capsule-user",
+		true,
+		"Require Capsule identity membership for proxy grants; when false, authenticated non-Capsule callers may use matching GlobalProxySettings and Capsule is optional",
 	)
 	flag.StringSliceVar(
 		&c.ignoredUsernames,
@@ -288,7 +297,7 @@ func (c *cliOptions) managerOptions(namespace string, scheme *runtime.Scheme) ct
 }
 
 func (c *cliOptions) reflectorEnabled() bool {
-	return !c.disableCaching && c.roleBindingReflector
+	return c.capsuleAvailable && !c.disableCaching && c.roleBindingReflector
 }
 
 func (c *cliOptions) reader(mgr ctrl.Manager) client.Reader {
@@ -311,7 +320,7 @@ func (c *cliOptions) listenerOptions(config *rest.Config) (options.ListenerOpts,
 		c.authTypes, c.ignoredUserGroups, c.ignoredUsernames, c.usernameClaimField,
 		config, c.ignoreImpersonationGroups, c.impersonationGroupsRegexp,
 		c.gates.Enabled(features.SkipImpersonationReview), c.trustedProxyCIDRStrings,
-		c.xfccHeaderName, c.allowedPaths, c.publicPaths,
+		c.xfccHeaderName, c.allowedPaths, c.publicPaths, c.requireCapsuleUser, c.capsuleAvailable,
 	)
 }
 

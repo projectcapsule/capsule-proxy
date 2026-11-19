@@ -4,27 +4,28 @@
 package clusterscoped
 
 import (
+	"errors"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
-// GetClusterScopeRequirements calculates requirements for a given
+// GetClusterScopeSelectors preserves each rule's complete conjunction for a given
 // GroupVersionKind and operation based on the ProxyTenants clusterResource
 // configurations. Filtering per rule ensures a GET-only selector does not
 // affect LIST. Legacy LIST rules include GET for v1beta1 compatibility.
-func GetClusterScopeRequirements(
+func GetClusterScopeSelectors(
 	gvk *schema.GroupVersionKind,
 	operation v1beta1.ClusterResourceOperation,
 	proxyTenants []*tenant.ProxyTenant,
-) (requirements []labels.Requirement) {
-	requirements = []labels.Requirement{}
-
+) (selectors []labels.Selector) {
 	for _, pt := range proxyTenants {
 		for _, cr := range pt.ClusterResources {
 			if !matchResource(gvk, cr) || !cr.AllowsOperation(operation) {
@@ -37,15 +38,98 @@ func GetClusterScopeRequirements(
 			}
 
 			reqs, selectable := selector.Requirements()
-			if !selectable {
+			if !selectable || len(reqs) == 0 {
 				continue
 			}
 
-			requirements = append(requirements, reqs...)
+			selectors = append(selectors, selector)
 		}
 	}
 
-	return requirements
+	return selectors
+}
+
+// UnionSelectors expresses OR between complete rules as a single upstream
+// selector. Kubernetes only supports AND, so we merge rules with identical
+// constraints except for one positive set requirement. Other combinations fail
+// closed rather than introducing cross-combinations or buffering API responses.
+func UnionSelectors(selectors []labels.Selector) (labels.Selector, error) {
+	if len(selectors) == 0 {
+		return nil, nil
+	}
+
+	if len(selectors) == 1 {
+		return selectors[0], nil
+	}
+
+	merged, _ := selectors[0].Requirements()
+	different := -1
+
+	var values sets.Set[string]
+
+	for _, selector := range selectors[1:] {
+		next, _ := selector.Requirements()
+		if len(merged) != len(next) {
+			return nil, errors.New("cluster-resource selector union cannot be forwarded safely as one Kubernetes label selector")
+		}
+
+		for i := range merged {
+			if merged[i].Equal(next[i]) {
+				continue
+			}
+
+			if (different != -1 && different != i) || merged[i].Key() != next[i].Key() || !positiveSet(merged[i]) || !positiveSet(next[i]) {
+				return nil, errors.New("cluster-resource selector union cannot be forwarded safely as one Kubernetes label selector")
+			}
+
+			if different == -1 {
+				different = i
+				values = sets.New(merged[i].ValuesUnsorted()...)
+			}
+
+			values.Insert(next[i].ValuesUnsorted()...)
+		}
+	}
+
+	if different == -1 {
+		return selectors[0], nil
+	}
+
+	requirement, err := labels.NewRequirement(merged[different].Key(), selection.In, values.UnsortedList())
+	if err != nil {
+		return nil, err
+	}
+
+	merged = append(labels.Requirements(nil), merged...)
+	merged[different] = *requirement
+
+	return labels.NewSelector().Add(merged...), nil
+}
+
+func positiveSet(requirement labels.Requirement) bool {
+	switch requirement.Operator() { //nolint:exhaustive // Only positive membership operators can be merged by unioning values.
+	case selection.In, selection.Equals, selection.DoubleEquals:
+		return true
+	default:
+		return false
+	}
+}
+
+// HasClusterScopeAccess includes the LIST representability check so self-reviews
+// do not advertise combinations which the forwarding modules must reject.
+func HasClusterScopeAccess(gvk *schema.GroupVersionKind, operation v1beta1.ClusterResourceOperation, proxyTenants []*tenant.ProxyTenant) bool {
+	selectors := GetClusterScopeSelectors(gvk, operation, proxyTenants)
+	if len(selectors) == 0 {
+		return false
+	}
+
+	if operation == v1beta1.ClusterResourceOperationList {
+		_, err := UnionSelectors(selectors)
+
+		return err == nil
+	}
+
+	return true
 }
 
 func matchResource(gvk *schema.GroupVersionKind, cr v1beta1.ClusterResource) bool {

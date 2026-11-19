@@ -15,10 +15,14 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/thediveo/enumflag"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	capsuleproxyv1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
@@ -47,11 +51,15 @@ func setupHealthProbes(mgr ctrl.Manager, filter webserver.Filter) error {
 
 // setupObservedGenerationControllers registers the status controllers that maintain
 // observedGeneration on GlobalProxySettings and ProxySetting resources.
-func setupObservedGenerationControllers(mgr ctrl.Manager) error {
+func setupObservedGenerationControllers(mgr ctrl.Manager, capsuleAvailable bool) error {
 	if err := (&controllers.GlobalProxySettingsReconciler{
 		Client: mgr.GetClient(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("cannot start GlobalProxySettings controller: %w", err)
+	}
+
+	if !capsuleAvailable {
+		return nil
 	}
 
 	if err := (&controllers.ProxySettingReconciler{
@@ -61,6 +69,25 @@ func setupObservedGenerationControllers(mgr ctrl.Manager) error {
 	}
 
 	return nil
+}
+
+// Capsule is optional only when administrators explicitly open global grants
+// to non-Capsule identities. Discovery and read failures must not disable it.
+func (c *cliOptions) detectCapsule(ctx context.Context, reader client.Reader) error {
+	err := reader.Get(ctx, types.NamespacedName{Name: c.capsuleConfigurationName}, &capsulev1beta2.CapsuleConfiguration{})
+	if err == nil {
+		c.capsuleAvailable = true
+
+		return nil
+	}
+
+	if !c.requireCapsuleUser && (apierrors.IsNotFound(err) || meta.IsNoMatchError(err)) {
+		c.capsuleAvailable = false
+
+		return nil
+	}
+
+	return fmt.Errorf("cannot read CapsuleConfiguration %s: %w", c.capsuleConfigurationName, err)
 }
 
 const (
@@ -141,10 +168,19 @@ func main() {
 
 	var rbReflector *controllers.RoleBindingReflector
 
+	ctx := ctrl.SetupSignalHandler()
+
+	if err = c.detectCapsule(ctx, mgr.GetAPIReader()); err != nil {
+		log.Error(err, "cannot determine Capsule availability")
+		os.Exit(1)
+	}
+
+	log.Info("Capsule integration", "enabled", c.capsuleAvailable, "require-capsule-user", c.requireCapsuleUser)
+
 	if c.reflectorEnabled() {
 		log.Info("Creating the Rolebindings reflector")
 
-		if rbReflector, err = controllers.NewRoleBindingReflector(context.Background(), mgr.GetCache()); err != nil {
+		if rbReflector, err = controllers.NewRoleBindingReflector(ctx, mgr.GetCache()); err != nil {
 			log.Error(err, "cannot create Rolebindings reflector")
 			os.Exit(1)
 		}
@@ -159,15 +195,17 @@ func main() {
 		log.Info("Rolebinding reflector disabled")
 	}
 
-	ctx := ctrl.SetupSignalHandler()
-
 	log.Info("Creating the Field Indexer")
 
 	indexers := []capsuleindexer.CustomIndexer{
-		&tenant.NamespacesReference{Obj: &capsulev1beta2.Tenant{}},
-		&indexer.TenantOwnerReference{},
-		&indexer.ProxySetting{},
 		&indexer.GlobalProxySetting{},
+	}
+	if c.capsuleAvailable {
+		indexers = append(indexers,
+			&tenant.NamespacesReference{Obj: &capsulev1beta2.Tenant{}},
+			&indexer.TenantOwnerReference{},
+			&indexer.ProxySetting{},
+		)
 	}
 
 	for _, fieldIndex := range indexers {
@@ -212,12 +250,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = c.capsuleConfigurationController(mgr.GetClient()).SetupWithManager(ctx, mgr); err != nil {
-		log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
-		os.Exit(1)
+	if c.capsuleAvailable {
+		if err = c.capsuleConfigurationController(mgr.GetClient()).SetupWithManager(ctx, mgr); err != nil {
+			log.Error(err, "cannot start CapsuleConfiguration controller for User Group list retrieval")
+			os.Exit(1)
+		}
 	}
 
-	if err := setupObservedGenerationControllers(mgr); err != nil {
+	if err := setupObservedGenerationControllers(mgr, c.capsuleAvailable); err != nil {
 		log.Error(err, "unable to set up observed generation controllers")
 		os.Exit(1)
 	}

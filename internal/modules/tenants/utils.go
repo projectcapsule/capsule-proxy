@@ -13,7 +13,7 @@ import (
 
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/modules/clusterscoped"
-	"github.com/projectcapsule/capsule-proxy/internal/modules/utils"
+	moduleerrors "github.com/projectcapsule/capsule-proxy/internal/modules/errors"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 	"github.com/projectcapsule/capsule-proxy/internal/types"
 )
@@ -27,18 +27,18 @@ func tenantsGVK() *schema.GroupVersionKind {
 }
 
 func clusterScopedTenantNames(ctx context.Context, reader client.Reader, proxyTenants []*tenant.ProxyTenant) ([]string, error) {
-	requirements := clusterscoped.GetClusterScopeRequirements(
+	selectors := clusterscoped.GetClusterScopeSelectors(
 		tenantsGVK(),
 		v1beta1.ClusterResourceOperationList,
 		proxyTenants,
 	)
-	if len(requirements) == 0 {
+	if len(selectors) == 0 {
 		return nil, nil
 	}
 
-	selector, err := utils.HandleListSelector(requirements)
+	selector, err := clusterscoped.UnionSelectors(selectors)
 	if err != nil {
-		return nil, err
+		return nil, moduleerrors.NewBadRequest(err, tenantsGVK().GroupKind())
 	}
 
 	tenantList := &capsulev1beta2.TenantList{}
@@ -55,15 +55,15 @@ func clusterScopedTenantNames(ctx context.Context, reader client.Reader, proxyTe
 }
 
 func matchesClusterScopedTenant(proxyTenants []*tenant.ProxyTenant, obj *capsulev1beta2.Tenant) bool {
-	requirements := clusterscoped.GetClusterScopeRequirements(
+	selectors := clusterscoped.GetClusterScopeSelectors(
 		tenantsGVK(),
 		v1beta1.ClusterResourceOperationGet,
 		proxyTenants,
 	)
 	tenantLabels := labels.Set(obj.GetLabels())
 
-	for _, requirement := range requirements {
-		if requirement.Matches(tenantLabels) {
+	for _, selector := range selectors {
+		if selector.Matches(tenantLabels) {
 			return true
 		}
 	}

@@ -318,6 +318,7 @@ tasks:
           echo "Cluster $KIND_CLUSTER already exists" >&2
           exit 1
         fi
+        task e2e:check-runner
         task image:build
         scratch=$(mktemp -d)
         export KUBECONFIG="$scratch/kubeconfig"
@@ -467,7 +468,14 @@ tasks:
             cluster-admin) groups= ;;
           esac
           TMPDIR="$scratch" bash "$scratch/create-user.sh" "$user" "$tenant" "$groups"
+          # Approval and signing are asynchronous; the helper can write an empty certificate.
+          kubectl wait --for=jsonpath='{.status.certificate}' "csr/$user-$tenant" --timeout=60s
+          kubectl get csr "$user-$tenant" -o jsonpath='{.status.certificate}' | base64 --decode > "$user-$tenant.crt"
+          openssl x509 -in "$user-$tenant.crt" -noout
           mv "$user-$tenant.kubeconfig" "$user.kubeconfig"
+          chmod 600 "$user.kubeconfig"
+          kubectl --kubeconfig="$user.kubeconfig" config set-credentials "$user" \
+            --client-certificate="$user-$tenant.crt" --client-key="$user-$tenant.key" --embed-certs=true
           cluster=$(kubectl --kubeconfig="$user.kubeconfig" config view --minify -o jsonpath='{.clusters[0].name}')
           if [[ "$CAPSULE_PROXY_MODE" == https ]]; then
             kubectl --kubeconfig="$user.kubeconfig" config set "clusters.$cluster.certificate-authority-data" "$ca"
@@ -486,11 +494,16 @@ tasks:
       - kubectl create clusterrolebinding capsule:selfsubjectaccessreviews --clusterrole=capsule-selfsubjectaccessreviews --group=capsule.clastix.io --dry-run=client -o yaml | kubectl apply -f -
       - kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io --dry-run=client -o yaml | kubectl apply -f -
 
+  e2e:check-runner:
+    desc: Build and check the pinned Ginkgo CLI before provisioning a cluster.
+    cmds:
+      - go tool ginkgo version
+
   e2e:exec:
     desc: Run e2e tests against the prepared cluster; use E2E_ARGS or arguments after -- to select local suites.
     aliases: [e2e-exec]
     cmds:
-      - go run github.com/onsi/ginkgo/v2/ginkgo -v -tags e2e {{.E2E_ARGS | default ""}} {{.CLI_ARGS}} ./e2e
+      - go tool ginkgo -v --fail-on-empty -tags e2e {{.E2E_ARGS | default ""}} {{.CLI_ARGS}} ./e2e
 
   e2e:destroy:
     desc: Delete only the named development Kind cluster.

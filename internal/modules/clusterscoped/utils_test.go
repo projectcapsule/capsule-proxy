@@ -14,7 +14,7 @@ import (
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
 
-func TestGetClusterScopeRequirementsFiltersByOperation(t *testing.T) {
+func TestGetClusterScopeSelectorsFiltersByOperation(t *testing.T) {
 	t.Parallel()
 
 	gvk := &schema.GroupVersionKind{Group: "storage.k8s.io", Version: "v1", Kind: "storageclasses"}
@@ -40,9 +40,9 @@ func TestGetClusterScopeRequirementsFiltersByOperation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			requirements := GetClusterScopeRequirements(gvk, tt.operation, proxyTenants)
+			selectors := GetClusterScopeSelectors(gvk, tt.operation, proxyTenants)
 			for _, value := range []string{"default", "list-only", "get-only"} {
-				got := matchesAny(requirements, labels.Set{"access": value})
+				got := matchesAny(selectors, labels.Set{"access": value})
 				want := contains(tt.want, value)
 				if got != want {
 					t.Fatalf("access=%q matched=%t, want %t", value, got, want)
@@ -63,9 +63,9 @@ func clusterResourceRule(operations []v1beta1.ClusterResourceOperation, access s
 	}
 }
 
-func matchesAny(requirements []labels.Requirement, set labels.Set) bool {
-	for _, requirement := range requirements {
-		if requirement.Matches(set) {
+func matchesAny(selectors []labels.Selector, set labels.Set) bool {
+	for _, selector := range selectors {
+		if selector.Matches(set) {
 			return true
 		}
 	}

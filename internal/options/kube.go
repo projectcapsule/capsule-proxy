@@ -34,6 +34,8 @@ type kubeOpts struct {
 	config                     *rest.Config
 	trustedProxyCIDRs          []*net.IPNet
 	xfcc_header                string
+	requireCapsuleUser         bool
+	capsuleAvailable           bool
 }
 
 func NewKube(
@@ -49,6 +51,7 @@ func NewKube(
 	xfcc_header string,
 	allowedPaths []string,
 	publicPaths []string,
+	requireCapsuleUser, capsuleAvailable bool,
 ) (ListenerOpts, error) {
 	overlappingPaths := sets.New(allowedPaths...).Intersection(sets.New(publicPaths...))
 	if overlappingPaths.Len() > 0 {
@@ -87,7 +90,17 @@ func NewKube(
 		xfcc_header:                xfcc_header,
 		allowedPaths:               allowedPaths,
 		publicPaths:                publicPaths,
+		requireCapsuleUser:         requireCapsuleUser,
+		capsuleAvailable:           capsuleAvailable,
 	}, nil
+}
+
+func (k kubeOpts) RequireCapsuleUser() bool {
+	return k.requireCapsuleUser
+}
+
+func (k kubeOpts) CapsuleAvailable() bool {
+	return k.capsuleAvailable
 }
 
 func (k kubeOpts) AuthTypes() []request.AuthType {

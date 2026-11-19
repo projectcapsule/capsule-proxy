@@ -46,6 +46,84 @@ func hasResourceRule(rules []authorizationv1.ResourceRule, group, resource, verb
 	return false
 }
 
+func TestMutateGlobalAuthorizationDoesNotImplyTenantAccess(t *testing.T) {
+	t.Parallel()
+	review := &authorizationv1.SelfSubjectRulesReview{Status: authorizationv1.SubjectRulesReviewStatus{ResourceRules: []authorizationv1.ResourceRule{{APIGroups: []string{"apps"}, Resources: []string{"deployments"}, Verbs: []string{"get"}}}, Incomplete: true}}
+	proxyTenants := []*tenant.ProxyTenant{{ClusterResources: []v1beta1.ClusterResource{
+		{APIGroups: []string{"storage.k8s.io"}, Resources: []string{"storageclasses"}, Operations: []v1beta1.ClusterResourceOperation{v1beta1.ClusterResourceOperationGet}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"selected": "true"}}},
+		{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{}},
+	}}}
+	var obj runtime.Object = review
+	if err := MutateGlobalAuthorization(proxyTenants, []schema.GroupVersionResource{{Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"}, {Version: "v1", Resource: "namespaces"}}, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+		t.Fatal(err)
+	}
+	if !hasResourceRule(review.Status.ResourceRules, "apps", "deployments", "get") || !review.Status.Incomplete {
+		t.Fatal("upstream self review was not preserved")
+	}
+	if !hasResourceRule(review.Status.ResourceRules, "storage.k8s.io", "storageclasses", "get") {
+		t.Fatal("global grant missing")
+	}
+	if hasResourceRule(review.Status.ResourceRules, "", "namespaces", "list") || hasResourceRule(review.Status.ResourceRules, "storage.k8s.io", "storageclasses", "list") {
+		t.Fatal("self review advertised an ungranted operation")
+	}
+}
+
+func TestMutateGlobalAuthorizationExpandsOnlyDiscoveredClusterRoutes(t *testing.T) {
+	t.Parallel()
+	proxyTenants := []*tenant.ProxyTenant{{ClusterResources: []v1beta1.ClusterResource{{APIGroups: []string{"*"}, Resources: []string{"*"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"shared": "true"}}}}}}
+	resources := []schema.GroupVersionResource{{Version: "v1", Resource: "namespaces"}, {Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"}}
+	review := &authorizationv1.SelfSubjectRulesReview{}
+	var obj runtime.Object = review
+	if err := MutateGlobalAuthorization(proxyTenants, resources, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(review.Status.ResourceRules) != 2 || !hasResourceRule(review.Status.ResourceRules, "", "namespaces", "list") || !hasResourceRule(review.Status.ResourceRules, "storage.k8s.io", "storageclasses", "get") {
+		t.Fatalf("incorrect cluster routes: %+v", review.Status.ResourceRules)
+	}
+	for _, rule := range review.Status.ResourceRules {
+		if hasResourceRule([]authorizationv1.ResourceRule{rule}, "*", "*", "list") {
+			t.Fatal("global review must not advertise unrestricted namespaced access")
+		}
+	}
+}
+
+func TestMutateGlobalAuthorizationVersionsAndSelectorUnions(t *testing.T) {
+	t.Parallel()
+	resources := []schema.GroupVersionResource{{Version: "v1", Resource: "namespaces"}}
+	for _, version := range []string{"", "*", "v1", "v99"} {
+		for _, verb := range []string{"list", "get"} {
+			for _, unsafe := range []bool{false, true} {
+				t.Run(version+"/"+verb+map[bool]string{false: "/safe", true: "/unsafe"}[unsafe], func(t *testing.T) {
+					grants := []*tenant.ProxyTenant{{ClusterResources: []v1beta1.ClusterResource{
+						{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"tenant": "a", "environment": "dev"}}},
+					}}}
+					if unsafe {
+						grants[0].ClusterResources = append(grants[0].ClusterResources, v1beta1.ClusterResource{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"tenant": "b", "environment": "prod"}}})
+					}
+					review := namespacedAccessReview("", "namespaces", verb, "")
+					review.Spec.ResourceAttributes.Version = version
+					var obj runtime.Object = review
+					if err := MutateGlobalAuthorization(grants, resources, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+						t.Fatal(err)
+					}
+					want := version != "v99" && !(unsafe && verb == "list")
+					if review.Status.Allowed != want || review.Status.Denied == want {
+						t.Fatalf("status=%+v want allowed=%t", review.Status, want)
+					}
+					rules := &authorizationv1.SelfSubjectRulesReview{}
+					obj = rules
+					if err := MutateGlobalAuthorization(grants, resources, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+						t.Fatal(err)
+					}
+					if hasResourceRule(rules.Status.ResourceRules, "", "namespaces", "list") == unsafe || !hasResourceRule(rules.Status.ResourceRules, "", "namespaces", "get") {
+						t.Fatalf("rules do not reflect selector representability: %+v", rules.Status.ResourceRules)
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestMutateAuthorization_SelfSubjectRulesReviewMerges(t *testing.T) {
 	t.Parallel()
 
@@ -85,9 +163,13 @@ func TestMutateAuthorization_SelfSubjectRulesReviewMerges(t *testing.T) {
 		},
 	}
 
+	for i := range proxyTenants[0].ClusterResources {
+		proxyTenants[0].ClusterResources[i].Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"shared": "true"}}
+	}
+	resources := []schema.GroupVersionResource{{Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"}, {Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"}, {Version: "v1", Resource: "nodes"}}
 	var obj runtime.Object = review
 
-	if err := MutateAuthorization(true, proxyTenants, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+	if err := MutateAuthorization(true, proxyTenants, nil, resources, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -120,6 +202,28 @@ func TestMutateAuthorization_SelfSubjectRulesReviewMerges(t *testing.T) {
 
 	if len(review.Status.NonResourceRules) != 1 {
 		t.Errorf("expected NonResourceRules from the API server to be preserved, got %+v", review.Status.NonResourceRules)
+	}
+}
+
+func TestMutateAuthorizationRulesRespectSelectorUnions(t *testing.T) {
+	t.Parallel()
+	for _, unsafe := range []bool{false, true} {
+		environment := "dev"
+		if unsafe {
+			environment = "prod"
+		}
+		grants := []*tenant.ProxyTenant{{ClusterResources: []v1beta1.ClusterResource{
+			{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"tenant": "a", "environment": "dev"}}},
+			{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"tenant": "b", "environment": environment}}},
+		}}}
+		review := &authorizationv1.SelfSubjectRulesReview{Status: authorizationv1.SubjectRulesReviewStatus{ResourceRules: []authorizationv1.ResourceRule{{APIGroups: []string{"apps"}, Resources: []string{"deployments"}, Verbs: []string{"get"}}}}}
+		var obj runtime.Object = review
+		if err := MutateAuthorization(true, grants, nil, []schema.GroupVersionResource{{Version: "v1", Resource: "namespaces"}}, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+			t.Fatal(err)
+		}
+		if hasResourceRule(review.Status.ResourceRules, "", "namespaces", "list") == unsafe || !hasResourceRule(review.Status.ResourceRules, "", "namespaces", "get") || !hasResourceRule(review.Status.ResourceRules, "apps", "deployments", "get") {
+			t.Fatalf("unsafe=%t rules=%+v", unsafe, review.Status.ResourceRules)
+		}
 	}
 }
 
@@ -161,7 +265,7 @@ func TestMutateAuthorization_SelfSubjectAccessReviewClusterResourceOperations(t 
 			}}}}
 
 			var obj runtime.Object = review
-			if err := MutateAuthorization(true, proxyTenants, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+			if err := MutateAuthorization(true, proxyTenants, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -182,7 +286,7 @@ func TestMutateAuthorization_SelfSubjectRulesReviewWithoutClusterScoped(t *testi
 
 	var obj runtime.Object = review
 
-	if err := MutateAuthorization(false, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
+	if err := MutateAuthorization(false, nil, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectRulesReview"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -206,7 +310,7 @@ func TestMutateAuthorization_SelfSubjectAccessReviewNamespacesList(t *testing.T)
 
 	var obj runtime.Object = review
 
-	if err := MutateAuthorization(false, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+	if err := MutateAuthorization(false, nil, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -236,7 +340,7 @@ func TestMutateAuthorization_SelfSubjectAccessReviewNonResourceAttributes(t *tes
 
 	var obj runtime.Object = review
 
-	if err := MutateAuthorization(true, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+	if err := MutateAuthorization(true, nil, nil, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -272,7 +376,7 @@ func TestMutateAuthorization_SelfSubjectAccessReviewNamespacedAllNamespaces(t *t
 
 		var obj runtime.Object = review
 
-		if err := MutateAuthorization(false, proxyTenants, namespaced, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+		if err := MutateAuthorization(false, proxyTenants, namespaced, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -291,7 +395,7 @@ func TestMutateAuthorization_SelfSubjectAccessReviewNamespacedNotTenantOwner(t *
 
 	var obj runtime.Object = review
 
-	if err := MutateAuthorization(false, nil, namespaced, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+	if err := MutateAuthorization(false, nil, namespaced, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -311,7 +415,7 @@ func TestMutateAuthorization_SelfSubjectAccessReviewNamespacedScopedRequest(t *t
 
 	var obj runtime.Object = review
 
-	if err := MutateAuthorization(false, proxyTenants, namespaced, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+	if err := MutateAuthorization(false, proxyTenants, namespaced, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -331,7 +435,7 @@ func TestMutateAuthorization_SelfSubjectAccessReviewNonProxiedResource(t *testin
 
 	var obj runtime.Object = review
 
-	if err := MutateAuthorization(false, proxyTenants, namespaced, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
+	if err := MutateAuthorization(false, proxyTenants, namespaced, nil, &obj, schema.GroupVersionKind{Kind: "SelfSubjectAccessReview"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
