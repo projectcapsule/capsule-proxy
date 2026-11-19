@@ -27,6 +27,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -59,6 +60,7 @@ func globalAccessProxy(f *accessFixture, standalone bool, extraArgs ...string) *
 	if standalone {
 		name = f.id + "-standalone"
 	}
+	name += "-" + rand.String(5)
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: source.Namespace, Labels: map[string]string{accessRunLabel: f.id}}, Spec: *source.Spec.DeepCopy()}
 	pod.Spec.NodeName = ""
 	pod.Spec.HostNetwork = false

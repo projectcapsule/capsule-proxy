@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -237,6 +238,85 @@ var _ = Describe("Global namespace GET grants", Ordered, ContinueOnFailure, Labe
 				}
 			}
 		}
+	})
+
+	It("does not reveal namespace existence through denied self-reviews", func() {
+		f.namespaces["missing"] = f.id + "-absent"
+		Expect(apierrors.IsNotFound(k8sClient.Get(ctx, client.ObjectKey{Name: f.namespaces["missing"]}, &corev1.Namespace{}))).To(BeTrue())
+		for _, subject := range []string{"coowner", "outsider"} {
+			cl := reviewClient(f.proxyConfig, subject)
+			var denied []authorizationv1.SubjectAccessReviewStatus
+			for _, key := range []string{"b-private", "excluded", "missing"} {
+				expectNotFound(subject, key)
+				Eventually(func(g Gomega) {
+					result, err := review(cl, key)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(result.Status.Allowed).To(BeFalse())
+					g.Expect(result.Status.Denied).To(BeTrue())
+					g.Expect(result.Status.EvaluationError).To(BeEmpty())
+				}, accessTimeout, defaultPollInterval).Should(Succeed())
+				result, err := review(cl, key)
+				Expect(err).NotTo(HaveOccurred())
+				denied = append(denied, result.Status)
+			}
+			Expect(denied[1]).To(Equal(denied[0]))
+			Expect(denied[2]).To(Equal(denied[0]), "a missing namespace must not produce a distinct denial")
+		}
+	})
+
+	It("preserves native GET permissions for exact allowed and public paths", func() {
+		const account = "namespace-bypass-reader"
+		identityNamespace := f.namespaces["identities"]
+		username := "system:serviceaccount:" + identityNamespace + ":" + account
+		f.create(&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: account, Namespace: identityNamespace}})
+		f.addTenant("bypass-actor", capsulerbac.OwnerListSpec{f.owner(capsulerbac.ServiceAccountOwner, username)})
+		role := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: f.id + "-bypass-get"}, Rules: []rbacv1.PolicyRule{{APIGroups: []string{""}, Resources: []string{"namespaces"}, ResourceNames: []string{f.namespaces["b-private"], f.namespaces["excluded"]}, Verbs: []string{"get"}}}}
+		f.create(role)
+		f.create(&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: role.Name}, RoleRef: rbacv1.RoleRef{Kind: "ClusterRole", APIGroup: rbacv1.GroupName, Name: role.Name}, Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: account, Namespace: identityNamespace}}})
+		admin, err := kubernetes.NewForConfig(cfg)
+		Expect(err).NotTo(HaveOccurred())
+		token, err := admin.CoreV1().ServiceAccounts(identityNamespace).CreateToken(ctx, account, &authenticationv1.TokenRequest{}, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		endpoint := globalAccessProxy(f, false, "--require-capsule-user=true",
+			"--allowed-paths=/api/v1/namespaces/"+f.namespaces["b-private"],
+			"--public-paths=/api/v1/namespaces/"+f.namespaces["excluded"])
+		clients := make([]*kubernetes.Clientset, 0, 2)
+		for _, base := range []*rest.Config{cfg, endpoint} {
+			// Use the real token without administrator certificates or impersonation,
+			// including on the public path where the proxy forwards it unchanged.
+			config := &rest.Config{Host: base.Host, BearerToken: token.Status.Token, QPS: 200, Burst: 400, Timeout: 10 * time.Second, TLSClientConfig: rest.TLSClientConfig{CAFile: base.CAFile, CAData: base.CAData, ServerName: base.ServerName}}
+			cl, err := kubernetes.NewForConfig(config)
+			Expect(err).NotTo(HaveOccurred())
+			clients = append(clients, cl)
+		}
+		direct, proxy := clients[0], clients[1]
+		// An empty Tenant has no namespaces. A successful empty proxy LIST proves
+		// identity/filter readiness while the other real tenants remain present.
+		Eventually(func(g Gomega) {
+			list, err := proxy.CoreV1().Namespaces().List(ctx, f.listOptions())
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(list.Items).To(BeEmpty())
+		}, accessTimeout, defaultPollInterval).Should(Succeed())
+		for _, key := range []string{"b-private", "excluded"} {
+			Eventually(func(g Gomega) {
+				for _, cl := range clients {
+					ns, err := cl.CoreV1().Namespaces().Get(ctx, f.namespaces[key], metav1.GetOptions{})
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(ns.Name).To(Equal(f.namespaces[key]))
+				}
+			}, accessTimeout, defaultPollInterval).Should(Succeed())
+			native, err := review(direct, key)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(native.Status.Allowed).To(BeTrue())
+			result, err := review(proxy, key)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Status).To(Equal(native.Status), "target path bypass must retain native self-review")
+		}
+		_, err = proxy.CoreV1().Namespaces().Get(ctx, f.namespaces["b-shared"], metav1.GetOptions{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the neighboring protected path must remain inaccessible: %v", err)
+		result, err := review(proxy, "b-shared")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.Status.Allowed).To(BeFalse())
 	})
 
 	It("updates reflected namespace self-reviews when a RoleBinding is removed", func() {

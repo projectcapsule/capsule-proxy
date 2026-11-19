@@ -220,3 +220,27 @@ func TestGetNamespaceReadErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestGetNamespaceMissingReviewDoesNotGrant(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	reader := fake.NewClientBuilder().WithScheme(scheme).Build()
+	mod := Get(nil, reader)
+	httpRequest := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/namespaces/absent", nil), map[string]string{"name": "absent"})
+	request := testRequest{httpRequest}
+	selector, err := mod.Handle(nil, request)
+	if err != nil || selector == nil || !selector.Empty() {
+		t.Fatalf("GET must preserve upstream forwarding: selector=%v, err=%v", selector, err)
+	}
+	selector, err = mod.HandleReview(nil, request)
+	if selector != nil || err == nil {
+		t.Fatalf("missing namespace is not an authorization grant: selector=%v, err=%v", selector, err)
+	}
+	status, ok := err.(interface{ Status() *metav1.Status })
+	if !ok || status.Status().Code != http.StatusNotFound {
+		t.Fatalf("expected the same denial as an inaccessible namespace, got %v", err)
+	}
+}

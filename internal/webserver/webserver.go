@@ -191,7 +191,7 @@ type kubeFilter struct {
 	clusterResources     []schema.GroupVersionResource
 	clusterResourceKinds map[schema.GroupVersionResource]schema.GroupVersionKind
 	// Reuse the registered namespace GET module for named self-reviews.
-	namespaceGetModule modules.Module
+	namespaceGetModule namespace.GetModule
 }
 
 // NeedLeaderElection starts the proxy (webserver) independently of controller manager
@@ -698,8 +698,8 @@ func (n *kubeFilter) registerModules(root *mux.Router) {
 }
 
 func (n *kubeFilter) registerModule(root *mux.Router, mod modules.Module) {
-	if mod.GroupKind() == (schema.GroupKind{Group: corev1.GroupName, Kind: proxytypes.Namespaces}) && mod.Path() == "/api/v1/namespaces/{name}" {
-		n.namespaceGetModule = mod
+	if namespaceGet, ok := mod.(namespace.GetModule); ok {
+		n.namespaceGetModule = namespaceGet
 	}
 
 	rp := root.Path(mod.Path())

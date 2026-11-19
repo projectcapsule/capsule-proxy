@@ -34,7 +34,14 @@ type get struct {
 	gk           schema.GroupVersionKind
 }
 
-func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.Reader) modules.Module {
+// GetModule shares namespace access checks between forwarding and self-reviews.
+// A review cannot treat the missing-namespace forwarding fallback as a grant.
+type GetModule interface {
+	modules.Module
+	HandleReview(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (labels.Selector, error)
+}
+
+func Get(roleBindingsReflector *controllers.RoleBindingReflector, client client.Reader) GetModule {
 	label, _ := capsulev1beta2.GetTypeLabel(&capsulev1beta2.Tenant{})
 
 	return &get{
@@ -66,13 +73,25 @@ func (l get) Methods() []string {
 	return []string{http.MethodGet}
 }
 
-func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (selector labels.Selector, err error) {
+func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (labels.Selector, error) {
+	return l.handle(proxyTenants, proxyRequest, true)
+}
+
+func (l get) HandleReview(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request) (labels.Selector, error) {
+	return l.handle(proxyTenants, proxyRequest, false)
+}
+
+func (l get) handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Request, forwardMissing bool) (selector labels.Selector, err error) {
 	name := mux.Vars(proxyRequest.GetHTTPRequest())["name"]
 	// Namespace must be retrieved: according to the strategy implemented by the proxy (cached, or API reader)
 	// we need to check if the resource belongs to one of the available Tenant resources.
 	ns := &corev1.Namespace{}
 	if err = l.client.Get(proxyRequest.GetHTTPRequest().Context(), types.NamespacedName{Name: name}, ns); err != nil {
 		if apierr.IsNotFound(err) {
+			if !forwardMissing {
+				return nil, errors.NewNotFoundError(name, l.GroupKind())
+			}
+
 			// Forward to that the API server answers; the namespace may be newly created ( #266)
 			return labels.NewSelector(), nil
 		}

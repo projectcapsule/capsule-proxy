@@ -11,6 +11,7 @@ import (
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
 )
@@ -19,7 +20,7 @@ import (
 // and identity/settings resolution, which this change leaves untouched.
 func BenchmarkNamespaceGetSelfReview(b *testing.B) {
 	for _, count := range []int{1, 32} {
-		for _, mode := range []string{"selected", "excluded", "owner", "list"} {
+		for _, mode := range []string{"selected", "excluded", "missing", "allowed-path", "public-path", "owner", "list"} {
 			b.Run(fmt.Sprintf("tenants=%d/%s", count, mode), func(b *testing.B) {
 				f := newGlobalAccessFixture(b, true, true, true)
 				reader := &namespaceReviewReader{Reader: f.client}
@@ -37,10 +38,24 @@ func BenchmarkNamespaceGetSelfReview(b *testing.B) {
 				if mode == "owner" {
 					proxyTenants[count-1].Tenant.Name = "tenant-a"
 				}
+				if mode == "missing" {
+					attributes.Name = "absent-namespace"
+				}
+				if mode == "allowed-path" || mode == "public-path" {
+					attributes.Name = "tenant-a-ns"
+					path := "/api/v1/namespaces/" + attributes.Name
+					if mode == "allowed-path" {
+						f.filter.allowedPaths = sets.New(path)
+					} else {
+						f.filter.publicPaths = sets.New(path)
+					}
+				}
 				if mode == "list" {
 					attributes.Verb, attributes.Name = "list", ""
 				}
-				body, err := json.Marshal(&authorizationv1.SelfSubjectAccessReview{TypeMeta: metav1.TypeMeta{APIVersion: "authorization.k8s.io/v1", Kind: "SelfSubjectAccessReview"}, Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: attributes}})
+				input := &authorizationv1.SelfSubjectAccessReview{TypeMeta: metav1.TypeMeta{APIVersion: "authorization.k8s.io/v1", Kind: "SelfSubjectAccessReview"}, Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: attributes}}
+				input.Status.Allowed = mode == "allowed-path" || mode == "public-path"
+				body, err := json.Marshal(input)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -55,7 +70,7 @@ func BenchmarkNamespaceGetSelfReview(b *testing.B) {
 				}
 				b.StopTimer()
 				var review authorizationv1.SelfSubjectAccessReview
-				if err := json.Unmarshal(result, &review); err != nil || review.Status.Allowed != (mode != "excluded") {
+				if err := json.Unmarshal(result, &review); err != nil || review.Status.Allowed != (mode != "excluded" && mode != "missing") {
 					b.Fatalf("invalid review: %+v, %v", review.Status, err)
 				}
 				b.ReportMetric(float64(reader.reads)/float64(b.N), "namespace-GET/op")

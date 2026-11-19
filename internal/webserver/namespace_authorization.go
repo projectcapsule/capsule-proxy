@@ -49,16 +49,25 @@ func (n *kubeFilter) mutateNamespaceGetReview(ctx context.Context, proxyTenants 
 		return true
 	}
 
+	// Match the GET route's exact-path bypasses before checking namespace data.
+	// Bypassed paths retain the upstream review, including native denials.
+	if n.allowedPaths.Has(httpRequest.URL.Path) || n.publicPaths.Has(httpRequest.URL.Path) {
+		return true
+	}
+
 	httpRequest = mux.SetURLVars(httpRequest, map[string]string{resourceNameVar: attributes.Name})
 	// The context already carries the verified identity. Reflection reuses it
 	// without another TokenReview or impersonation review.
-	selector, err := n.namespaceGetModule.Handle(proxyTenants, request.NewHTTP(httpRequest, nil, "", nil, nil, nil, false, ""))
+	selector, err := n.namespaceGetModule.HandleReview(proxyTenants, request.NewHTTP(httpRequest, nil, "", nil, nil, nil, false, ""))
 	if err != nil {
 		review.Status.Allowed, review.Status.Denied = false, false
 		review.Status.Reason = err.Error()
 
 		if status, ok := errors.AsType[moduleerrors.Error](err); ok && status.Status().Code == http.StatusNotFound {
 			review.Status.Denied = true
+			// Missing and inaccessible namespaces must not reveal their existence
+			// through different self-review decisions or denial messages.
+			review.Status.Reason = "namespace access not granted by capsule-proxy"
 		} else {
 			review.Status.EvaluationError = err.Error()
 		}

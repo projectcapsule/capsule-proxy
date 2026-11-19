@@ -109,6 +109,11 @@ and zero/eight extra groups. The excluded-namespace comparison intentionally
 differs: native RBAC allows it, while the proxy's tenant/selector boundary denies it.
 It uses the main proxy with `ProxyClusterScoped=true` and the default Capsule
 identity gate. Ordinary LIST/rules reviews do not need this named namespace lookup.
+Named reviews preserve native answers for exact `allowedPaths`/`publicPaths`
+targets, and return the same denial for missing and inaccessible namespaces. The
+missing-namespace GET forwarding fallback remains unchanged and is not a review
+grant. Bypass cases use a real ServiceAccount token, native named GET permissions,
+and an additional Tenant to exercise both the route and the self-review path.
 An isolated copy of the changed proxy also exercises `--disable-caching=true`;
 its named-review workload includes the extra authoritative namespace API read
 and pod port-forward transport overhead.

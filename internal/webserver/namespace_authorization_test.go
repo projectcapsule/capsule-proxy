@@ -7,9 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -21,11 +23,13 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/projectcapsule/capsule-proxy/internal/controllers"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
+	"github.com/projectcapsule/capsule-proxy/internal/webserver/middleware"
 )
 
 type namespaceReviewReader struct {
@@ -186,6 +190,133 @@ func TestCapsuleNamespaceGetSelfReviews(t *testing.T) {
 					t.Errorf("namespace reads=%d want=%d, token reviews=%d want=1, impersonation reviews=%d want=0", reader.reads, reads, f.writer.tokens.Load(), f.writer.reviews.Load())
 				}
 			})
+		}
+	}
+}
+
+func TestNamespaceSelfReviewDoesNotDiscloseExistence(t *testing.T) {
+	for _, mediaType := range []string{"application/json", "application/vnd.kubernetes.protobuf"} {
+		for _, nativeAllowed := range []bool{false, true} {
+			t.Run(mediaType+fmt.Sprintf("/native=%t", nativeAllowed), func(t *testing.T) {
+				f := newGlobalAccessFixture(t, true, true, true)
+				reader := &namespaceReviewReader{Reader: f.client}
+				f.filter.reader = reader
+				f.routes()
+				f.enableAuthorization(t)
+				var statuses []authorizationv1.SubjectAccessReviewStatus
+				for _, name := range []string{"tenant-b-ns", "absent-namespace"} {
+					review := &authorizationv1.SelfSubjectAccessReview{TypeMeta: metav1.TypeMeta{APIVersion: "authorization.k8s.io/v1", Kind: "SelfSubjectAccessReview"}, Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Version: "v1", Resource: "namespaces", Verb: "get", Name: name}}, Status: authorizationv1.SubjectAccessReviewStatus{Allowed: nativeAllowed, Denied: !nativeAllowed, Reason: "native RBAC"}}
+					var body []byte
+					var err error
+					if mediaType == "application/json" {
+						body, err = json.Marshal(review)
+					} else {
+						body, err = runtime.Encode(f.filter.protoEncoder, review)
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					before := reader.reads
+					result, err := f.filter.mutateAuthorizationBody(t.Context(), body, mediaType, nil, true)
+					if err != nil {
+						t.Fatal(err)
+					}
+					obj, _, err := f.filter.universalDecoder.Decode(result, nil, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					status := obj.(*authorizationv1.SelfSubjectAccessReview).Status
+					if status.Allowed || !status.Denied || status.EvaluationError != "" || reader.reads != before+1 {
+						t.Errorf("%s: status=%+v namespace reads=%d, want denial and one read", name, status, reader.reads-before)
+					}
+					statuses = append(statuses, status)
+				}
+				if !reflect.DeepEqual(statuses[0], statuses[1]) {
+					t.Errorf("namespace existence changed the denial: %+v versus %+v", statuses[0], statuses[1])
+				}
+			})
+		}
+	}
+}
+
+func TestNamespaceSelfReviewHonorsPathBypasses(t *testing.T) {
+	isolateCapsuleIdentities(t)
+	controllers.CapsuleUsers.Insert("external")
+	const target = "/api/v1/namespaces/tenant-a-ns"
+	for _, mediaType := range []string{"application/json", "application/vnd.kubernetes.protobuf"} {
+		for _, bypass := range []string{"allowed", "public"} {
+			for _, configured := range []string{target, "/api/v1/namespaces", target + "-sibling"} {
+				for _, nativeAllowed := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/%s/%s/native=%t", mediaType, bypass, configured, nativeAllowed), func(t *testing.T) {
+						f := newGlobalAccessFixture(t, true, true, true)
+						reader := &namespaceReviewReader{Reader: f.client}
+						f.filter.reader = reader
+						f.grant(t, capsulerbac.UserOwner, "external", globalNamespaceGrant("tenant-b-ns"))
+						if bypass == "allowed" {
+							f.filter.allowedPaths = sets.New(configured)
+						} else {
+							f.filter.publicPaths = sets.New(configured)
+						}
+						f.routes()
+						f.enableAuthorization(t)
+						f.handler = middleware.CheckPaths(f.filter.log, f.filter.publicPaths, f.filter.reverseProxy.ServeHTTP)(f.handler)
+						upstream := &authorizationv1.SelfSubjectAccessReview{TypeMeta: metav1.TypeMeta{APIVersion: "authorization.k8s.io/v1", Kind: "SelfSubjectAccessReview"}, Spec: authorizationv1.SelfSubjectAccessReviewSpec{ResourceAttributes: &authorizationv1.ResourceAttributes{Version: "v1", Resource: "namespaces", Verb: "get", Name: "tenant-a-ns"}}, Status: authorizationv1.SubjectAccessReviewStatus{Allowed: nativeAllowed, Denied: !nativeAllowed, Reason: "native RBAC"}}
+						var body []byte
+						var err error
+						if mediaType == "application/json" {
+							body, err = json.Marshal(upstream)
+						} else {
+							body, err = runtime.Encode(f.filter.protoEncoder, upstream)
+						}
+						if err != nil {
+							t.Fatal(err)
+						}
+						f.filter.reverseProxy.Transport = promotionTransport(func(r *http.Request) (*http.Response, error) {
+							if r.Method == http.MethodPost {
+								return &http.Response{StatusCode: http.StatusCreated, Header: http.Header{"Content-Type": {mediaType}}, Body: io.NopCloser(strings.NewReader(string(body))), Request: r}, nil
+							}
+							status := http.StatusForbidden
+							if nativeAllowed {
+								status = http.StatusOK
+							}
+							if bypass == "allowed" && r.Header.Get("Impersonate-User") != "external" {
+								t.Errorf("allowed path lost native impersonation: %v", r.Header)
+							}
+							return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"kind":"Namespace","apiVersion":"v1","metadata":{"name":"tenant-a-ns"}}`)), Request: r}, nil
+						})
+						get := httptest.NewRequest(http.MethodGet, target, nil)
+						get.Header.Set("Authorization", "Bearer caller-token")
+						getResponse := httptest.NewRecorder()
+						f.handler.ServeHTTP(getResponse, get)
+						req := httptest.NewRequest(http.MethodPost, "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews", nil)
+						req.Header.Set("Authorization", "Bearer caller-token")
+						reader.reads = 0
+						f.writer.tokens.Store(0)
+						response := httptest.NewRecorder()
+						f.handler.ServeHTTP(response, req)
+						obj, _, err := f.filter.universalDecoder.Decode(response.Body.Bytes(), nil, nil)
+						if err != nil {
+							t.Fatal(err)
+						}
+						status := obj.(*authorizationv1.SelfSubjectAccessReview).Status
+						want, reads := configured == target && nativeAllowed, 1
+						if configured == target {
+							reads = 0
+							if !reflect.DeepEqual(status, upstream.Status) {
+								t.Errorf("bypass changed native review: %+v want %+v", status, upstream.Status)
+							}
+							if getResponse.Code != map[bool]int{true: http.StatusOK, false: http.StatusForbidden}[nativeAllowed] {
+								t.Errorf("unexpected native GET: %d", getResponse.Code)
+							}
+						} else if getResponse.Code != http.StatusNotFound {
+							t.Errorf("nonmatching bypass changed GET: %d", getResponse.Code)
+						}
+						if response.Code != http.StatusCreated || status.Allowed != want || (getResponse.Code == http.StatusOK) != status.Allowed || reader.reads != reads || f.writer.tokens.Load() != 1 {
+							t.Errorf("GET=%d review=%+v namespace reads=%d want=%d token reviews=%d", getResponse.Code, status, reader.reads, reads, f.writer.tokens.Load())
+						}
+					})
+				}
+			}
 		}
 	}
 }
