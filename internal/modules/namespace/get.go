@@ -71,11 +71,25 @@ func (l get) Handle(proxyTenants []*tenant.ProxyTenant, proxyRequest request.Req
 	// Namespace must be retrieved: according to the strategy implemented by the proxy (cached, or API reader)
 	// we need to check if the resource belongs to one of the available Tenant resources.
 	ns := &corev1.Namespace{}
-	if err = l.client.Get(proxyRequest.GetHTTPRequest().Context(), types.NamespacedName{Name: name}, ns); err != nil && apierr.IsNotFound(err) {
-		return labels.NewSelector(), nil
+	if err = l.client.Get(proxyRequest.GetHTTPRequest().Context(), types.NamespacedName{Name: name}, ns); err != nil {
+		if apierr.IsNotFound(err) {
+			// Forward to that the API server answers; the namespace may be newly created ( #266)
+			return labels.NewSelector(), nil
+		}
+
+		// Stop here: without the Namespace the following checks won't be possible.
+		return nil, errors.NewBadRequest(err, l.GroupKind())
 	}
-	// Returning a not found if the Namespace is not owned by a Tenant resource.
+
 	if len(ns.GetOwnerReferences()) == 0 || ns.GetOwnerReferences()[0].Kind != "Tenant" {
+		if matchesClusterScopedNamespace(proxyTenants, ns) {
+			// Namespaces can additionally be granted through cluster-scoped
+			// ClusterResources rules from GlobalProxySettings that
+			// select namespaces by label. This lets subjects that are not tenant owners
+			// get the matching namespaces.
+			return labels.NewSelector(), nil
+		}
+
 		return nil, errors.NewNotFoundError(name, l.GroupKind())
 	}
 	// Extracting the Tenant name from the owner reference:
