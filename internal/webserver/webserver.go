@@ -76,6 +76,7 @@ import (
 const (
 	bearerTokenReloadRetryDelay = time.Minute
 	readinessProbeTimeout       = 5 * time.Second
+	resourceNameVar             = "name"
 )
 
 func NewKubeFilter(
@@ -189,6 +190,8 @@ type kubeFilter struct {
 	namespacedResources  sets.Set[string]
 	clusterResources     []schema.GroupVersionResource
 	clusterResourceKinds map[schema.GroupVersionResource]schema.GroupVersionKind
+	// Reuse the registered namespace GET module for named self-reviews.
+	namespaceGetModule namespace.GetModule
 }
 
 // NeedLeaderElection starts the proxy (webserver) independently of controller manager
@@ -493,7 +496,9 @@ func (n *kubeFilter) mutateAuthorizationBody(ctx context.Context, body []byte, c
 	}
 
 	if capsuleIdentity {
-		err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, n.namespacedResources, n.clusterResources, &obj, *gvk)
+		if !n.mutateNamespaceGetReview(ctx, proxyTenants, obj) {
+			err = authorization.MutateAuthorization(n.gates.Enabled(features.ProxyClusterScoped), proxyTenants, n.namespacedResources, n.clusterResources, &obj, *gvk)
+		}
 	} else {
 		allowed, lookupErr := n.globalReviewGetAllowed(ctx, proxyTenants, obj)
 		if lookupErr != nil || !allowed {
@@ -693,6 +698,10 @@ func (n *kubeFilter) registerModules(root *mux.Router) {
 }
 
 func (n *kubeFilter) registerModule(root *mux.Router, mod modules.Module) {
+	if namespaceGet, ok := mod.(namespace.GetModule); ok {
+		n.namespaceGetModule = namespaceGet
+	}
+
 	rp := root.Path(mod.Path())
 	if m := mod.Methods(); len(m) > 0 {
 		rp = rp.Methods(m...)

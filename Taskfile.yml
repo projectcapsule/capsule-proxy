@@ -495,15 +495,16 @@ tasks:
       - kubectl create clusterrolebinding capsule:apis --clusterrole=capsule-apis --group=capsule.clastix.io --dry-run=client -o yaml | kubectl apply -f -
 
   e2e:check-runner:
-    desc: Build and check the pinned Ginkgo CLI before provisioning a cluster.
+    desc: Check the pinned Ginkgo CLI and compile the e2e suite with locked dependencies before provisioning a cluster.
     cmds:
-      - go tool ginkgo version
+      - GOFLAGS="${GOFLAGS:-} -mod=readonly" go tool ginkgo version
+      - go test -mod=readonly -tags=e2e -run '^$' ./e2e
 
   e2e:exec:
     desc: Run e2e tests against the prepared cluster; use E2E_ARGS or arguments after -- to select local suites.
     aliases: [e2e-exec]
     cmds:
-      - go tool ginkgo -v --fail-on-empty -tags e2e {{.E2E_ARGS | default ""}} {{.CLI_ARGS}} ./e2e
+      - GOFLAGS="${GOFLAGS:-} -mod=readonly" go tool ginkgo -v --fail-on-empty -tags e2e {{.E2E_ARGS | default ""}} {{.CLI_ARGS}} ./e2e
 
   e2e:destroy:
     desc: Delete only the named development Kind cluster.

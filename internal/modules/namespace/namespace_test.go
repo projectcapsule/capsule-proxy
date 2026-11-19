@@ -4,6 +4,8 @@
 package namespace
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -13,10 +15,13 @@ import (
 	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	v1beta1 "github.com/projectcapsule/capsule-proxy/api/v1beta1"
 	"github.com/projectcapsule/capsule-proxy/internal/tenant"
@@ -46,18 +51,18 @@ var namespaceCases = []struct {
 	},
 	{
 		name:         "tenant owner multiple",
-		proxyTenants: []*tenant.ProxyTenant{tenantOwner("solar", "solar-dev","fire-dev")},
+		proxyTenants: []*tenant.ProxyTenant{tenantOwner("solar", "solar-dev", "fire-dev")},
 		visible:      []string{"solar-dev", "fire-dev"},
 	},
 	{
 		name:         "global rule",
 		proxyTenants: []*tenant.ProxyTenant{globalRule(map[string]string{"env": "shared"})},
-		visible:      []string{ "fire-dev", "earth-dev"},
+		visible:      []string{"fire-dev", "earth-dev"},
 	},
 	{
 		name:         "tenant owner + global rule",
-		proxyTenants: []*tenant.ProxyTenant{tenantOwner("solar", "solar-dev","fire-dev"), globalRule(map[string]string{"env": "shared"})},
-		visible:      []string{"solar-dev","fire-dev", "earth-dev"},
+		proxyTenants: []*tenant.ProxyTenant{tenantOwner("solar", "solar-dev", "fire-dev"), globalRule(map[string]string{"env": "shared"})},
+		visible:      []string{"solar-dev", "fire-dev", "earth-dev"},
 	},
 }
 
@@ -153,5 +158,89 @@ func TestNamespaces(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetNamespaceReadErrors(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		err     error
+		forward bool
+	}{
+		{name: "missing namespace delegates to API server", err: apierrors.NewNotFound(corev1.Resource("namespaces"), "shared"), forward: true},
+		{name: "reader failure rejects global grant", err: errors.New("namespace reader failed")},
+		{name: "forbidden read rejects global grant", err: apierrors.NewForbidden(corev1.Resource("namespaces"), "shared", errors.New("read denied"))},
+		{name: "cancellation rejects global grant", err: context.Canceled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			scheme := runtime.NewScheme()
+			if err := corev1.AddToScheme(scheme); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			httpRequest := httptest.NewRequest(http.MethodGet, "/api/v1/namespaces/shared", nil).WithContext(ctx)
+			httpRequest = mux.SetURLVars(httpRequest, map[string]string{"name": "shared"})
+
+			reads := 0
+			reader := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+				Get: func(got context.Context, _ client.WithWatch, key client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+					reads++
+					if got != httpRequest.Context() || key.Name != "shared" {
+						t.Errorf("unexpected namespace read: context=%v, key=%v", got, key)
+					}
+					return tc.err
+				},
+			}).Build()
+			selector, err := Get(nil, reader).Handle([]*tenant.ProxyTenant{globalRule(map[string]string{"env": "shared"})}, testRequest{httpRequest})
+			if reads != 1 {
+				t.Errorf("namespace reads = %d, want 1", reads)
+			}
+			if tc.forward {
+				if err != nil || selector == nil || !selector.Empty() {
+					t.Fatalf("missing namespace must forward: selector=%v, err=%v", selector, err)
+				}
+				return
+			}
+			if selector != nil || err == nil {
+				t.Fatalf("read failure must reject: selector=%v, err=%v", selector, err)
+			}
+			statusError, ok := err.(interface{ Status() *metav1.Status })
+			if !ok {
+				t.Fatalf("expected Kubernetes module error, got %T", err)
+			}
+			status := statusError.Status()
+			if status.Code != http.StatusBadRequest || status.Reason != metav1.StatusReasonBadRequest || status.Message != tc.err.Error() {
+				t.Errorf("unexpected read-error status: %+v", status)
+			}
+		})
+	}
+}
+
+func TestGetNamespaceMissingReviewDoesNotGrant(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	reader := fake.NewClientBuilder().WithScheme(scheme).Build()
+	mod := Get(nil, reader)
+	httpRequest := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/namespaces/absent", nil), map[string]string{"name": "absent"})
+	request := testRequest{httpRequest}
+	selector, err := mod.Handle(nil, request)
+	if err != nil || selector == nil || !selector.Empty() {
+		t.Fatalf("GET must preserve upstream forwarding: selector=%v, err=%v", selector, err)
+	}
+	selector, err = mod.HandleReview(nil, request)
+	if selector != nil || err == nil {
+		t.Fatalf("missing namespace is not an authorization grant: selector=%v, err=%v", selector, err)
+	}
+	status, ok := err.(interface{ Status() *metav1.Status })
+	if !ok || status.Status().Code != http.StatusNotFound {
+		t.Fatalf("expected the same denial as an inaccessible namespace, got %v", err)
 	}
 }

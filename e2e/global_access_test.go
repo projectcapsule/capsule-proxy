@@ -27,6 +27,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,7 +40,7 @@ import (
 
 // Start an isolated copy of the installed, changed proxy. The source deployment
 // and its arguments stay untouched; both flag modes can run in the same suite.
-func globalAccessProxy(f *accessFixture, standalone bool) *rest.Config {
+func globalAccessProxy(f *accessFixture, standalone bool, extraArgs ...string) *rest.Config {
 	ctx := context.Background()
 	selector := os.Getenv("E2E_PROXY_POD_SELECTOR")
 	if selector == "" {
@@ -59,6 +60,7 @@ func globalAccessProxy(f *accessFixture, standalone bool) *rest.Config {
 	if standalone {
 		name = f.id + "-standalone"
 	}
+	name += "-" + rand.String(5)
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: source.Namespace, Labels: map[string]string{accessRunLabel: f.id}}, Spec: *source.Spec.DeepCopy()}
 	pod.Spec.NodeName = ""
 	pod.Spec.HostNetwork = false
@@ -91,6 +93,7 @@ func globalAccessProxy(f *accessFixture, standalone bool) *rest.Config {
 	if standalone {
 		container.Args = append(container.Args, "--capsule-configuration-name="+f.id+"-absent")
 	}
+	container.Args = append(container.Args, extraArgs...)
 	Expect(k8sClient.Create(ctx, pod)).To(Succeed())
 	admin, err := kubernetes.NewForConfig(cfg)
 	Expect(err).NotTo(HaveOccurred())

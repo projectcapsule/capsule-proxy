@@ -77,7 +77,7 @@ func (n *kubeFilter) globalProxyHandler(mod modules.Module) http.HandlerFunc {
 		}
 
 		operation := v1beta1.ClusterResourceOperationList
-		if mux.Vars(request)["name"] != "" {
+		if mux.Vars(request)[resourceNameVar] != "" {
 			operation = v1beta1.ClusterResourceOperationGet
 		}
 
@@ -128,7 +128,7 @@ func (n *kubeFilter) globalReviewGetAllowed(ctx context.Context, proxyTenants []
 			return false, err
 		}
 
-		httpRequest = mux.SetURLVars(httpRequest, map[string]string{"name": attributes.Name})
+		httpRequest = mux.SetURLVars(httpRequest, map[string]string{resourceNameVar: attributes.Name})
 		mod := clusterscoped.GetResource(kind, n.reader, n.writer, path+"/{name}")
 
 		selector, err := mod.Handle(proxyTenants, req.NewHTTP(httpRequest, nil, "", nil, nil, nil, false, ""))
