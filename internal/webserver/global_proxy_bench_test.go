@@ -41,7 +41,7 @@ func BenchmarkGlobalAccessPipeline(b *testing.B) {
 						}
 						f.grant(b, capsulerbac.UserOwner, subject, globalNamespaceGrant(name))
 						for i := range unrelated {
-							setting := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("unrelated-%d", i)}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{Subjects: []v1beta1.GlobalSubject{{Kind: capsulerbac.GroupOwner, Name: fmt.Sprintf("unrelated-%d", i)}}, ClusterResources: globalNamespaceGrant(name)}}}}
+							setting := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("unrelated-%d", i)}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{Subjects: []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKindGroup, Name: fmt.Sprintf("unrelated-%d", i)}}, ClusterResources: globalNamespaceGrant(name)}}}}
 							if err := f.client.Create(b.Context(), setting); err != nil {
 								b.Fatal(err)
 							}

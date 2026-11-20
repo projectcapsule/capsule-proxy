@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
 	capsulerbac "github.com/projectcapsule/capsule/pkg/api/rbac"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -182,13 +183,13 @@ func (n *kubeFilter) globalProxyTenants(ctx context.Context, username string, gr
 		kind = capsulerbac.ServiceAccountOwner
 	}
 
-	proxyTenants, err := n.globalProxyTenantsForSubject(ctx, kind, username, fmt.Sprintf("%s:%s", kind.String(), username))
+	proxyTenants, err := n.globalProxyTenantsForSubject(ctx, kind, username, fmt.Sprintf("%s:%s", kind.String(), username), nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, group := range groups {
-		groupTenants, err := n.globalProxyTenantsForSubject(ctx, capsulerbac.GroupOwner, group, fmt.Sprintf("%s:%s", capsulerbac.GroupOwner, group))
+		groupTenants, err := n.globalProxyTenantsForSubject(ctx, capsulerbac.GroupOwner, group, fmt.Sprintf("%s:%s", capsulerbac.GroupOwner, group), nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -199,16 +200,83 @@ func (n *kubeFilter) globalProxyTenants(ctx context.Context, username string, gr
 	return proxyTenants, nil
 }
 
-func (n *kubeFilter) globalProxyTenantsForSubject(ctx context.Context, kind capsulerbac.OwnerKind, name, indexValue string) ([]*tenant.ProxyTenant, error) {
-	settings := &v1beta1.GlobalProxySettingsList{}
-	if err := n.managerReader.List(ctx, settings, client.MatchingFields{indexer.GlobalKindField: indexValue}); err != nil {
+// globalProxyTenantsForSubject converts the GlobalProxySettings that name the caller identity directly or, through
+// a Tenant subject, one of the Tenants the caller currently owns (ownedTenants). A Tenant listed in seenTenants has
+// already been resolved for this request, so ownership through several identities of the caller counts once.
+// Non-Capsule callers own no Tenants and pass nil for both.
+func (n *kubeFilter) globalProxyTenantsForSubject(
+	ctx context.Context,
+	kind capsulerbac.OwnerKind,
+	name, indexValue string,
+	ownedTenants []capsulev1beta2.Tenant,
+	seenTenants map[string]struct{},
+) ([]*tenant.ProxyTenant, error) {
+	settings, err := n.globalProxySettingsFor(ctx, indexValue, ownedTenants, seenTenants)
+	if err != nil {
 		return nil, fmt.Errorf("cannot retrieve GlobalProxySettings for %s %s: %w", kind, name, err)
 	}
 
+	ownedNames := make([]string, 0, len(ownedTenants))
+	for _, t := range ownedTenants {
+		ownedNames = append(ownedNames, t.GetName())
+	}
+
 	var proxyTenants []*tenant.ProxyTenant
-	for _, setting := range settings.Items {
-		proxyTenants = append(proxyTenants, tenant.NewClusterProxy(name, kind, setting.Spec.Rules))
+	for _, setting := range settings {
+		proxyTenants = append(proxyTenants, tenant.NewClusterProxy(name, kind, setting.Spec.Rules, ownedNames))
 	}
 
 	return proxyTenants, nil
+}
+
+// globalProxySettingsFor returns the GlobalProxySettings that name the caller identity directly or, through a
+// Tenant subject, one of the Tenants the caller currently owns. Both lookups use the cached indexes, so no
+// additional API calls are performed. A Tenant listed in seenTenants has already been resolved for this request.
+func (n *kubeFilter) globalProxySettingsFor(
+	ctx context.Context,
+	ownerIndexValue string,
+	ownedTenants []capsulev1beta2.Tenant,
+	seenTenants map[string]struct{},
+) ([]v1beta1.GlobalProxySettings, error) {
+	direct := &v1beta1.GlobalProxySettingsList{}
+	if err := n.managerReader.List(ctx, direct, client.MatchingFields{indexer.GlobalKindField: ownerIndexValue}); err != nil {
+		return nil, err
+	}
+
+	settings := direct.Items
+
+	var known map[string]struct{}
+
+	for _, t := range ownedTenants {
+		if _, ok := seenTenants[t.GetName()]; ok {
+			continue
+		}
+
+		seenTenants[t.GetName()] = struct{}{}
+
+		viaTenant := &v1beta1.GlobalProxySettingsList{}
+		if err := n.managerReader.List(ctx, viaTenant, client.MatchingFields{
+			indexer.GlobalKindField: fmt.Sprintf("%s:%s", v1beta1.GlobalSubjectKindTenant, t.GetName()),
+		}); err != nil {
+			return settings, err
+		}
+
+		if known == nil {
+			known = make(map[string]struct{}, len(settings))
+			for _, setting := range settings {
+				known[setting.GetName()] = struct{}{}
+			}
+		}
+
+		for _, setting := range viaTenant.Items {
+			if _, ok := known[setting.GetName()]; ok {
+				continue
+			}
+
+			known[setting.GetName()] = struct{}{}
+			settings = append(settings, setting)
+		}
+	}
+
+	return settings, nil
 }

@@ -93,13 +93,13 @@ func tenantOwner(name string, namespaces ...string) *tenant.ProxyTenant {
 
 func globalRule(selector map[string]string) *tenant.ProxyTenant {
 	return tenant.NewClusterProxy("alice", capsulerbac.UserOwner, []v1beta1.GlobalSubjectSpec{{
-		Subjects: []v1beta1.GlobalSubject{{Kind: capsulerbac.UserOwner, Name: "alice"}},
+		Subjects: []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKindUser, Name: "alice"}},
 		ClusterResources: []v1beta1.ClusterResource{{
 			APIGroups: []string{""},
 			Resources: []string{"namespaces"},
 			Selector:  &metav1.LabelSelector{MatchLabels: selector},
 		}},
-	}})
+	}}, nil)
 }
 
 type testRequest struct{ *http.Request }

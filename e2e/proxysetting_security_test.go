@@ -172,7 +172,7 @@ var _ = Describe("ProxySetting cluster-resource isolation", Ordered, Serial, Con
 
 	It("preserves administrator grants through GlobalProxySettings", Label("proxysetting-global"), func() {
 		global := &v1beta1.GlobalProxySettings{ObjectMeta: metav1.ObjectMeta{Name: f.id + "-global"}, Spec: v1beta1.GlobalProxySettingsSpec{Rules: []v1beta1.GlobalSubjectSpec{{
-			Subjects: []v1beta1.GlobalSubject{{Kind: capsulerbac.UserOwner, Name: f.subjects["coowner"].username}},
+			Subjects: []v1beta1.GlobalSubject{{Kind: v1beta1.GlobalSubjectKindUser, Name: f.subjects["coowner"].username}},
 			ClusterResources: []v1beta1.ClusterResource{
 				{APIGroups: []string{""}, Resources: []string{"namespaces"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{corev1.LabelMetadataName: f.namespaces["b"]}}},
 				{APIGroups: []string{rbacv1.GroupName}, Resources: []string{"clusterroles"}, Selector: &metav1.LabelSelector{MatchLabels: map[string]string{corev1.LabelMetadataName: f.id + "-foreign"}}},
