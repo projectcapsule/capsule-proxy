@@ -20,6 +20,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
+      # cog verify (cocogitto 7.0.0) panics when git user.name is unset.
+      - name: Set git identity for cocogitto
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Validate Conventional Commits
         env:
           COMMIT_BASE: ${{ github.event.pull_request.base.sha }}

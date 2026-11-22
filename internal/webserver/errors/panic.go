@@ -24,7 +24,7 @@ func HandleUnauthorized(w http.ResponseWriter, err error, message string) {
 		Code:       http.StatusForbidden,
 	}
 
-	w.Header().Set("content-type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusForbidden)
 
 	//nolint:errchkjson
@@ -43,7 +43,7 @@ func HandleError(w http.ResponseWriter, err error, message string) {
 		Code:       http.StatusInternalServerError,
 	}
 
-	w.Header().Set("content-type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
 
 	//nolint:errchkjson
