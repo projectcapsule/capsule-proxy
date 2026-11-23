@@ -13,13 +13,18 @@ concurrency:
 
 jobs:
   commit_lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
+      # cog verify (cocogitto 7.0.0) panics when git user.name is unset.
+      - name: Set git identity for cocogitto
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Validate Conventional Commits
         env:
           COMMIT_BASE: ${{ github.event.pull_request.base.sha }}
